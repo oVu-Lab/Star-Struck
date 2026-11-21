@@ -11,6 +11,147 @@
 
 import { UNIT_STATES } from '../battle/UnitManager.js';
 
+export const TERRAIN_THEMES = Object.freeze({
+  orbital_bastion: {
+    label: 'Celestial Citadel',
+    backdropInner: 'rgba(28, 44, 78, 0.72)',
+    backdropMid: 'rgba(11, 20, 40, 0.9)',
+    backdropOuter: '#060a14',
+    slabFront: '#131d36',
+    slabSide: '#0a1021',
+    slabRim: 'rgba(226, 183, 91, 0.34)',
+    floorStops: ['#162442', '#1c2d50', '#242544'],
+    gridColor: 'rgba(226, 198, 134, 0.09)',
+    borderColor: 'rgba(226, 183, 91, 0.52)',
+    cornerColor: '#f3d284',
+    sigilPrimary: 'rgba(226, 183, 91, 0.34)',
+    sigilSecondary: 'rgba(125, 211, 252, 0.24)',
+    sigilStyle: 'celestial_compass',
+    obstacleLeft: '#263455',
+    obstacleRight: '#18233d',
+    obstacleTop: '#384c76',
+    obstacleEdge: 'rgba(226, 183, 91, 0.62)',
+    obstacleCrest: 'rgba(243, 210, 132, 0.6)',
+    riftGlow: 'rgba(125, 211, 252, 0.28)',
+    particles: ['#f3d284', '#f8fafc', '#7dd3fc'],
+  },
+  azure_relay: {
+    label: 'Azure Leyline',
+    backdropInner: 'rgba(12, 56, 78, 0.74)',
+    backdropMid: 'rgba(7, 24, 38, 0.9)',
+    backdropOuter: '#040c14',
+    slabFront: '#0a2538',
+    slabSide: '#061724',
+    slabRim: 'rgba(45, 212, 191, 0.34)',
+    floorStops: ['#0d2d45', '#10374f', '#132a47'],
+    gridColor: 'rgba(94, 234, 212, 0.095)',
+    borderColor: 'rgba(45, 212, 191, 0.52)',
+    cornerColor: '#5eead4',
+    sigilPrimary: 'rgba(45, 212, 191, 0.34)',
+    sigilSecondary: 'rgba(56, 189, 248, 0.28)',
+    sigilStyle: 'leyline_lattice',
+    obstacleLeft: '#14445c',
+    obstacleRight: '#0c2c3d',
+    obstacleTop: '#1f617f',
+    obstacleEdge: 'rgba(94, 234, 212, 0.65)',
+    obstacleCrest: 'rgba(94, 234, 212, 0.65)',
+    riftGlow: 'rgba(45, 212, 191, 0.3)',
+    particles: ['#5eead4', '#38bdf8', '#e0f2fe'],
+  },
+  obsidian_spire: {
+    label: 'Obsidian Sanctum',
+    backdropInner: 'rgba(46, 20, 68, 0.74)',
+    backdropMid: 'rgba(17, 10, 29, 0.92)',
+    backdropOuter: '#08050f',
+    slabFront: '#1b112b',
+    slabSide: '#10091c',
+    slabRim: 'rgba(192, 132, 252, 0.36)',
+    floorStops: ['#1b132c', '#241838', '#2c152d'],
+    gridColor: 'rgba(192, 132, 252, 0.09)',
+    borderColor: 'rgba(192, 132, 252, 0.5)',
+    cornerColor: '#e879f9',
+    sigilPrimary: 'rgba(192, 132, 252, 0.36)',
+    sigilSecondary: 'rgba(244, 114, 182, 0.24)',
+    sigilStyle: 'arcane_hexagram',
+    obstacleLeft: '#2a1c42',
+    obstacleRight: '#1a102b',
+    obstacleTop: '#3d285e',
+    obstacleEdge: 'rgba(216, 180, 254, 0.62)',
+    obstacleCrest: 'rgba(232, 121, 249, 0.65)',
+    riftGlow: 'rgba(192, 132, 252, 0.36)',
+    particles: ['#c084fc', '#f472b6', '#e9d5ff'],
+  },
+  cavalry_plains: {
+    label: 'Tempest Steppe',
+    backdropInner: 'rgba(20, 58, 52, 0.72)',
+    backdropMid: 'rgba(11, 28, 28, 0.9)',
+    backdropOuter: '#061010',
+    slabFront: '#152e2b',
+    slabSide: '#0c1c1a',
+    slabRim: 'rgba(110, 231, 183, 0.32)',
+    floorStops: ['#163430', '#1d3d35', '#2b3329'],
+    gridColor: 'rgba(167, 243, 208, 0.085)',
+    borderColor: 'rgba(52, 211, 153, 0.48)',
+    cornerColor: '#fcd34d',
+    sigilPrimary: 'rgba(252, 211, 77, 0.32)',
+    sigilSecondary: 'rgba(52, 211, 153, 0.28)',
+    sigilStyle: 'windstep_banners',
+    obstacleLeft: '#2d473d',
+    obstacleRight: '#1b2e27',
+    obstacleTop: '#426152',
+    obstacleEdge: 'rgba(252, 211, 77, 0.56)',
+    obstacleCrest: 'rgba(110, 231, 183, 0.55)',
+    riftGlow: 'rgba(52, 211, 153, 0.28)',
+    particles: ['#6ee7b7', '#fde68a', '#ecfdf5'],
+  },
+  chrono_nexus: {
+    label: 'Astral Sundial',
+    backdropInner: 'rgba(56, 42, 24, 0.68)',
+    backdropMid: 'rgba(17, 18, 34, 0.9)',
+    backdropOuter: '#080912',
+    slabFront: '#221e2b',
+    slabSide: '#14111b',
+    slabRim: 'rgba(251, 191, 36, 0.38)',
+    floorStops: ['#1c213b', '#27263d', '#312633'],
+    gridColor: 'rgba(251, 191, 36, 0.095)',
+    borderColor: 'rgba(251, 191, 36, 0.55)',
+    cornerColor: '#fde68a',
+    sigilPrimary: 'rgba(251, 191, 36, 0.38)',
+    sigilSecondary: 'rgba(167, 139, 250, 0.26)',
+    sigilStyle: 'chrono_astrolabe',
+    obstacleLeft: '#3a3242',
+    obstacleRight: '#241f2b',
+    obstacleTop: '#544658',
+    obstacleEdge: 'rgba(251, 191, 36, 0.66)',
+    obstacleCrest: 'rgba(253, 230, 138, 0.68)',
+    riftGlow: 'rgba(251, 191, 36, 0.32)',
+    particles: ['#fbbf24', '#c4b5fd', '#fef3c7'],
+  },
+  hyperion_throne: {
+    label: 'Ironforge Dreadnought',
+    backdropInner: 'rgba(72, 28, 18, 0.72)',
+    backdropMid: 'rgba(26, 13, 14, 0.92)',
+    backdropOuter: '#0d0607',
+    slabFront: '#2a1816',
+    slabSide: '#180d0c',
+    slabRim: 'rgba(251, 146, 60, 0.38)',
+    floorStops: ['#251c22', '#2f1e1f', '#381c1a'],
+    gridColor: 'rgba(251, 146, 60, 0.095)',
+    borderColor: 'rgba(251, 146, 60, 0.56)',
+    cornerColor: '#fdba74',
+    sigilPrimary: 'rgba(251, 146, 60, 0.38)',
+    sigilSecondary: 'rgba(248, 113, 113, 0.28)',
+    sigilStyle: 'ironforge_core',
+    obstacleLeft: '#402826',
+    obstacleRight: '#291918',
+    obstacleTop: '#593732',
+    obstacleEdge: 'rgba(251, 146, 60, 0.68)',
+    obstacleCrest: 'rgba(251, 146, 60, 0.72)',
+    riftGlow: 'rgba(249, 115, 22, 0.34)',
+    particles: ['#fb923c', '#fbbf24', '#fca5a5'],
+  },
+});
+
 export class BattleRenderer {
   constructor({ assetManager, animationManager, particleSystem, gameState }) {
     this._assets = assetManager;
@@ -29,11 +170,23 @@ export class BattleRenderer {
     this._floorCache = null;
     this._floorCacheKey = '';
     this._renderables = [];
+    this._lastDaisRect = null;
+  }
+
+  _getTheme(bf) {
+    return TERRAIN_THEMES[bf?.theme] || TERRAIN_THEMES.orbital_bastion;
   }
 
   setBattlefield(battlefield) {
     this._battlefield = battlefield;
     this._floorCacheKey = '';
+    const theme = this._getTheme(battlefield);
+    this._particles?.seedAmbient(
+      this._width,
+      this._height,
+      this._state?.settings?.graphicsQuality || 'high',
+      theme.particles,
+    );
   }
 
   setDebugMode(enabled) {
@@ -45,10 +198,12 @@ export class BattleRenderer {
     this._ctx = canvas.getContext('2d');
     this._floorCacheKey = '';
     this.resize();
+    const theme = this._getTheme(this._battlefield);
     this._particles?.seedAmbient(
       this._width,
       this._height,
       this._state.settings.graphicsQuality,
+      theme.particles,
     );
   }
 
@@ -57,6 +212,18 @@ export class BattleRenderer {
     this._ctx = null;
     this._floorCache = null;
     this._floorCacheKey = '';
+    this._lastDaisRect = null;
+  }
+
+  hitTestCommanderDais(screenX, screenY) {
+    const r = this._lastDaisRect;
+    if (!r) return false;
+    return (
+      screenX >= r.x &&
+      screenX <= r.x + r.width &&
+      screenY >= r.y &&
+      screenY <= r.y + r.height
+    );
   }
 
   resize() {
@@ -79,7 +246,7 @@ export class BattleRenderer {
 
   _ensureFloorCache(bf, w, h, stageId) {
     if (typeof document === 'undefined') return null;
-    const key = `${stageId || 'default'}_${bf.terrainId || 'std'}_${w}x${h}_${this._dpr}`;
+    const key = `${stageId || 'default'}_${bf.terrainId || 'std'}_${bf.theme || 'orbital_bastion'}_${w}x${h}_${this._dpr}`;
     if (this._floorCache && this._floorCacheKey === key) {
       return this._floorCache;
     }
@@ -111,6 +278,9 @@ export class BattleRenderer {
     activeTactic = null,
     commander = null,
     ultimateEnergy = 0,
+    pointerWorld = null,
+    hoverDais = false,
+    selectedCard = null,
   }) {
     if (!this._ctx || !this._canvas) return;
     const bf = battlefield || this._battlefield;
@@ -121,26 +291,27 @@ export class BattleRenderer {
     const h = this._height;
     const shake = this._anim.getShakeOffset();
     const elapsed = this._anim.getElapsed();
+    const theme = this._getTheme(bf);
 
     ctx.save();
     ctx.scale(this._dpr, this._dpr);
     ctx.translate(shake.x, shake.y);
 
-    // 1. Deep orbital navy backdrop + subtle stage art
+    // 1. Realm-themed atmospheric backdrop + subtle stage art
     const bgImg = stage ? this._assets.getImageElement(stage.backgroundAssetId) : null;
     if (bgImg && bgImg.complete && bgImg.naturalWidth > 0) {
-      ctx.globalAlpha = 0.28;
+      ctx.globalAlpha = 0.24;
       ctx.drawImage(bgImg, 0, 0, w, h);
       ctx.globalAlpha = 1;
     }
     const backdrop = ctx.createRadialGradient(w * 0.5, h * 0.34, 40, w * 0.5, h * 0.52, w * 0.74);
-    backdrop.addColorStop(0, 'rgba(20, 38, 70, 0.72)');
-    backdrop.addColorStop(0.55, 'rgba(9, 17, 34, 0.9)');
-    backdrop.addColorStop(1, '#050912');
+    backdrop.addColorStop(0, theme.backdropInner);
+    backdrop.addColorStop(0.55, theme.backdropMid);
+    backdrop.addColorStop(1, theme.backdropOuter);
     ctx.fillStyle = backdrop;
     ctx.fillRect(0, 0, w, h);
 
-    // 2. Ambient starlight particles behind arena
+    // 2. Ambient realm motes behind arena
     if (this._particles?.renderAmbient) {
       this._particles.renderAmbient(ctx);
     } else {
@@ -154,14 +325,16 @@ export class BattleRenderer {
     } else {
       this._drawStaticArenaFloor(ctx, bf, w, h);
     }
-    this._drawDynamicArenaOverlays(ctx, bf, w, h, phase, elapsed, activeTactic);
+    this._drawDynamicArenaOverlays(ctx, bf, w, h, phase, elapsed, activeTactic, selectedCard);
 
     // 4. Decorative & Blocked Ground Terrain Features
     this._drawGroundFeatures(ctx, bf, w, h, elapsed);
 
-    // 4b. Off-Field Commander Orbital Dais (strong visual presence flanking the Ally Zone)
+    // 4b. Off-Field Commander Dais (interactive & distinct presence flanking the Ally Zone)
     if (commander) {
-      this._drawCommanderDais(ctx, bf, w, h, commander, ultimateEnergy, elapsed);
+      this._drawCommanderDais(ctx, bf, w, h, commander, ultimateEnergy, elapsed, hoverDais);
+    } else {
+      this._lastDaisRect = null;
     }
 
     // 5. Boss/Skill Telegraphs on the ground plane
@@ -169,6 +342,11 @@ export class BattleRenderer {
 
     // 6. Ground World Effects (rings, heal waves, deploy seals, tactic pulses, boss entrance)
     this._drawWorldEffects(ctx, bf, w, h, 'ground');
+
+    // 6b. Live tactical targeting reticle for Unit deployment, AoE Skills, or Prep positioning
+    if (pointerWorld) {
+      this._drawTargetingReticle(ctx, bf, w, h, phase, pointerWorld, selectedCard, selectedPrepUnitUid, elapsed);
+    }
 
     // 7. Depth-sorted Obstacles & Units (reuse array to avoid GC churn)
     const renderables = this._renderables;
@@ -263,6 +441,7 @@ export class BattleRenderer {
   _drawStaticArenaFloor(ctx, bf, w, h) {
     const W = bf.worldWidth;
     const H = bf.worldHeight;
+    const theme = this._getTheme(bf);
 
     const pTL = bf.worldToScreen(0, 0, w, h);
     const pBL = bf.worldToScreen(0, H, w, h);
@@ -271,7 +450,7 @@ export class BattleRenderer {
     const thickness = 14;
 
     // Platform slab bevels
-    ctx.fillStyle = '#091326';
+    ctx.fillStyle = theme.slabFront;
     ctx.beginPath();
     ctx.moveTo(pBL.x, pBL.y);
     ctx.lineTo(pBR.x, pBR.y);
@@ -280,7 +459,7 @@ export class BattleRenderer {
     ctx.closePath();
     ctx.fill();
 
-    ctx.fillStyle = '#060c1a';
+    ctx.fillStyle = theme.slabSide;
     ctx.beginPath();
     ctx.moveTo(pBR.x, pBR.y);
     ctx.lineTo(pTR.x, pTR.y);
@@ -289,8 +468,8 @@ export class BattleRenderer {
     ctx.closePath();
     ctx.fill();
 
-    // Subtle rim highlight along lower slab
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.22)';
+    // Rim highlight along lower slab
+    ctx.strokeStyle = theme.slabRim;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(pBL.x, pBL.y + thickness);
@@ -301,9 +480,9 @@ export class BattleRenderer {
     // Arena main surface
     this._drawPoly(ctx, bf, w, h, [[0, 0], [W, 0], [W, H], [0, H]]);
     const floorGrad = ctx.createLinearGradient(pBL.x, pTR.y, pTR.x, pBL.y);
-    floorGrad.addColorStop(0, '#0f203d');
-    floorGrad.addColorStop(0.48, '#132645');
-    floorGrad.addColorStop(1, '#1c1d38');
+    floorGrad.addColorStop(0, theme.floorStops[0]);
+    floorGrad.addColorStop(0.48, theme.floorStops[1]);
+    floorGrad.addColorStop(1, theme.floorStops[2]);
     ctx.fillStyle = floorGrad;
     ctx.fill();
 
@@ -322,7 +501,7 @@ export class BattleRenderer {
     ctx.stroke();
 
     // Isometric tactical grid lines (every 10 world units)
-    ctx.strokeStyle = 'rgba(148, 179, 214, 0.085)';
+    ctx.strokeStyle = theme.gridColor;
     ctx.lineWidth = 1;
     for (let x = 10; x < W; x += 10) {
       const a = bf.worldToScreen(x, 0, w, h);
@@ -341,33 +520,31 @@ export class BattleRenderer {
       ctx.stroke();
     }
 
-    // Center celestial meridian + diamond compass marker
+    // Center meridian + realm-specific centerpiece sigil
     const midTop = bf.worldToScreen(W * 0.5, 4, w, h);
     const midBot = bf.worldToScreen(W * 0.5, H - 4, w, h);
     const midCenter = bf.worldToScreen(W * 0.5, H * 0.5, w, h);
     ctx.save();
     ctx.setLineDash([5, 6]);
-    ctx.strokeStyle = 'rgba(226, 183, 91, 0.28)';
+    ctx.strokeStyle = theme.sigilPrimary;
     ctx.lineWidth = 1.2;
     ctx.beginPath();
     ctx.moveTo(midTop.x, midTop.y);
     ctx.lineTo(midBot.x, midBot.y);
     ctx.stroke();
     ctx.setLineDash([]);
-    ctx.strokeStyle = 'rgba(226, 183, 91, 0.22)';
-    ctx.beginPath();
-    ctx.ellipse(midCenter.x, midCenter.y, 24, 12, 0, 0, Math.PI * 2);
-    ctx.stroke();
+
+    this._drawRealmCenterpiece(ctx, bf, w, h, midCenter, theme);
     ctx.restore();
 
-    // Arena crisp outer border + corner ticks
+    // Arena crisp outer border
     this._drawPoly(ctx, bf, w, h, [[0, 0], [W, 0], [W, H], [0, H]]);
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.48)';
+    ctx.strokeStyle = theme.borderColor;
     ctx.lineWidth = 1.8;
     ctx.stroke();
 
-    // Corner starlight vertices
-    ctx.fillStyle = 'rgba(226, 183, 91, 0.72)';
+    // Corner vertices
+    ctx.fillStyle = theme.cornerColor;
     for (const pt of [pTL, pTR, pBR, pBL]) {
       ctx.beginPath();
       ctx.arc(pt.x, pt.y, 2.5, 0, Math.PI * 2);
@@ -386,11 +563,86 @@ export class BattleRenderer {
     ctx.fillText('ENEMY ZONE', enemyLbl.x, enemyLbl.y);
   }
 
-  _drawDynamicArenaOverlays(ctx, bf, w, h, phase, elapsed, activeTactic) {
+  _drawRealmCenterpiece(ctx, bf, w, h, center, theme) {
+    ctx.strokeStyle = theme.sigilPrimary;
+    ctx.lineWidth = 1.3;
+    ctx.beginPath();
+    ctx.ellipse(center.x, center.y, 28, 14, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.strokeStyle = theme.sigilSecondary;
+    ctx.lineWidth = 1;
+
+    if (theme.sigilStyle === 'arcane_hexagram') {
+      // Twin opposing ritual triangles for Dark Arcane Sanctum
+      for (const dir of [-1, 1]) {
+        ctx.beginPath();
+        for (let k = 0; k < 3; k += 1) {
+          const a = (Math.PI * 2 * k) / 3 + (dir > 0 ? 0 : Math.PI);
+          const x = center.x + Math.cos(a) * 24;
+          const y = center.y + Math.sin(a) * 12;
+          if (k === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.stroke();
+      }
+    } else if (theme.sigilStyle === 'chrono_astrolabe') {
+      // Concentric sundial rings + 8 clockwork spokes
+      ctx.beginPath();
+      ctx.ellipse(center.x, center.y, 40, 20, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      for (let k = 0; k < 8; k += 1) {
+        const a = (Math.PI * k) / 4;
+        ctx.beginPath();
+        ctx.moveTo(center.x + Math.cos(a) * 14, center.y + Math.sin(a) * 7);
+        ctx.lineTo(center.x + Math.cos(a) * 38, center.y + Math.sin(a) * 19);
+        ctx.stroke();
+      }
+    } else if (theme.sigilStyle === 'ironforge_core') {
+      // Heavy riveted octagonal furnace grate
+      ctx.beginPath();
+      for (let k = 0; k < 8; k += 1) {
+        const a = (Math.PI * k) / 4 + Math.PI / 8;
+        const x = center.x + Math.cos(a) * 34;
+        const y = center.y + Math.sin(a) * 17;
+        if (k === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.stroke();
+    } else if (theme.sigilStyle === 'windstep_banners') {
+      // Sweeping twin highland wind-lane arcs
+      const nArc = bf.worldToScreen(50, 26, w, h);
+      const sArc = bf.worldToScreen(50, 74, w, h);
+      ctx.beginPath();
+      ctx.ellipse(nArc.x, nArc.y, 26, 11, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(sArc.x, sArc.y, 26, 11, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (theme.sigilStyle === 'leyline_lattice') {
+      // Diamond crystal conduit lattice
+      this._drawPoly(ctx, bf, w, h, [[50, 38], [62, 50], [50, 62], [38, 50]]);
+      ctx.stroke();
+    } else {
+      // Celestial 4-point compass star
+      ctx.beginPath();
+      ctx.moveTo(center.x - 32, center.y);
+      ctx.lineTo(center.x + 32, center.y);
+      ctx.moveTo(center.x, center.y - 16);
+      ctx.lineTo(center.x, center.y + 16);
+      ctx.stroke();
+    }
+  }
+
+  _drawDynamicArenaOverlays(ctx, bf, w, h, phase, elapsed, activeTactic, selectedCard = null) {
     // Friendly Deployment Region dynamic pulse (highlights during Preparation or when unit card selected)
     const fr = bf.regions.friendly;
-    const cardSelected = this._state?.battle?.selectedCardSlot !== -1;
-    const emphasize = phase === 'preparation' || cardSelected;
+    const isUnitCardSelected =
+      selectedCard?.category === 'unit' ||
+      (!selectedCard && this._state?.battle?.selectedCardSlot !== -1);
+    const emphasize = phase === 'preparation' || isUnitCardSelected;
     this._drawPoly(ctx, bf, w, h, [
       [fr.minX, fr.minY],
       [fr.maxX, fr.minY],
@@ -418,9 +670,95 @@ export class BattleRenderer {
     }
   }
 
-  _drawCommanderDais(ctx, bf, w, h, commander, ultimateEnergy, elapsed) {
-    // Position Commander on an elevated orbital command dais outside the left Ally Zone
-    // so the Commander has unmistakable presence without obscuring any battlefield units.
+  _drawTargetingReticle(ctx, bf, w, h, phase, pointerWorld, selectedCard, selectedPrepUnitUid, elapsed) {
+    if (!pointerWorld) return;
+    const { x, y } = pointerWorld;
+    if (x < 0 || x > bf.worldWidth || y < 0 || y > bf.worldHeight) return;
+
+    // 1. Preparation phase: show destination anchor when moving a selected friendly unit
+    if (phase === 'preparation' && selectedPrepUnitUid) {
+      const valid = bf.isInsideFriendlyRegion(x, y);
+      const p = bf.worldToScreen(x, y, w, h);
+      ctx.save();
+      ctx.strokeStyle = valid ? '#38bdf8' : '#f87171';
+      ctx.lineWidth = 1.8;
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      ctx.ellipse(p.x, p.y, 18, 9, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.font = '700 9px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = valid ? '#bae6fd' : '#fecaca';
+      ctx.fillText(valid ? 'PLACE HERE' : 'ALLY ZONE ONLY', p.x, p.y - 14);
+      ctx.restore();
+      return;
+    }
+
+    if (!selectedCard) return;
+
+    // 2. Unit Card deployment targeting reticle
+    if (selectedCard.category === 'unit') {
+      const valid = bf.isInsideFriendlyRegion(x, y);
+      const p = bf.worldToScreen(x, y, w, h);
+      const pulse = 1 + Math.sin(elapsed * 6) * 0.08;
+      ctx.save();
+      ctx.strokeStyle = valid ? '#38bdf8' : '#f87171';
+      ctx.fillStyle = valid ? 'rgba(56, 189, 248, 0.16)' : 'rgba(248, 113, 113, 0.16)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(p.x, p.y, 20 * pulse, 10 * pulse, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.font = '700 9.5px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = valid ? '#e0f2fe' : '#fecaca';
+      ctx.fillText(valid ? `DEPLOY ${selectedCard.name.toUpperCase()}` : 'DEPLOY IN ALLY ZONE', p.x, p.y - 15);
+      ctx.restore();
+      return;
+    }
+
+    // 3. AoE Skill Card blast radius reticle
+    const eff = selectedCard.effect;
+    if (
+      selectedCard.category === 'skill' &&
+      eff &&
+      (eff.kind === 'aoe_damage' || eff.kind === 'crowd_control' || eff.kind === 'aoe_debuff')
+    ) {
+      const tierKey = String(selectedCard.tier || 1);
+      const radius = eff.radiusByTier?.[tierKey] ?? 18;
+      const p = bf.worldToScreen(x, y, w, h);
+      const rx = radius * p.scale * 0.85;
+      const ry = radius * p.scale * 0.46;
+      const color = eff.color || '#38bdf8';
+
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.ellipse(p.x, p.y, rx, ry, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.globalAlpha = 0.15;
+      ctx.fill();
+
+      ctx.globalAlpha = 0.95;
+      ctx.font = '700 9.5px "JetBrains Mono", monospace';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#070c17';
+      ctx.fillText(`CAST · ${selectedCard.name.toUpperCase()}`, p.x + 1, p.y - ry * 0.4 + 1);
+      ctx.fillStyle = '#fde68a';
+      ctx.fillText(`CAST · ${selectedCard.name.toUpperCase()}`, p.x, p.y - ry * 0.4);
+      ctx.restore();
+    }
+  }
+
+  _drawCommanderDais(ctx, bf, w, h, commander, ultimateEnergy, elapsed, hoverDais = false) {
+    // Position Commander on an elevated command dais flanking the Ally Zone
+    // so the Commander has unmistakable presence and can be clicked to unleash Ultimates.
     const p = bf.worldToScreen(-13.5, 44, w, h);
     const s = Math.max(0.74, Math.min(1.32, p.scale / 7.2));
     const ultPct = Math.max(0, Math.min(1, (ultimateEnergy || 0) / 100));
@@ -431,7 +769,7 @@ export class BattleRenderer {
       kael: { accent: '#38bdf8', glow: 'rgba(56, 189, 248, 0.42)', ring: '#7dd3fc' },
       lyra: { accent: '#34d399', glow: 'rgba(52, 211, 153, 0.42)', ring: '#6ee7b7' },
       seraphina: { accent: '#a78bfa', glow: 'rgba(167, 139, 250, 0.42)', ring: '#c4b5fd' },
-      vanguard_zero: { accent: '#60a5fa', glow: 'rgba(96, 165, 250, 0.42)', ring: '#93c5fd' },
+      vanguard_zero: { accent: '#fb923c', glow: 'rgba(251, 146, 60, 0.42)', ring: '#fdba74' },
     };
     const palette = themeColors[commander.id] || themeColors.astra;
     const floatY = Math.sin(elapsed * 2.2) * 3.2 * s;
@@ -441,6 +779,20 @@ export class BattleRenderer {
     const cardH = 96 * s;
     const cx = Math.max(cardW * 0.5 + 16, Math.min(w - cardW * 0.5 - 16, p.x));
     const cy = Math.max(cardH + 74, Math.min(h - 170, p.y));
+
+    const frameX = cx - cardW * 0.5;
+    const frameY = cy - cardH - 10 * s + floatY;
+    const cornerR = 8 * s;
+
+    // Record interactive hit-box covering the Commander portrait + dais platform
+    this._lastDaisRect = {
+      x: frameX - 8 * s,
+      y: frameY - 10 * s,
+      width: cardW + 16 * s,
+      height: cardH + 34 * s,
+      cx,
+      cy,
+    };
 
     ctx.save();
 
@@ -465,18 +817,18 @@ export class BattleRenderer {
     ctx.fill();
 
     ctx.fillStyle = '#0c1830';
-    ctx.strokeStyle = palette.accent;
-    ctx.lineWidth = ultReady ? 2.4 : 1.6;
+    ctx.strokeStyle = hoverDais ? '#fde68a' : palette.accent;
+    ctx.lineWidth = ultReady || hoverDais ? 2.6 : 1.6;
     ctx.beginPath();
     ctx.ellipse(cx, cy, 34 * s, 14.5 * s, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
-    // Outer rotating orbital rune ring (visibly distinguishes Commander from regular units)
+    // Outer rotating rune ring (visibly distinguishes Commander from regular units)
     ctx.save();
     ctx.strokeStyle = palette.ring;
-    ctx.globalAlpha = ultReady ? 0.85 : 0.45;
-    ctx.lineWidth = ultReady ? 2.2 : 1.4;
+    ctx.globalAlpha = ultReady || hoverDais ? 0.88 : 0.45;
+    ctx.lineWidth = ultReady || hoverDais ? 2.2 : 1.4;
     ctx.setLineDash([10, 6]);
     ctx.beginPath();
     ctx.ellipse(cx, cy, (40 + Math.sin(elapsed * 3) * 2) * s, (17.5 + Math.sin(elapsed * 3) * 0.8) * s, 0, 0, Math.PI * 2);
@@ -496,17 +848,12 @@ export class BattleRenderer {
     }
 
     // 3. Elevated Commander Portrait Frame (2.3x larger than ordinary units)
-    const frameX = cx - cardW * 0.5;
-    const frameY = cy - cardH - 10 * s + floatY;
-    const cornerR = 8 * s;
-
-    // Ambient hero aura behind portrait
-    const aura = ctx.createRadialGradient(cx, frameY + cardH * 0.5, 6 * s, cx, frameY + cardH * 0.5, cardH * 0.72);
+    const aura = ctx.createRadialGradient(cx, frameY + cardH * 0.5, 6 * s, cx, frameY + cardH * 0.5, cardH * (hoverDais ? 0.84 : 0.72));
     aura.addColorStop(0, palette.glow);
     aura.addColorStop(1, 'rgba(6, 11, 22, 0)');
     ctx.fillStyle = aura;
     ctx.beginPath();
-    ctx.arc(cx, frameY + cardH * 0.5, cardH * 0.72, 0, Math.PI * 2);
+    ctx.arc(cx, frameY + cardH * 0.5, cardH * (hoverDais ? 0.84 : 0.72), 0, Math.PI * 2);
     ctx.fill();
 
     // Clipped portrait card body
@@ -549,8 +896,8 @@ export class BattleRenderer {
     } else {
       ctx.rect(frameX, frameY, cardW, cardH);
     }
-    ctx.strokeStyle = ultReady ? '#fde68a' : palette.accent;
-    ctx.lineWidth = ultReady ? 2.8 : 2;
+    ctx.strokeStyle = ultReady || hoverDais ? '#fde68a' : palette.accent;
+    ctx.lineWidth = ultReady || hoverDais ? 2.8 : 2;
     ctx.stroke();
 
     // Top crest diamond
@@ -576,10 +923,17 @@ export class BattleRenderer {
     const shortName = (commander.name || 'Commander').split(' ')[0];
     ctx.fillText(shortName, cx, labelY);
 
+    if (hoverDais && ultReady) {
+      ctx.font = `700 ${Math.max(8, Math.round(8.5 * s))}px "JetBrains Mono", monospace`;
+      ctx.fillStyle = '#fde68a';
+      ctx.fillText('CLICK TO CAST', cx, frameY - 12 * s);
+    }
+
     ctx.restore();
   }
 
   _drawGroundFeatures(ctx, bf, w, h, elapsed) {
+    const theme = this._getTheme(bf);
     for (let i = 0; i < bf.features.length; i += 1) {
       const feat = bf.features[i];
       if (feat.type === 'blocked') {
@@ -595,21 +949,24 @@ export class BattleRenderer {
         ctx.stroke();
 
         const c = bf.worldToScreen((x1 + x2) * 0.5, (y1 + y2) * 0.5, w, h);
-        ctx.fillStyle = `rgba(167, 139, 250, ${(0.22 + Math.sin(elapsed * 3) * 0.08).toFixed(3)})`;
+        ctx.save();
+        ctx.fillStyle = theme.riftGlow;
+        ctx.globalAlpha = 0.62 + Math.sin(elapsed * 3) * 0.22;
         ctx.beginPath();
         ctx.ellipse(c.x, c.y, 13, 6.5, 0, 0, Math.PI * 2);
         ctx.fill();
+        ctx.restore();
       } else if (feat.type === 'decorative') {
         const c = bf.worldToScreen(feat.x, feat.y, w, h);
         const rx = (feat.radius || 6) * c.scale * 0.85;
         const ry = (feat.radius || 6) * c.scale * 0.45;
         ctx.save();
-        ctx.strokeStyle = 'rgba(226, 183, 91, 0.26)';
+        ctx.strokeStyle = theme.sigilPrimary;
         ctx.lineWidth = 1.2;
         ctx.beginPath();
         ctx.ellipse(c.x, c.y, rx, ry, 0, 0, Math.PI * 2);
         ctx.stroke();
-        ctx.strokeStyle = 'rgba(56, 189, 248, 0.2)';
+        ctx.strokeStyle = theme.sigilSecondary;
         ctx.beginPath();
         ctx.ellipse(c.x, c.y, rx * 0.62, ry * 0.62, 0, 0, Math.PI * 2);
         ctx.stroke();
@@ -619,6 +976,7 @@ export class BattleRenderer {
   }
 
   _drawObstacle(ctx, bf, w, h, feat) {
+    const theme = this._getTheme(bf);
     const x1 = feat.x;
     const y1 = feat.y;
     const x2 = feat.x + (feat.width || 6);
@@ -635,7 +993,7 @@ export class BattleRenderer {
     const t3 = bf.worldToScreen(x1, y2, w, h, elev);
 
     ctx.save();
-    ctx.fillStyle = '#182947';
+    ctx.fillStyle = theme.obstacleLeft;
     ctx.beginPath();
     ctx.moveTo(b3.x, b3.y);
     ctx.lineTo(b2.x, b2.y);
@@ -644,7 +1002,7 @@ export class BattleRenderer {
     ctx.closePath();
     ctx.fill();
 
-    ctx.fillStyle = '#0f1c33';
+    ctx.fillStyle = theme.obstacleRight;
     ctx.beginPath();
     ctx.moveTo(b2.x, b2.y);
     ctx.lineTo(b1.x, b1.y);
@@ -653,7 +1011,7 @@ export class BattleRenderer {
     ctx.closePath();
     ctx.fill();
 
-    ctx.fillStyle = '#253e66';
+    ctx.fillStyle = theme.obstacleTop;
     ctx.beginPath();
     ctx.moveTo(t0.x, t0.y);
     ctx.lineTo(t1.x, t1.y);
@@ -662,12 +1020,12 @@ export class BattleRenderer {
     ctx.closePath();
     ctx.fill();
 
-    ctx.strokeStyle = 'rgba(56, 189, 248, 0.52)';
+    ctx.strokeStyle = theme.obstacleEdge;
     ctx.lineWidth = 1.2;
     ctx.stroke();
 
     const tc = bf.worldToScreen((x1 + x2) * 0.5, (y1 + y2) * 0.5, w, h, elev);
-    ctx.fillStyle = 'rgba(56, 189, 248, 0.45)';
+    ctx.fillStyle = theme.obstacleCrest;
     ctx.beginPath();
     ctx.ellipse(tc.x, tc.y, 6, 3, 0, 0, Math.PI * 2);
     ctx.fill();

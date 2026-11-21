@@ -8,6 +8,9 @@
       "rarity": "SSR",
       "role": "Vanguard Commander",
       "faction": "Aegis Directorate",
+      "realm": "Celestial Order",
+      "motif": "High Fantasy Knighthood & Starlight Aegis",
+      "synergyHint": "Excels with Heavy Defenders, Aegis Sentinels, and balanced frontline-to-backline armies.",
       "isCommander": true,
       "portraitAssetId": "hero_portrait_astra",
       "cutinAssetId": "hero_portrait_astra",
@@ -18,7 +21,7 @@
         "energyRegen": 1.15,
         "auraRadius": "army"
       },
-      "biography": "Chief strategist of the Seventh Orbital Wing. Specializes in defensive formations and synchronized orbital fire."
+      "biography": "Grand Paladin of the Celestial Order who commands gilded shieldwalls and calls down judgments of starlight upon advancing legions."
     },
     {
       "id": "kael",
@@ -27,6 +30,9 @@
       "rarity": "SR",
       "role": "Assault Commander",
       "faction": "Zephyr Vanguard",
+      "realm": "Gale Pavilion",
+      "motif": "Eastern Tempest & Martial Wind-Step",
+      "synergyHint": "Pairs with Swift Cavalry, Pulse Skirmishers, and aggressive flank tactics to break backlines fast.",
       "isCommander": true,
       "portraitAssetId": "hero_portrait_kael",
       "cutinAssetId": "hero_portrait_kael",
@@ -37,7 +43,7 @@
         "energyRegen": 1.1,
         "auraRadius": "army"
       },
-      "biography": "High-mobility cavalry commander known for breaking fortified enemy lines before counterattacks form."
+      "biography": "Master of the Gale Pavilion's wind-halberd school. His banner sweeps across the field like an autumn squall, shattering enemy ranks before formations settle."
     },
     {
       "id": "lyra",
@@ -46,6 +52,9 @@
       "rarity": "SR",
       "role": "Support Commander",
       "faction": "Lumen Conclave",
+      "realm": "Radiant Sanctum",
+      "motif": "Divine Light & Sacred Hymns",
+      "synergyHint": "Amplifies Field Clerics and healing cards for sustained endurance against multi-wave bosses.",
       "isCommander": true,
       "portraitAssetId": "hero_portrait_lyra",
       "cutinAssetId": "hero_portrait_lyra",
@@ -56,7 +65,7 @@
         "energyRegen": 1.25,
         "auraRadius": "army"
       },
-      "biography": "Field restorative specialist whose resonance array sustains advancing platoons across prolonged sieges."
+      "biography": "High Cantor of the Radiant Sanctum whose luminous hymns mend shattered armor and shield her faithful through relentless dark sieges."
     },
     {
       "id": "seraphina",
@@ -65,6 +74,9 @@
       "rarity": "SSR",
       "role": "Artillery Commander",
       "faction": "Obsidian Observatory",
+      "realm": "Obsidian Spire",
+      "motif": "Dark Arcane & Astral Occult",
+      "synergyHint": "Maximizes Arcane Archers, Solar Pyromancers, and Chrono Weavers with lethal ranged focus.",
       "isCommander": true,
       "portraitAssetId": "hero_portrait_seraphina",
       "cutinAssetId": "hero_portrait_seraphina",
@@ -75,7 +87,7 @@
         "energyRegen": 1.05,
         "auraRadius": "army"
       },
-      "biography": "Ballistics prodigy commanding long-range arcane archer corps with pinpoint spectral guidance."
+      "biography": "Seer-Sniper of the Obsidian Spire who binds twilight constellations to enchanted arrows, raining prism fire upon distant warlords."
     },
     {
       "id": "vanguard_zero",
@@ -84,6 +96,9 @@
       "rarity": "R",
       "role": "Logistics Commander",
       "faction": "Iron Frontier",
+      "realm": "Ironforge Frontier",
+      "motif": "Steampunk Forge & Clockwork Siegecraft",
+      "synergyHint": "Accelerates Command Energy for high-tempo card cycling, Armor Breakers, and Astral Automatons.",
       "isCommander": true,
       "portraitAssetId": "hero_portrait_vanguard_zero",
       "cutinAssetId": "hero_portrait_vanguard_zero",
@@ -94,7 +109,7 @@
         "energyRegen": 1.0,
         "auraRadius": "army"
       },
-      "biography": "Veteran frontline coordinator who accelerates deployment supply chains and reinforces base walls."
+      "biography": "Master artificer of the Ironforge Frontier who drives brass-forged supply engines, flooding the frontline with relentless reinforcements and ironclad wards."
     }
   ]
 }

@@ -3,12 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Astral Command — Tactical Card Battler</title>
+    <title>Star Struck — Tactical Card Battler</title>
     <meta
       name="description"
       content="Browser-based anime tactical card battler featuring 2D isometric battlefield combat, six-slot adjacent card merging, multi-wave bosses, and off-field commander ultimates."
     />
-    <meta property="og:title" content="Astral Command — Tactical Card Battler" />
+    <meta property="og:title" content="Star Struck — Tactical Card Battler" />
     <meta
       property="og:description"
       content="Browser-based anime tactical card battler featuring 2D isometric battlefield combat, six-slot adjacent card merging, multi-wave bosses, and off-field commander ultimates."
@@ -36,7 +36,7 @@
           aria-label="Return to Home"
         >
           <span class="brand-emblem" aria-hidden="true"></span>
-          <span class="brand-name">Astral Command</span>
+          <span class="brand-name">Star Struck</span>
         </button>
 
         <nav id="primary-nav" class="primary-nav" aria-label="Main navigation">
@@ -64,6 +64,15 @@
           </div>
           <button
             type="button"
+            id="hdr-guide-btn"
+            class="audio-toggle-btn guide-toggle-btn"
+            aria-label="Open Tactical Guide"
+            title="Tactical Guide &amp; Controls"
+          >
+            <span aria-hidden="true">?</span>
+          </button>
+          <button
+            type="button"
             id="hdr-mute-btn"
             class="audio-toggle-btn"
             aria-label="Mute or unmute game audio"
@@ -83,7 +92,7 @@
       <main id="screen-viewport" class="screen-viewport" role="main" aria-live="polite">
         <div id="boot-loader" class="boot-loader">
           <div class="boot-loader__ring" aria-hidden="true"></div>
-          <p class="boot-loader__text">Initializing Astral Command...</p>
+          <p class="boot-loader__text">Initializing Star Struck...</p>
         </div>
       </main>
 

@@ -51,7 +51,7 @@ export class HeroScreen {
             <span class="meta-line tabular-nums">
               <span>${ownedCount} / ${allHeroes.length} Recruited</span>
               <span class="meta-sep" aria-hidden="true">·</span>
-              <span>Off-field passive auras &amp; orbital ultimates</span>
+              <span>Off-field passive auras &amp; commander ultimates</span>
             </span>
           </div>
 
@@ -86,17 +86,22 @@ export class HeroScreen {
                     <div class="meta-line">
                       <span class="rarity-${selRarity}">${selectedHero.rarity}</span>
                       <span class="meta-sep" aria-hidden="true">·</span>
-                      <span style="color: var(--hero-accent); font-weight: 600;">${selectedHero.faction}</span>
+                      <span style="color: var(--hero-accent); font-weight: 600;">${selectedHero.realm || selectedHero.faction}</span>
                     </div>
                     <strong style="font-size: 1.15rem; font-family: var(--font-display); color: var(--celestial-ivory);">
                       ${selectedHero.title}
                     </strong>
+                    ${
+                      selectedHero.motif
+                        ? `<span class="meta-line" style="font-size: 0.76rem;">${selectedHero.motif}</span>`
+                        : ''
+                    }
                   </div>
                 </div>
 
                 <aside class="surface surface--celestial hero-dossier ${selTheme}" aria-label="Commander Dossier">
                   <div>
-                    <div class="section-kicker section-kicker--gold">${selectedHero.role}</div>
+                    <div class="section-kicker section-kicker--gold">${selectedHero.role} · ${selectedHero.faction}</div>
                     <h2 class="hero-dossier__name" style="margin-top: 3px;">${selectedHero.name}</h2>
                     <div class="meta-line tabular-nums" style="margin-top: 6px;">
                       <span class="rarity-${selRarity}">${selectedHero.rarity}</span>
@@ -117,6 +122,23 @@ export class HeroScreen {
 
                   <p class="hero-dossier__bio">${selectedHero.biography}</p>
 
+                  ${
+                    selectedHero.baseStats
+                      ? `
+                        <div class="hero-stats-row tabular-nums">
+                          <div class="hero-stat-cell">
+                            <span class="hero-stat-cell__label">Command Power</span>
+                            <strong class="hero-stat-cell__val">${selectedHero.baseStats.commandPower ?? 100}</strong>
+                          </div>
+                          <div class="hero-stat-cell">
+                            <span class="hero-stat-cell__label">Energy Regen</span>
+                            <strong class="hero-stat-cell__val">×${Number(selectedHero.baseStats.energyRegenBonus ?? 1).toFixed(2)}</strong>
+                          </div>
+                        </div>
+                      `
+                      : ''
+                  }
+
                   <div class="dossier-skill">
                     <div class="dossier-skill__head">
                       <span class="section-kicker">Army Passive</span>
@@ -128,27 +150,56 @@ export class HeroScreen {
 
                   <div class="dossier-skill dossier-skill--ultimate">
                     <div class="dossier-skill__head">
-                      <span class="section-kicker section-kicker--gold">Orbital Ultimate</span>
+                      <span class="section-kicker section-kicker--gold">Commander Ultimate</span>
                       <span class="meta-line tabular-nums">${selectedHero.ultimateSkill?.energyCost || 100} Ultimate Energy</span>
                     </div>
                     <div class="dossier-skill__name" style="color: var(--hero-accent);">${selectedHero.ultimateSkill?.name || '—'}</div>
                     <p class="dossier-skill__desc">${selectedHero.ultimateSkill?.description || ''}</p>
                   </div>
 
+                  ${
+                    selectedHero.synergyHint
+                      ? `
+                        <div class="hero-synergy-box">
+                          <span class="section-kicker">Recommended Synergy</span>
+                          <p class="dossier-skill__desc">${selectedHero.synergyHint}</p>
+                        </div>
+                      `
+                      : ''
+                  }
+
                   <div class="btn-row" style="margin-top: auto;">
                     ${
                       selectedHero.owned
-                        ? `
-                          <button
-                            type="button"
-                            id="btn-assign-commander"
-                            class="btn ${selectedHero.rarity === 'SSR' ? 'btn-gold' : 'btn-primary'}"
-                            style="flex: 1;"
-                            ${selectedHero.id === activeCommanderId ? 'disabled' : ''}
-                          >
-                            ${selectedHero.id === activeCommanderId ? 'Currently Active Commander' : 'Assign as Active Commander'}
-                          </button>
-                        `
+                        ? selectedHero.id === activeCommanderId
+                          ? `
+                            <button
+                              type="button"
+                              id="btn-assign-commander"
+                              class="btn btn-secondary"
+                              style="flex: 1;"
+                              disabled
+                            >
+                              Currently Active Commander
+                            </button>
+                            <button
+                              type="button"
+                              id="btn-hero-deploy"
+                              class="btn btn-primary"
+                            >
+                              Deploy to Battle
+                            </button>
+                          `
+                          : `
+                            <button
+                              type="button"
+                              id="btn-assign-commander"
+                              class="btn ${selectedHero.rarity === 'SSR' ? 'btn-gold' : 'btn-primary'}"
+                              style="flex: 1;"
+                            >
+                              Assign as Active Commander
+                            </button>
+                          `
                         : `
                           <button
                             type="button"
@@ -238,6 +289,11 @@ export class HeroScreen {
         audioManager.playInvalid();
         this._ctx.notify(res.reason, 'warn');
       }
+    });
+
+    this._container.querySelector('#btn-hero-deploy')?.addEventListener('click', () => {
+      audioManager.playClick();
+      screenManager.navigate('battle');
     });
 
     this._container.querySelector('#btn-go-summon')?.addEventListener('click', () => {

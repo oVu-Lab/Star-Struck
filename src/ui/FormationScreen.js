@@ -129,8 +129,15 @@ export class FormationScreen {
   }
 
   _renderSquadTab(bodyEl) {
-    const { heroSystem, formationSystem, economySystem, gameState, assetManager, audioManager } =
-      this._ctx;
+    const {
+      heroSystem,
+      formationSystem,
+      economySystem,
+      dataRegistry,
+      gameState,
+      assetManager,
+      audioManager,
+    } = this._ctx;
     const ownedCommanders = heroSystem.getOwnedHeroes();
     const activeCommander = heroSystem.getActiveCommander();
     const unitSlots = formationSystem.getUnitSlots();
@@ -158,13 +165,31 @@ export class FormationScreen {
       { pos: 'Rearline · Bot', shortPos: 'Rear 4', col: 'rear', row: 'bot' },
     ];
 
+    const bonusPerLv = dataRegistry?.balance?.progression?.unitLevelStatBonus ?? 0.08;
+    const nextScale = selectedUnit ? 1 + Math.max(0, selectedUnit.level) * bonusPerLv : 1;
+
     const detailRoleStat = selectedUnit
       ? selectedUnit.scaledStats.healPower > 0
-        ? { label: 'HEAL', val: selectedUnit.scaledStats.healPower }
+        ? {
+            label: 'HEAL',
+            val: selectedUnit.scaledStats.healPower,
+            nextVal: Math.round((selectedUnit.stats?.healPower || 0) * nextScale),
+          }
         : selectedUnit.scaledStats.shieldPower > 0
-          ? { label: 'SHIELD', val: selectedUnit.scaledStats.shieldPower }
-          : { label: 'ATK', val: selectedUnit.scaledStats.attack }
-      : { label: 'ATK', val: 0 };
+          ? {
+              label: 'SHIELD',
+              val: selectedUnit.scaledStats.shieldPower,
+              nextVal: Math.round((selectedUnit.stats?.shieldPower || 0) * nextScale),
+            }
+          : {
+              label: 'ATK',
+              val: selectedUnit.scaledStats.attack,
+              nextVal: Math.round((selectedUnit.stats?.attack || 0) * nextScale),
+            }
+      : { label: 'ATK', val: 0, nextVal: 0 };
+
+    const nextHp = selectedUnit ? Math.round((selectedUnit.stats?.maxHp || 0) * nextScale) : 0;
+    const nextDef = selectedUnit ? Math.round((selectedUnit.stats?.defense || 0) * nextScale) : 0;
 
     const canUpgradeSelected =
       selectedUnit &&
@@ -373,12 +398,38 @@ export class FormationScreen {
                           <span style="color: var(--accent-blue-bright);">${selectedUnit.cost} E</span>
                         </span>
                       </div>
-                      <div class="meta-line" style="font-size: 0.74rem; margin-top: 2px;">${selectedUnit.role}</div>
+                      <div class="meta-line" style="font-size: 0.74rem; margin-top: 2px;">
+                        <span>${selectedUnit.role}</span>
+                        ${
+                          selectedUnit.realm
+                            ? `<span class="meta-sep" aria-hidden="true">·</span><span>${selectedUnit.realm}</span>`
+                            : ''
+                        }
+                        ${
+                          selectedUnit.traitLabel
+                            ? `<span class="meta-sep" aria-hidden="true">·</span><span style="color: var(--accent-gold-bright);">${selectedUnit.traitLabel}</span>`
+                            : ''
+                        }
+                      </div>
                       <div class="unit-detail-dock__stats tabular-nums">
                         <span><strong>HP</strong> ${selectedUnit.scaledStats.maxHp}</span>
                         <span><strong>${detailRoleStat.label}</strong> ${detailRoleStat.val}</span>
                         <span><strong>DEF</strong> ${selectedUnit.scaledStats.defense}</span>
+                        <span><strong>RNG</strong> ${selectedUnit.stats?.attackRange ?? 48}</span>
+                        <span><strong>SPD</strong> ${selectedUnit.stats?.moveSpeed ?? 85}</span>
                       </div>
+                      ${
+                        selectedUnit.unlocked && selectedUnit.level < selectedUnit.maxLevel
+                          ? `
+                            <div class="unit-next-preview tabular-nums">
+                              <span>Lv.${selectedUnit.level + 1}:</span>
+                              <span>HP ${selectedUnit.scaledStats.maxHp}→<strong>${nextHp}</strong></span>
+                              <span>${detailRoleStat.label} ${detailRoleStat.val}→<strong>${detailRoleStat.nextVal}</strong></span>
+                              <span>DEF ${selectedUnit.scaledStats.defense}→<strong>${nextDef}</strong></span>
+                            </div>
+                          `
+                          : ''
+                      }
                     </div>
                   </div>
 
@@ -767,6 +818,8 @@ export class FormationScreen {
     const terrainDef = selectedStage?.terrainId
       ? dataRegistry.terrainsById.get(selectedStage.terrainId)
       : null;
+    const bossWave = (selectedStage?.waves || []).find((w) => w.boss?.bossId);
+    const bossDef = bossWave ? dataRegistry.bossesById?.get(bossWave.boss.bossId) : null;
     const bonusUnitNames = (selectedStage?.rewards?.bonusUnits || []).map(
       (uid) => dataRegistry.unitsById.get(uid)?.name || uid,
     );
@@ -779,8 +832,8 @@ export class FormationScreen {
         <div class="surface workspace-pane">
           <div class="workspace-pane__head">
             <div>
-              <div class="section-kicker">Orbital Sector Map</div>
-              <h2 class="section-heading" style="margin-top: 2px;">Campaign Operations (${stages.filter((s) => s.cleared).length} / ${stages.length} Cleared)</h2>
+              <div class="section-kicker">Realm Campaign Map</div>
+              <h2 class="section-heading" style="margin-top: 2px;">Campaign Stages (${stages.filter((s) => s.cleared).length} / ${stages.length} Cleared)</h2>
             </div>
 
             <div class="segmented-bar" role="tablist" aria-label="Filter campaign chapters">
@@ -807,6 +860,7 @@ export class FormationScreen {
                   const reqStage = stage.unlockAfter
                     ? dataRegistry.stagesById.get(stage.unlockAfter)
                     : null;
+                  const stageBossWave = (stage.waves || []).find((w) => w.boss?.bossId);
                   return `
                     <button
                       type="button"
@@ -826,6 +880,11 @@ export class FormationScreen {
                         <span>${stage.waves?.length || 3} Waves</span>
                         <span class="meta-sep" aria-hidden="true">·</span>
                         <span class="tabular-nums">Rec Lv.${stage.recommendedLevel || 1}</span>
+                        ${
+                          stageBossWave
+                            ? '<span class="meta-sep" aria-hidden="true">·</span><span style="color: #fca5a5; font-weight: 600;">Boss</span>'
+                            : ''
+                        }
                       </div>
                       <div style="font-size: 0.78rem; color: var(--text-secondary);">
                         ${stage.unlocked ? stage.description : `Requires Stage ${reqStage?.code || stage.unlockAfter}`}
@@ -838,15 +897,20 @@ export class FormationScreen {
           </div>
         </div>
 
-        <aside class="surface surface--celestial workspace-pane" aria-label="Selected Operation Briefing">
+        <aside class="surface surface--celestial workspace-pane" aria-label="Selected Stage Briefing">
           <div>
-            <div class="section-kicker section-kicker--gold">Operation Briefing</div>
+            <div class="section-kicker section-kicker--gold">Battle Briefing</div>
             <h2 class="section-heading" style="font-size: 1.28rem; margin-top: 4px;">
               Stage ${selectedStage?.code || '1-1'} · ${selectedStage?.name || 'Outer Bastion'}
             </h2>
             <p style="font-size: 0.86rem; color: var(--text-secondary); margin-top: 8px;">
               ${selectedStage?.description || ''}
             </p>
+            ${
+              terrainDef?.atmosphere
+                ? `<p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 6px;">${terrainDef.atmosphere}</p>`
+                : ''
+            }
           </div>
 
           <div class="hairline"></div>
@@ -865,9 +929,19 @@ export class FormationScreen {
               <span class="kv-value tabular-nums">Lv.${selectedStage?.recommendedLevel || 1}</span>
             </div>
             <div class="kv-row">
-              <span class="kv-label">Battlefield Terrain</span>
-              <span class="kv-value">${terrainDef?.name || 'Orbital Arena'}</span>
+              <span class="kv-label">Battlefield Realm</span>
+              <span class="kv-value">${terrainDef?.realmTitle || terrainDef?.name || 'Celestial Bastion'}</span>
             </div>
+            ${
+              bossDef
+                ? `
+                  <div class="kv-row">
+                    <span class="kv-label">Boss Threat</span>
+                    <span class="kv-value boss-threat-value">${bossDef.name}</span>
+                  </div>
+                `
+                : ''
+            }
             <div class="kv-row">
               <span class="kv-label">Best Rating</span>
               <span class="kv-value tabular-nums" style="color: var(--accent-gold-bright);">${selectedStage?.bestRating || 'Not Cleared'}</span>

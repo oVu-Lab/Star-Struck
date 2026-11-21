@@ -46,6 +46,8 @@ export class HomeScreen {
     const stage = progressionSystem.getSelectedStage();
     const stages = progressionSystem.getStages();
     const clearedCount = stages.filter((s) => s.cleared).length;
+    const terrainDef = stage?.terrainId ? dataRegistry.terrainsById?.get(stage.terrainId) : null;
+    const realmDisplay = terrainDef?.realmTitle || terrainDef?.name || 'Celestial Citadel';
     const ownedHeroes = heroSystem.getOwnedHeroes().length;
     const totalHeroes = heroSystem.getAllHeroes().length;
     const unlockedUnits = formationSystem.getUnlockedUnits().length;
@@ -78,12 +80,12 @@ export class HomeScreen {
 
             <div class="home-operation-hero">
               <div>
-                <div class="section-kicker">Active Campaign Operation</div>
+                <div class="section-kicker">Next Campaign Battle · ${realmDisplay}</div>
                 <h1 class="home-hero__title">Stage ${stage?.code || '1-1'} · ${stage?.name || 'Outer Bastion'}</h1>
                 <p class="home-hero__desc">
                   ${
                     stage?.description ||
-                    'Command specialized squads across isometric orbital battlefields, merge adjacent tactical cards up to Lv.III, and unleash Commander ultimates.'
+                    'Lead multi-realm squads across enchanted battlefields, merge adjacent tactical cards up to Lv.III, and unleash Commander ultimates.'
                   }
                 </p>
               </div>
@@ -100,7 +102,7 @@ export class HomeScreen {
                   <span class="meta-line tabular-nums">${unlockedUnits}/${totalUnits} Units · ${unlockedCards}/${totalCards} Cards</span>
                 </div>
                 <div class="home-metric">
-                  <span class="home-metric__label">Orbital Reserves</span>
+                  <span class="home-metric__label">Realm Treasury</span>
                   <span class="home-metric__value tabular-nums" style="color: var(--accent-gold-bright);">${formatNumber(resources.astrite)} Astrite</span>
                   <span class="meta-line tabular-nums">${formatNumber(resources.credits)} Credits</span>
                 </div>
@@ -116,14 +118,33 @@ export class HomeScreen {
                 <button type="button" class="btn btn-ghost" data-action="open-stages">
                   Select Stage
                 </button>
+                ${
+                  clearedCount === 0
+                    ? '<button type="button" class="btn btn-ghost" data-action="open-guide">How to Play</button>'
+                    : ''
+                }
               </div>
+
+              ${
+                clearedCount === 0
+                  ? `
+                    <div class="home-onboarding-strip" aria-label="First Battle Quick Guide">
+                      <span class="home-onboarding-strip__step"><strong>1.</strong> Place Squad in Ally Zone</span>
+                      <span class="meta-sep" aria-hidden="true">→</span>
+                      <span class="home-onboarding-strip__step"><strong>2.</strong> Merge Adjacent Identical Cards</span>
+                      <span class="meta-sep" aria-hidden="true">→</span>
+                      <span class="home-onboarding-strip__step"><strong>3.</strong> Unleash Commander Ultimate</span>
+                    </div>
+                  `
+                  : ''
+              }
             </div>
 
             <div class="home-quick-grid" aria-label="Quick Navigation">
               <button type="button" class="quick-tile" data-nav="heroes">
                 <div>
                   <div class="quick-tile__title">Commanders</div>
-                  <div class="quick-tile__meta">Passives &amp; Orbital Ultimates</div>
+                  <div class="quick-tile__meta">Passives &amp; Commander Ultimates</div>
                 </div>
                 <span class="quick-tile__stat tabular-nums">${ownedHeroes}/${totalHeroes}</span>
               </button>
@@ -158,7 +179,7 @@ export class HomeScreen {
             <img id="home-commander-img" class="home-commander-stage__art" alt="${commander?.name || 'Commander'}" />
 
             <div class="home-commander-stage__top">
-              <div class="section-kicker section-kicker--gold">Active Commander</div>
+              <div class="section-kicker section-kicker--gold">${commander?.realm || 'Active Commander'}</div>
               <button type="button" class="btn btn-ghost btn-sm" data-nav="heroes">
                 Switch
               </button>
@@ -179,10 +200,12 @@ export class HomeScreen {
                 <div class="home-skill-mini">
                   <span class="home-skill-mini__kicker">Army Passive</span>
                   <span class="home-skill-mini__name">${commander?.passiveSkill?.name || '—'}</span>
+                  <span class="home-skill-mini__desc">${commander?.passiveSkill?.description || ''}</span>
                 </div>
                 <div class="home-skill-mini">
-                  <span class="home-skill-mini__kicker">Orbital Ultimate</span>
+                  <span class="home-skill-mini__kicker">Commander Ultimate</span>
                   <span class="home-skill-mini__name" style="color: var(--hero-accent);">${commander?.ultimateSkill?.name || '—'}</span>
+                  <span class="home-skill-mini__desc">${commander?.ultimateSkill?.description || ''}</span>
                 </div>
               </div>
             </div>
@@ -209,6 +232,10 @@ export class HomeScreen {
       audioManager.playClick();
       gameState.setUI({ formationTab: 'stages' });
       screenManager.navigate('formation');
+    });
+    this._container.querySelector('[data-action="open-guide"]')?.addEventListener('click', () => {
+      audioManager.playClick();
+      this._ctx.openGuide?.();
     });
 
     for (const tile of this._container.querySelectorAll('[data-nav]')) {

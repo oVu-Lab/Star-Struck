@@ -194,6 +194,7 @@ export class Game {
         battleManager: this.battleManager,
         notify: (message, level = 'info') => this.notify(message, level),
         confirmDialog: (opts) => this.confirmDialog(opts),
+        openGuide: () => this.openGuide(),
       };
 
       this.screenManager.register('home', new HomeScreen(sharedContext));
@@ -270,6 +271,12 @@ export class Game {
         this.audioManager?.playClick();
         this.screenManager.navigate(screenId);
       }
+    });
+
+    const guideBtn = document.getElementById('hdr-guide-btn');
+    guideBtn?.addEventListener('click', () => {
+      this.audioManager?.playClick();
+      this.openGuide();
     });
 
     const muteBtn = document.getElementById('hdr-mute-btn');
@@ -382,6 +389,93 @@ export class Game {
       this.audioManager?.playClick();
       close();
       if (typeof onConfirm === 'function') onConfirm();
+    });
+    modalRoot.addEventListener(
+      'click',
+      (ev) => {
+        if (ev.target === modalRoot) close();
+      },
+      { once: true },
+    );
+  }
+
+  openGuide() {
+    const modalRoot = document.getElementById('modal-root');
+    if (!modalRoot) return;
+
+    modalRoot.hidden = false;
+    modalRoot.innerHTML = `
+      <div class="modal-dialog guide-modal" role="dialog" aria-modal="true" aria-labelledby="guide-modal-title">
+        <div class="guide-modal__head">
+          <div>
+            <div class="section-kicker section-kicker--gold">Star Struck Field Reference</div>
+            <h2 id="guide-modal-title" class="modal-dialog__title">Tactical Guide &amp; Controls</h2>
+          </div>
+          <button type="button" id="guide-close-x" class="btn btn-ghost btn-sm" aria-label="Close Tactical Guide">Close</button>
+        </div>
+
+        <div class="guide-steps">
+          <div class="guide-step-card">
+            <div class="guide-step-card__num">01</div>
+            <h3 class="guide-step-card__title">Squad &amp; Battlefield Prep</h3>
+            <p class="guide-step-card__body">
+              Before waves start, place your 4 squad units anywhere inside the blue <strong>Ally Zone</strong>.
+              Units advance automatically, engage enemies by class role (Defender, Cavalry, Archer, Cleric),
+              and push toward the opposing stronghold.
+            </p>
+          </div>
+
+          <div class="guide-step-card">
+            <div class="guide-step-card__num">02</div>
+            <h3 class="guide-step-card__title">6-Slot Adjacent Card Merging</h3>
+            <p class="guide-step-card__body">
+              Two side-by-side identical cards glow gold when ready to merge. Click the first card, then click
+              its matching neighbor to fuse them into a stronger <strong>Lv.II</strong> or <strong>Lv.III</strong>
+              instruction — boosting stats, skill damage, or support power.
+            </p>
+          </div>
+
+          <div class="guide-step-card">
+            <div class="guide-step-card__num">03</div>
+            <h3 class="guide-step-card__title">Energy, Commanders &amp; Shortcuts</h3>
+            <p class="guide-step-card__body">
+              Commanders provide a permanent army passive and charge an off-field <strong>Ultimate</strong> from
+              combat and card plays. Click the Ultimate button, click the glowing <strong>Commander Dais</strong>
+              on the battlefield, or use shortcuts:
+            </p>
+            <div class="guide-keys-grid">
+              <span><kbd>1</kbd>–<kbd>6</kbd> Select / Play / Merge Card</span>
+              <span><kbd>Space</kbd> / <kbd>Q</kbd> Commander Ultimate</span>
+              <span><kbd>Enter</kbd> Start Battle (Prep)</span>
+              <span><kbd>P</kbd> Pause · <kbd>S</kbd> Speed 1x/2x · <kbd>Esc</kbd> Cancel</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="btn-row modal-dialog__actions">
+          <button type="button" id="guide-close-btn" class="btn btn-primary btn-sm">Got It</button>
+        </div>
+      </div>
+    `;
+
+    const onKeyDown = (ev) => {
+      if (ev.key === 'Escape') close();
+    };
+
+    const close = () => {
+      window.removeEventListener('keydown', onKeyDown);
+      modalRoot.hidden = true;
+      modalRoot.innerHTML = '';
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    modalRoot.querySelector('#guide-close-x')?.addEventListener('click', () => {
+      this.audioManager?.playClick();
+      close();
+    });
+    modalRoot.querySelector('#guide-close-btn')?.addEventListener('click', () => {
+      this.audioManager?.playClick();
+      close();
     });
     modalRoot.addEventListener(
       'click',

@@ -78,6 +78,13 @@
   white-space: nowrap;
 }
 
+.hud-realm-name {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--accent-gold-bright);
+  white-space: nowrap;
+}
+
 .hud-wave-meta {
   display: inline-flex;
   align-items: center;
@@ -224,6 +231,7 @@
 }
 
 .boss-hud-track {
+  position: relative;
   width: 100%;
   height: 7px;
   background: rgba(255, 255, 255, 0.09);
@@ -234,6 +242,16 @@
 .boss-hud-fill {
   height: 100%;
   background: linear-gradient(90deg, #dc2626 0%, #f97316 55%, #f7dc94 100%);
+  transition: width 140ms var(--ease-tactical);
+}
+
+.boss-hud-shield {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #38bdf8 0%, #bae6fd 100%);
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.85);
   transition: width 140ms var(--ease-tactical);
 }
 
@@ -313,6 +331,17 @@
   font-size: 0.86rem;
   font-weight: 700;
   color: var(--accent-blue-bright);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.prep-passive-label {
+  font-family: var(--font-sans, inherit);
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: var(--accent-gold-bright);
+  margin-left: 4px;
 }
 
 .prep-floating-bar__hint {
@@ -414,6 +443,48 @@
 .prep-cmd-tile__rarity {
   font-size: 0.62rem;
   letter-spacing: 0.04em;
+}
+
+/* Floating Selected / Hovered Card Tactical Preview Strip */
+.card-preview-strip {
+  position: absolute;
+  left: 50%;
+  bottom: 146px;
+  transform: translateX(-50%);
+  z-index: 15;
+  max-width: min(920px, calc(100% - 40px));
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px 14px;
+  background: rgba(7, 13, 27, 0.92);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(56, 189, 248, 0.42);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(2, 6, 16, 0.56);
+  font-size: 0.78rem;
+  pointer-events: none;
+  animation: banner-sweep 160ms var(--ease-tactical) both;
+}
+
+.card-preview-strip[hidden] {
+  display: none;
+}
+
+.card-preview-strip__title {
+  font-family: var(--font-display);
+  font-weight: 700;
+  color: var(--celestial-ivory);
+}
+
+.card-preview-strip__desc {
+  color: var(--text-secondary);
+}
+
+.card-preview-strip__upgrade {
+  color: var(--accent-gold-bright);
+  font-weight: 600;
 }
 
 /* ==========================================================================
@@ -587,6 +658,16 @@
   z-index: 3;
 }
 
+.tactical-card.is-merge-ready {
+  border-color: rgba(230, 190, 100, 0.78);
+  box-shadow: inset 0 1px 0 rgba(247, 220, 148, 0.25), 0 0 14px rgba(230, 190, 100, 0.22);
+}
+
+.tactical-card.is-merge-ready .tactical-card__hint {
+  color: var(--accent-gold-bright);
+  font-weight: 600;
+}
+
 .tactical-card.is-merge-target {
   border-color: var(--accent-gold-bright);
   background: radial-gradient(ellipse 95% 65% at 50% 0%, rgba(247, 220, 148, 0.3), transparent 72%), rgba(30, 32, 48, 0.96);
@@ -603,6 +684,16 @@
 .tactical-card.is-max-tier {
   border-color: var(--celestial-ivory);
   border-top-color: var(--accent-gold-bright);
+}
+
+.tactical-card__key {
+  position: absolute;
+  right: 5px;
+  bottom: 4px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: rgba(148, 179, 214, 0.46);
+  pointer-events: none;
 }
 
 .tactical-card.is-newly-drawn { animation: card-draw 220ms var(--ease-tactical) both; }
@@ -811,9 +902,42 @@
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 20px 8px 8px;
-  background: linear-gradient(180deg, transparent 0%, rgba(5, 9, 18, 0.92) 72%);
+  padding: 22px 8px 8px;
+  background: linear-gradient(180deg, transparent 0%, rgba(5, 9, 18, 0.94) 64%);
   pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dock-commander-card__ult-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px;
+  line-height: 1.1;
+}
+
+.dock-commander-card__ult-name {
+  font-family: var(--font-display);
+  font-size: 0.64rem;
+  font-weight: 600;
+  color: var(--celestial-ivory);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dock-commander-card__ult-pct {
+  font-size: 0.64rem;
+  font-weight: 700;
+  color: var(--accent-gold-bright);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.dock-commander-card.is-ult-ready .dock-commander-card__ult-pct {
+  color: #fef08a;
 }
 
 .dock-commander-card__track {
@@ -915,6 +1039,75 @@
 .ultimate-cutin__sub {
   font-size: 0.86rem;
   color: var(--text-secondary);
+}
+
+/* Dramatic Brief Outcome Splash before Results Modal */
+.battle-outcome-splash {
+  position: absolute;
+  inset: 0;
+  z-index: 28;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  background: radial-gradient(ellipse 75% 40% at 50% 50%, rgba(6, 11, 22, 0.72), rgba(4, 8, 17, 0.35));
+  animation: outcome-splash-in 260ms var(--ease-tactical) both;
+}
+
+.battle-outcome-splash[hidden] {
+  display: none;
+}
+
+.battle-outcome-splash__band {
+  width: 100%;
+  text-align: center;
+  padding: 22px 24px;
+  background: linear-gradient(90deg, transparent 0%, rgba(7, 13, 28, 0.92) 20%, rgba(13, 23, 45, 0.95) 50%, rgba(7, 13, 28, 0.92) 80%, transparent 100%);
+  border-top: 2px solid var(--accent-gold-bright);
+  border-bottom: 2px solid var(--accent-gold-bright);
+}
+
+.battle-outcome-splash.is-defeat .battle-outcome-splash__band {
+  border-top-color: #f87171;
+  border-bottom-color: #f87171;
+}
+
+.battle-outcome-splash__kicker {
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.battle-outcome-splash__title {
+  font-family: var(--font-display);
+  font-size: clamp(2.2rem, 5vw, 3.6rem);
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  background: linear-gradient(90deg, var(--celestial-ivory) 0%, var(--accent-gold-bright) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.battle-outcome-splash.is-defeat .battle-outcome-splash__title {
+  background: none;
+  color: #fca5a5;
+}
+
+@keyframes outcome-splash-in {
+  from { opacity: 0; transform: scale(1.06); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.results-tip {
+  font-size: 0.82rem;
+  color: var(--accent-blue-bright);
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(56, 189, 248, 0.08);
+  border-left: 3px solid var(--accent-blue);
 }
 
 /* ==========================================================================

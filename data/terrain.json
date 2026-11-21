@@ -4,6 +4,8 @@
     {
       "id": "terrain_outer_bastion",
       "name": "Outer Bastion Causeway",
+      "realmTitle": "Celestial Citadel Causeway",
+      "atmosphere": "Gilded marble ramparts bathed in starlight",
       "theme": "orbital_bastion",
       "worldWidth": 100,
       "worldHeight": 100,
@@ -50,6 +52,8 @@
     {
       "id": "terrain_azure_relay",
       "name": "Azure Relay Terrace",
+      "realmTitle": "Azure Leyline Terrace",
+      "atmosphere": "Crystal sanctuary suspended over arcane currents",
       "theme": "azure_relay",
       "worldWidth": 100,
       "worldHeight": 100,
@@ -107,6 +111,8 @@
     {
       "id": "terrain_obsidian_spire",
       "name": "Obsidian Spire Sanctum",
+      "realmTitle": "Obsidian Abyssal Sanctum",
+      "atmosphere": "Shadowstone ritual dais ringed by violet rifts",
       "theme": "obsidian_spire",
       "worldWidth": 100,
       "worldHeight": 100,
@@ -175,6 +181,8 @@
     {
       "id": "terrain_cavalry_plains",
       "name": "Zephyr Flank Runway",
+      "realmTitle": "Sunlit Tempest Steppe",
+      "atmosphere": "Wind-swept emerald plateau of the Gale Pavilion",
       "theme": "cavalry_plains",
       "worldWidth": 100,
       "worldHeight": 100,
@@ -220,6 +228,8 @@
     {
       "id": "terrain_chrono_nexus",
       "name": "Chrono Nexus Courtyard",
+      "realmTitle": "Astral Sundial Courtyard",
+      "atmosphere": "Gilded brass astrolabe suspended between epochs",
       "theme": "chrono_nexus",
       "worldWidth": 100,
       "worldHeight": 100,
@@ -266,6 +276,8 @@
     {
       "id": "terrain_hyperion_throne",
       "name": "Hyperion Dreadnought Deck",
+      "realmTitle": "Molten Ironforge Dreadnought",
+      "atmosphere": "Ember-lit furnace deck forged in obsidian steel",
       "theme": "hyperion_throne",
       "worldWidth": 100,
       "worldHeight": 100,

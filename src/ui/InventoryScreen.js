@@ -36,7 +36,8 @@ export class InventoryScreen {
 
   render() {
     if (!this._container) return;
-    const { gameState, cardSystem, dataRegistry, assetManager, audioManager } = this._ctx;
+    const { gameState, cardSystem, dataRegistry, assetManager, audioManager, screenManager } =
+      this._ctx;
     const filter = gameState.ui.inventoryFilter || 'all';
     const cardSubCat = gameState.ui.inventoryCardCat || 'all';
     const res = gameState.resources;
@@ -127,7 +128,7 @@ export class InventoryScreen {
           <div class="surface workspace-pane">
             <div class="workspace-pane__head">
               <div>
-                <div class="section-kicker">${isCardsView ? 'Collectible Tactical Armory' : 'Orbital Logistics Depot'}</div>
+                <div class="section-kicker">${isCardsView ? 'Collectible Tactical Armory' : 'Supply Vault'}</div>
                 <h2 class="section-heading" style="margin-top: 2px;">
                   ${isCardsView ? `Tactical Cards (${visibleCards.length})` : `Supplies (${visibleItems.length})`}
                 </h2>
@@ -280,34 +281,54 @@ export class InventoryScreen {
                           ${selectedCard.upgradeSummary || 'Merge adjacent identical cards in battle to amplify potency.'}
                         </p>
                       </div>
+
+                      <div class="btn-row">
+                        ${
+                          unlocked
+                            ? '<button type="button" class="btn btn-primary btn-sm" style="flex: 1;" data-inv-action="deck">Open Deck Builder</button>'
+                            : '<button type="button" class="btn btn-gold btn-sm" style="flex: 1;" data-inv-action="summon">Visit Recruitment Hub</button>'
+                        }
+                      </div>
                     `;
                   })()
                 : selectedItem
-                  ? `
-                    <div>
-                      <div class="section-kicker">${selectedItem.category}</div>
-                      <h2 class="section-heading" style="font-size: 1.26rem; margin-top: 3px;">${selectedItem.name}</h2>
-                    </div>
+                  ? (() => {
+                      const actionBtn =
+                        selectedItem.id === 'currency_astrite'
+                          ? '<button type="button" class="btn btn-gold btn-sm" style="flex: 1;" data-inv-action="summon">Open Recruitment Hub</button>'
+                          : selectedItem.id === 'currency_credits' || selectedItem.id === 'item_xp_chip'
+                            ? '<button type="button" class="btn btn-primary btn-sm" style="flex: 1;" data-inv-action="squad">Upgrade Squad Units</button>'
+                            : selectedItem.id === 'currency_stamina'
+                              ? '<button type="button" class="btn btn-primary btn-sm" style="flex: 1;" data-inv-action="battle">Deploy to Battle</button>'
+                              : '';
+                      return `
+                        <div>
+                          <div class="section-kicker">${selectedItem.category}</div>
+                          <h2 class="section-heading" style="font-size: 1.26rem; margin-top: 3px;">${selectedItem.name}</h2>
+                        </div>
 
-                    <div class="hairline"></div>
+                        <div class="hairline"></div>
 
-                    <div class="kv-list">
-                      <div class="kv-row">
-                        <span class="kv-label">Available Quantity</span>
-                        <span class="kv-value tabular-nums" style="font-size: 1.15rem; color: ${selectedItem.id === 'currency_astrite' ? 'var(--accent-gold-bright)' : 'var(--accent-blue-bright)'};">
-                          ${formatNumber(selectedItem.quantity)}
-                        </span>
-                      </div>
-                      <div class="kv-row">
-                        <span class="kv-label">Category</span>
-                        <span class="kv-value">${selectedItem.category.charAt(0).toUpperCase() + selectedItem.category.slice(1)}</span>
-                      </div>
-                    </div>
+                        <div class="kv-list">
+                          <div class="kv-row">
+                            <span class="kv-label">Available Quantity</span>
+                            <span class="kv-value tabular-nums" style="font-size: 1.15rem; color: ${selectedItem.id === 'currency_astrite' ? 'var(--accent-gold-bright)' : 'var(--accent-blue-bright)'};">
+                              ${formatNumber(selectedItem.quantity)}
+                            </span>
+                          </div>
+                          <div class="kv-row">
+                            <span class="kv-label">Category</span>
+                            <span class="kv-value">${selectedItem.category.charAt(0).toUpperCase() + selectedItem.category.slice(1)}</span>
+                          </div>
+                        </div>
 
-                    <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.55;">
-                      ${selectedItem.description}
-                    </p>
-                  `
+                        <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.55;">
+                          ${selectedItem.description}
+                        </p>
+
+                        ${actionBtn ? `<div class="btn-row" style="margin-top: auto;">${actionBtn}</div>` : ''}
+                      `;
+                    })()
                   : '<p style="color: var(--text-muted);">Select an item to inspect details.</p>'
             }
           </aside>
@@ -353,6 +374,24 @@ export class InventoryScreen {
         audioManager.playClick();
         gameState.setUI({ selectedInventoryId: entry.getAttribute('data-select-entry') });
         this.render();
+      });
+    }
+
+    for (const actionEl of this._container.querySelectorAll('[data-inv-action]')) {
+      actionEl.addEventListener('click', () => {
+        const action = actionEl.getAttribute('data-inv-action');
+        audioManager.playClick();
+        if (action === 'deck') {
+          gameState.setUI({ formationTab: 'deck' });
+          screenManager.navigate('formation');
+        } else if (action === 'squad') {
+          gameState.setUI({ formationTab: 'squad' });
+          screenManager.navigate('formation');
+        } else if (action === 'summon') {
+          screenManager.navigate('summon');
+        } else if (action === 'battle') {
+          screenManager.navigate('battle');
+        }
       });
     }
   }

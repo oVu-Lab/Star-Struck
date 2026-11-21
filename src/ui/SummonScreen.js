@@ -28,8 +28,15 @@ export class SummonScreen {
 
   render() {
     if (!this._container) return;
-    const { gachaSystem, economySystem, gameState, dataRegistry, assetManager, audioManager } =
-      this._ctx;
+    const {
+      gachaSystem,
+      economySystem,
+      gameState,
+      dataRegistry,
+      assetManager,
+      audioManager,
+      screenManager,
+    } = this._ctx;
     const banners = gachaSystem.getBanners();
     const banner = gachaSystem.getActiveBanner();
     const isTactical = banner?.bannerType === 'tactical';
@@ -40,6 +47,13 @@ export class SummonScreen {
       gameState.ui.summonSideTab || (results.length > 0 ? 'results' : 'history');
 
     const pityPct = Math.min(100, Math.round((pity.ssrPity / Math.max(1, pity.ssrHardPity)) * 100));
+    const featuredDrop =
+      results.find((r) => r.rarity === 'SSR') || results.find((r) => r.rarity === 'SR') || null;
+    const featuredDropName = featuredDrop
+      ? featuredDrop.itemType === 'card'
+        ? featuredDrop.card?.name || featuredDrop.cardId
+        : featuredDrop.hero?.name || featuredDrop.heroId
+      : null;
 
     this._container.innerHTML = `
       <section class="screen-frame" aria-label="Recruitment and Requisition">
@@ -105,7 +119,7 @@ export class SummonScreen {
                     banner?.subtitle ||
                     (isTactical
                       ? 'Requisition Unit, Skill, Tactic, and Support cards. Duplicates convert into Credits and XP Chips.'
-                      : 'Recruit off-field Commanders with army-wide passives and orbital ultimates.')
+                      : 'Recruit off-field Commanders with army-wide passives and commander ultimates.')
                   }
                 </p>
               </div>
@@ -196,13 +210,26 @@ export class SummonScreen {
                       </div>
                     `
                     : `
+                      ${
+                        featuredDrop
+                          ? `
+                            <div class="summon-highlight-banner is-${featuredDrop.rarity.toLowerCase()}">
+                              <span class="rarity-${featuredDrop.rarity.toLowerCase()}">${featuredDrop.rarity} Highlight</span>
+                              <strong>${featuredDropName}</strong>
+                              <span class="meta-line" style="font-size: 0.72rem;">Click any pull to inspect or equip</span>
+                            </div>
+                          `
+                          : ''
+                      }
                       <div class="summon-results-grid">
                         ${results
                           .map((entry, idx) => {
                             if (entry.itemType === 'card') {
-                              const unitName = entry.unitUnlocked
-                                ? dataRegistry.unitsById.get(entry.unitUnlocked)?.name || entry.unitUnlocked
+                              const unitDef = entry.unitUnlocked
+                                ? dataRegistry.unitsById.get(entry.unitUnlocked)
                                 : null;
+                              const unitName = unitDef?.name || entry.unitUnlocked || null;
+                              const artId = unitDef?.spriteAssetId || entry.card?.iconAssetId || '';
                               const detail = entry.isNew
                                 ? unitName
                                   ? `New + Unit (${unitName})`
@@ -211,11 +238,25 @@ export class SummonScreen {
                                   ? `Copy (+${entry.duplicateReward.credits} Cr, +${entry.duplicateReward.xpChips} Chips)`
                                   : 'Duplicate Card';
                               return `
-                                <div class="summon-result-card is-${entry.rarity.toLowerCase()}" style="--stagger-idx: ${idx};">
-                                  <span class="rarity-${entry.rarity.toLowerCase()}" style="font-size: 0.74rem;">${entry.rarity} · Card</span>
-                                  <strong style="font-size: 0.88rem; color: var(--celestial-ivory);">${entry.card?.name || entry.cardId}</strong>
-                                  <span style="font-size: 0.74rem; color: var(--text-secondary);">${detail}</span>
-                                </div>
+                                <button
+                                  type="button"
+                                  class="summon-result-card is-${entry.rarity.toLowerCase()}"
+                                  style="--stagger-idx: ${idx};"
+                                  data-inspect-type="${entry.unitUnlocked ? 'unit' : 'card'}"
+                                  data-inspect-id="${entry.unitUnlocked || entry.cardId}"
+                                  title="Inspect ${entry.card?.name || entry.cardId}"
+                                >
+                                  <div class="summon-result-card__head">
+                                    <span class="summon-result-card__thumb">
+                                      <img data-pull-art="${artId}" alt="${entry.card?.name || entry.cardId}" />
+                                    </span>
+                                    <div class="summon-result-card__meta">
+                                      <span class="rarity-${entry.rarity.toLowerCase()}" style="font-size: 0.72rem;">${entry.rarity} · Card</span>
+                                      <strong style="font-size: 0.86rem; color: var(--celestial-ivory);">${entry.card?.name || entry.cardId}</strong>
+                                    </div>
+                                  </div>
+                                  <span style="font-size: 0.72rem; color: var(--text-secondary);">${detail}</span>
+                                </button>
                               `;
                             }
                             const bonusText = entry.bonusCard
@@ -223,12 +264,27 @@ export class SummonScreen {
                               : entry.isNew
                                 ? 'New Commander'
                                 : 'Duplicate Copy';
+                            const artId = entry.hero?.portraitAssetId || '';
                             return `
-                              <div class="summon-result-card is-${entry.rarity.toLowerCase()}" style="--stagger-idx: ${idx};">
-                                <span class="rarity-${entry.rarity.toLowerCase()}" style="font-size: 0.74rem;">${entry.rarity} · Commander</span>
-                                <strong style="font-size: 0.88rem; color: var(--celestial-ivory);">${entry.hero?.name || entry.heroId}</strong>
-                                <span style="font-size: 0.74rem; color: var(--text-secondary);">${bonusText}</span>
-                              </div>
+                              <button
+                                type="button"
+                                class="summon-result-card is-${entry.rarity.toLowerCase()}"
+                                style="--stagger-idx: ${idx};"
+                                data-inspect-type="hero"
+                                data-inspect-id="${entry.hero?.id || entry.heroId}"
+                                title="Inspect ${entry.hero?.name || entry.heroId}"
+                              >
+                                <div class="summon-result-card__head">
+                                  <span class="summon-result-card__thumb summon-result-card__thumb--portrait">
+                                    <img data-pull-art="${artId}" alt="${entry.hero?.name || entry.heroId}" />
+                                  </span>
+                                  <div class="summon-result-card__meta">
+                                    <span class="rarity-${entry.rarity.toLowerCase()}" style="font-size: 0.72rem;">${entry.rarity} · Commander</span>
+                                    <strong style="font-size: 0.86rem; color: var(--celestial-ivory);">${entry.hero?.name || entry.heroId}</strong>
+                                  </div>
+                                </div>
+                                <span style="font-size: 0.72rem; color: var(--text-secondary);">${bonusText}</span>
+                              </button>
                             `;
                           })
                           .join('')}
@@ -270,6 +326,34 @@ export class SummonScreen {
     const imgEl = this._container.querySelector('#banner-featured-img');
     if (imgEl && banner) {
       assetManager.bindImageElement(imgEl, banner.featuredAssetId);
+    }
+
+    for (const artEl of this._container.querySelectorAll('[data-pull-art]')) {
+      const aid = artEl.getAttribute('data-pull-art');
+      if (aid) assetManager.bindImageElement(artEl, aid);
+    }
+
+    for (const cardBtn of this._container.querySelectorAll('[data-inspect-type]')) {
+      cardBtn.addEventListener('click', () => {
+        const inspectType = cardBtn.getAttribute('data-inspect-type');
+        const inspectId = cardBtn.getAttribute('data-inspect-id');
+        if (!inspectId) return;
+        audioManager.playClick();
+        if (inspectType === 'hero') {
+          gameState.setUI({ selectedHeroId: inspectId });
+          screenManager.navigate('heroes');
+        } else if (inspectType === 'unit') {
+          gameState.setUI({ formationTab: 'squad', selectedRosterUnitId: inspectId });
+          screenManager.navigate('formation');
+        } else {
+          gameState.setUI({
+            inventoryFilter: 'cards',
+            inventoryCardCat: 'all',
+            selectedInventoryId: inspectId,
+          });
+          screenManager.navigate('inventory');
+        }
+      });
     }
 
     for (const tab of this._container.querySelectorAll('[data-banner-id]')) {

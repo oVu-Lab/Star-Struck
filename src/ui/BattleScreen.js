@@ -38,6 +38,9 @@ export class BattleScreen {
     this._keyHandler = null;
     this._cutinTimer = null;
     this._rewardTimer = null;
+    this._resultsRevealTimer = null;
+    this._resultsShownSessionId = null;
+    this._hoveredCardSlot = -1;
     this._lastCardRenderMs = 0;
     this._hudEls = null;
     this._hudCache = {};
@@ -53,12 +56,15 @@ export class BattleScreen {
     this._slotNodes = [];
     this._slotMeta = [];
     this._pendingMergeSlot = -1;
+    this._hoveredCardSlot = -1;
+    this._resultsShownSessionId = null;
     this._isInitialHandSync = true;
 
     const {
       battleManager,
       heroSystem,
       progressionSystem,
+      dataRegistry,
       assetManager,
       eventBus,
       screenManager,
@@ -67,6 +73,8 @@ export class BattleScreen {
       audioManager,
     } = this._ctx;
     const stage = progressionSystem.getSelectedStage();
+    const terrainDef = stage?.terrainId ? dataRegistry?.terrainsById?.get(stage.terrainId) : null;
+    const realmLabel = terrainDef?.realmTitle || terrainDef?.name || '';
     const commander = heroSystem.getActiveCommander();
     const themeClass = commander?.id ? `theme-${commander.id}` : 'theme-astra';
     const isMuted = Boolean(gameState.settings?.muted);
@@ -78,6 +86,7 @@ export class BattleScreen {
         <header class="battle-topbar" aria-label="Battle Status Bar">
           <div class="hud-pill-group hud-pill-group--left">
             <span class="hud-stage-name">Stage ${stage?.code || '1-1'} · ${stage?.name || 'Outer Bastion'}</span>
+            ${realmLabel ? `<span class="meta-sep" aria-hidden="true">|</span><span class="hud-realm-name">${realmLabel}</span>` : ''}
             <span class="meta-sep" aria-hidden="true">|</span>
             <span class="hud-wave-meta">
               <span id="hud-wave-indicator" class="tabular-nums">Wave 1 / ${stage?.waves?.length || 3}</span>
@@ -103,8 +112,15 @@ export class BattleScreen {
           </div>
 
           <div class="hud-pill-group hud-pill-group--right">
-            <button type="button" id="btn-battle-pause" class="hud-ctrl-btn" disabled>Pause</button>
-            <button type="button" id="btn-battle-speed" class="hud-ctrl-btn tabular-nums">1x</button>
+            <button type="button" id="btn-battle-pause" class="hud-ctrl-btn" title="Pause / Resume (P)" disabled>Pause</button>
+            <button type="button" id="btn-battle-speed" class="hud-ctrl-btn tabular-nums" title="Cycle Battle Speed (S)">1x</button>
+            <button
+              type="button"
+              id="btn-battle-guide"
+              class="hud-ctrl-btn hud-ctrl-btn--icon"
+              aria-label="Open Tactical Guide"
+              title="Tactical Guide & Shortcuts"
+            >?</button>
             <button
               type="button"
               id="btn-battle-mute"
@@ -132,6 +148,7 @@ export class BattleScreen {
           </div>
           <div class="boss-hud-track">
             <div id="boss-hud-fill" class="boss-hud-fill" style="width: 100%;"></div>
+            <div id="boss-hud-shield" class="boss-hud-shield" style="width: 0%;"></div>
           </div>
         </div>
 
@@ -139,9 +156,14 @@ export class BattleScreen {
 
         <div id="prep-bar" class="prep-floating-bar">
           <div class="prep-floating-bar__info">
-            <span class="prep-floating-bar__title">Preparation Phase</span>
+            <span class="prep-floating-bar__title">
+              Preparation Phase
+              <span id="prep-passive-label" class="prep-passive-label">
+                ${commander?.passiveSkill ? `· ${commander.name.split(' ')[0]}: ${commander.passiveSkill.name} (${commander.passiveSkill.description})` : ''}
+              </span>
+            </span>
             <span class="prep-floating-bar__hint" id="prep-hint">
-              Click friendly units on the left to reposition or swap class before battle begins.
+              Click friendly units on the left to reposition or swap class, then press Start Battle [Enter].
             </span>
           </div>
           <div class="prep-floating-bar__actions">
@@ -157,7 +179,7 @@ export class BattleScreen {
                   const isAct = h.id === commander?.id;
                   const rLower = (h.rarity || 'R').toLowerCase();
                   const shortName = (h.name || h.id).split(' ')[0];
-                  const tip = `${h.name} (${h.rarity}) — Passive: ${h.passiveSkill?.name || '—'} · Ultimate: ${h.ultimateSkill?.name || '—'}`;
+                  const tip = `${h.name} (${h.rarity} · ${h.realm || h.faction}) — Passive: ${h.passiveSkill?.name || '—'} · Ultimate: ${h.ultimateSkill?.name || '—'}`;
                   return `
                     <button
                       type="button"
@@ -188,6 +210,13 @@ export class BattleScreen {
           </div>
         </div>
 
+        <div id="card-preview-strip" class="card-preview-strip" aria-live="polite" hidden>
+          <span id="card-preview-title" class="card-preview-strip__title"></span>
+          <span class="meta-sep" aria-hidden="true">·</span>
+          <span id="card-preview-desc" class="card-preview-strip__desc"></span>
+          <span id="card-preview-upgrade" class="card-preview-strip__upgrade"></span>
+        </div>
+
         <div class="battle-command-dock" aria-label="Tactical Command Dock">
           <div class="dock-energy-core">
             <div>
@@ -199,7 +228,7 @@ export class BattleScreen {
             </div>
             <div>
               <div class="dock-energy-core__sub tabular-nums" id="hud-deck-remaining">Deck: 6 left</div>
-              <div class="dock-energy-core__hint" id="hand-hint-text">Select card · Merge adjacent</div>
+              <div class="dock-energy-core__hint" id="hand-hint-text">Keys 1-6 · Merge adjacent</div>
             </div>
           </div>
 
@@ -211,11 +240,15 @@ export class BattleScreen {
               id="btn-trigger-ultimate"
               class="dock-commander-card"
               aria-label="${commander?.name || 'Commander'} Ultimate (${commander?.ultimateSkill?.name || 'Starfall Judgment'}): 0%"
-              title="${commander?.name || 'Commander'} · ${commander?.ultimateSkill?.name || 'Starfall Judgment'}"
+              title="${commander?.name || 'Commander'} · ${commander?.ultimateSkill?.name || 'Starfall Judgment'} [Space]"
               disabled
             >
               <img id="battle-commander-avatar" class="dock-commander-card__art" alt="${commander?.name || 'Commander'}" />
               <div class="dock-commander-card__bar-wrap" aria-hidden="true">
+                <div class="dock-commander-card__ult-meta">
+                  <span id="hud-ult-name" class="dock-commander-card__ult-name">${commander?.ultimateSkill?.name || 'Starfall Judgment'}</span>
+                  <span id="hud-ult-pct" class="dock-commander-card__ult-pct tabular-nums">0%</span>
+                </div>
                 <div class="dock-commander-card__track">
                   <div id="hud-ult-bar" class="dock-commander-card__fill" style="width: 0%;"></div>
                 </div>
@@ -232,10 +265,12 @@ export class BattleScreen {
             <div class="ultimate-cutin__content">
               <div id="cutin-commander" class="ultimate-cutin__eyebrow">COMMANDER ULTIMATE</div>
               <div id="cutin-skill" class="ultimate-cutin__title">Starfall Judgment</div>
-              <div id="cutin-sub" class="ultimate-cutin__sub">Orbital Command Override Engaged</div>
+              <div id="cutin-sub" class="ultimate-cutin__sub">Tactical Command Engaged</div>
             </div>
           </div>
         </div>
+
+        <div id="battle-outcome-splash" class="battle-outcome-splash" aria-live="assertive" hidden></div>
 
         <div id="battle-results-overlay" class="battle-results-overlay" hidden></div>
       </section>
@@ -262,6 +297,15 @@ export class BattleScreen {
     this._isInitialHandSync = false;
     this._syncHud();
 
+    canvas?.addEventListener('mousemove', (ev) => {
+      const rect = canvas.getBoundingClientRect();
+      battleManager.handleCanvasHover(ev.clientX - rect.left, ev.clientY - rect.top);
+    });
+
+    canvas?.addEventListener('mouseleave', () => {
+      battleManager.clearCanvasHover();
+    });
+
     canvas?.addEventListener('click', (ev) => {
       const rect = canvas.getBoundingClientRect();
       const sx = ev.clientX - rect.left;
@@ -271,11 +315,20 @@ export class BattleScreen {
       if (res?.action === 'prep_moved' && !res.ok && res.reason) {
         this._ctx.audioManager?.playInvalid?.();
         this._ctx.notify(res.reason, 'warn');
+      } else if (res?.action === 'commander_dais' && !res.ok && res.reason) {
+        this._ctx.audioManager?.playInvalid?.();
+        this._ctx.notify(res.reason, 'warn');
       } else if (res?.action === 'played' && !res.ok && res.reason) {
         if (selectedBefore >= 0) this._triggerInvalidSlot(selectedBefore);
         this._ctx.notify(res.reason, 'warn');
       }
       this._syncPrepControls();
+      this._renderCardSlots();
+    });
+
+    container.querySelector('#btn-battle-guide')?.addEventListener('click', () => {
+      this._ctx.audioManager?.playClick?.();
+      this._ctx.openGuide?.();
     });
 
     container.querySelector('#btn-start-battle')?.addEventListener('click', () => {
@@ -367,10 +420,66 @@ export class BattleScreen {
     this._resizeHandler = () => battleManager.handleResize();
     window.addEventListener('resize', this._resizeHandler);
 
-    // Hidden developer debug toggle via Shift+D (never shown in normal UI)
+    // Keyboard controls: 1-6 cards, Space/Q Ultimate, P Pause, S Speed, Enter Start, Esc Deselect, Shift+D Debug
     this._keyHandler = (ev) => {
+      const tag = ev.target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || ev.target?.isContentEditable) return;
       if (ev.shiftKey && ev.code === 'KeyD') {
         battleManager.toggleDebugMode();
+        return;
+      }
+      const modalRoot = document.getElementById('modal-root');
+      if (modalRoot && modalRoot.children.length > 0) return;
+      const phase = battleManager.getPhase();
+      if (phase === BATTLE_PHASES.RESULTS) return;
+
+      if (ev.code === 'Enter' && phase === BATTLE_PHASES.PREPARATION) {
+        ev.preventDefault();
+        battleManager.beginBattle();
+        this._syncHud();
+        this._renderCardSlots();
+        return;
+      }
+
+      if (ev.code === 'Escape') {
+        if (this._ctx.gameState.battle.selectedCardSlot !== -1) {
+          this._ctx.gameState.setBattle({ selectedCardSlot: -1 });
+          this._renderCardSlots();
+        }
+        return;
+      }
+
+      if (ev.code === 'KeyP') {
+        battleManager.togglePause();
+        this._syncHud();
+        return;
+      }
+
+      if (ev.code === 'KeyS') {
+        battleManager.cycleSpeed();
+        this._syncHud();
+        return;
+      }
+
+      if (ev.code === 'Space' || ev.code === 'KeyQ') {
+        ev.preventDefault();
+        const res = battleManager.triggerUltimate();
+        if (!res.ok && res.reason) {
+          this._ctx.audioManager?.playInvalid?.();
+          this._ctx.notify(res.reason, 'warn');
+        }
+        return;
+      }
+
+      if (/^Digit[1-6]$/.test(ev.code)) {
+        const slotIdx = Number(ev.code.slice(5)) - 1;
+        const res = battleManager.interactWithCardSlot(slotIdx);
+        if ((res.action === 'played' || res.action === 'blocked') && !res.ok) {
+          this._triggerInvalidSlot(slotIdx);
+          if (res.action === 'blocked') this._ctx.audioManager?.playInvalid?.();
+          if (res.reason) this._ctx.notify(res.reason, 'warn');
+        }
+        this._renderCardSlots();
       }
     };
     window.addEventListener('keydown', this._keyHandler);
@@ -404,7 +513,7 @@ export class BattleScreen {
         }
       }),
       eventBus.on('battle:completed', (results) => {
-        this._renderResultsOverlay(results);
+        this._scheduleResultsReveal(results);
       }),
     );
   }
@@ -426,6 +535,10 @@ export class BattleScreen {
     if (this._rewardTimer) {
       clearTimeout(this._rewardTimer);
       this._rewardTimer = null;
+    }
+    if (this._resultsRevealTimer) {
+      clearTimeout(this._resultsRevealTimer);
+      this._resultsRevealTimer = null;
     }
     for (const unsub of this._unsubs) unsub();
     this._unsubs = [];
@@ -458,6 +571,7 @@ export class BattleScreen {
       energyBar: q('#hud-energy-bar'),
       deckRem: q('#hud-deck-remaining'),
       handHint: q('#hand-hint-text'),
+      ultName: q('#hud-ult-name'),
       ultPct: q('#hud-ult-pct'),
       ultBar: q('#hud-ult-bar'),
       ultBtn: q('#btn-trigger-ultimate'),
@@ -466,12 +580,20 @@ export class BattleScreen {
       speedBtn: q('#btn-battle-speed'),
       muteBtn: q('#btn-battle-mute'),
       prepBar: q('#prep-bar'),
+      prepHint: q('#prep-hint'),
+      prepPassive: q('#prep-passive-label'),
       bannerEl: q('#battle-banner'),
       bossBar: q('#boss-hud-bar'),
       bossName: q('#boss-hud-name'),
       bossCast: q('#boss-hud-cast'),
       bossHp: q('#boss-hud-hp'),
       bossFill: q('#boss-hud-fill'),
+      bossShield: q('#boss-hud-shield'),
+      previewStrip: q('#card-preview-strip'),
+      previewTitle: q('#card-preview-title'),
+      previewDesc: q('#card-preview-desc'),
+      previewUpgrade: q('#card-preview-upgrade'),
+      outcomeSplash: q('#battle-outcome-splash'),
       resultsOverlay: q('#battle-results-overlay'),
     };
   }
@@ -489,6 +611,7 @@ export class BattleScreen {
       btn.className = 'tactical-card tactical-card--empty';
       btn.dataset.slotIndex = String(idx);
       btn.innerHTML = `
+        <span class="tactical-card__key tabular-nums" aria-hidden="true">${idx + 1}</span>
         <div class="tactical-card__top">
           <span class="tactical-card__cost tabular-nums"></span>
           <span class="tactical-card__category"></span>
@@ -505,6 +628,18 @@ export class BattleScreen {
           <span class="tabular-nums"></span>
         </div>
       `;
+
+      btn.addEventListener('mouseenter', () => {
+        this._hoveredCardSlot = idx;
+        this._syncCardPreview();
+      });
+
+      btn.addEventListener('mouseleave', () => {
+        if (this._hoveredCardSlot === idx) {
+          this._hoveredCardSlot = -1;
+          this._syncCardPreview();
+        }
+      });
 
       btn.addEventListener('click', () => {
         const res = this._ctx.battleManager.interactWithCardSlot(idx);
@@ -576,7 +711,13 @@ export class BattleScreen {
       this._ctx.assetManager.bindImageElement(cutinImg, commander.portraitAssetId);
     }
     if (ultBtn) {
-      ultBtn.title = `${commander.name} · ${commander.ultimateSkill?.name || 'Ultimate'}`;
+      ultBtn.title = `${commander.name} · ${commander.ultimateSkill?.name || 'Ultimate'} [Space]`;
+    }
+    if (this._hudEls?.ultName) {
+      this._hudEls.ultName.textContent = commander.ultimateSkill?.name || 'Ultimate';
+    }
+    if (this._hudEls?.prepPassive && commander.passiveSkill) {
+      this._hudEls.prepPassive.textContent = `· ${commander.name.split(' ')[0]}: ${commander.passiveSkill.name} (${commander.passiveSkill.description})`;
     }
 
     const themeClass = `theme-${commander.id}`;
@@ -590,9 +731,19 @@ export class BattleScreen {
   _syncPrepControls() {
     if (!this._container) return;
     const swapBtn = this._container.querySelector('#btn-prep-swap-class');
-    const selectedUid = this._ctx.battleManager.getSelectedPrepUnitUid();
+    const selectedUnit = this._ctx.battleManager.getSelectedPrepUnit?.();
     if (swapBtn) {
-      swapBtn.disabled = !selectedUid;
+      swapBtn.disabled = !selectedUnit;
+    }
+    if (this._hudEls?.prepHint) {
+      if (selectedUnit) {
+        const unitDef = this._ctx.dataRegistry?.unitsById?.get(selectedUnit.unitId);
+        const trait = unitDef?.traitLabel ? ` · ${unitDef.traitLabel}` : '';
+        this._hudEls.prepHint.textContent = `Selected: ${selectedUnit.name} (${unitDef?.role || selectedUnit.unitClass}${trait}) — Click Ally Zone to reposition or press Swap Class.`;
+      } else {
+        this._hudEls.prepHint.textContent =
+          'Click friendly units on the left to reposition or swap class, then press Start Battle [Enter].';
+      }
     }
   }
 
@@ -661,6 +812,9 @@ export class BattleScreen {
       this._hudCache.ultVal = ultVal;
       this._hudCache.ultReady = ultReady;
       if (h.ultBar) h.ultBar.style.width = `${ultVal}%`;
+      if (h.ultPct) {
+        h.ultPct.textContent = ultReady ? 'READY [SPC]' : `${ultVal}%`;
+      }
       if (h.ultBtn) {
         h.ultBtn.disabled = !ultReady;
         h.ultBtn.classList.toggle('is-ult-ready', ultReady);
@@ -703,10 +857,18 @@ export class BattleScreen {
             this._setTextIfChanged('bossCast', h.bossCast, `Casting: ${b.bossInfo.castingName}`);
           }
         }
-        this._setTextIfChanged('bossHp', h.bossHp, `${b.bossInfo.hp} / ${b.bossInfo.maxHp}`);
+        const shdText = b.bossInfo.shield > 0 ? ` (+${b.bossInfo.shield} SHD)` : '';
+        this._setTextIfChanged('bossHp', h.bossHp, `${b.bossInfo.hp} / ${b.bossInfo.maxHp}${shdText}`);
         if (h.bossFill) {
           const pct = Math.max(0, Math.min(100, (b.bossInfo.hp / Math.max(1, b.bossInfo.maxHp)) * 100));
           h.bossFill.style.width = `${pct}%`;
+        }
+        if (h.bossShield) {
+          const shdPct = Math.max(
+            0,
+            Math.min(100, ((b.bossInfo.shield || 0) / Math.max(1, b.bossInfo.maxHp)) * 100),
+          );
+          h.bossShield.style.width = `${shdPct}%`;
         }
       } else if (!h.bossBar.hidden) {
         h.bossBar.hidden = true;
@@ -728,8 +890,12 @@ export class BattleScreen {
       }
     }
 
-    if (phase === BATTLE_PHASES.RESULTS && b.results && h.resultsOverlay && h.resultsOverlay.hidden) {
-      this._renderResultsOverlay(b.results);
+    if (
+      phase === BATTLE_PHASES.RESULTS &&
+      b.results &&
+      this._resultsShownSessionId !== b.results.sessionId
+    ) {
+      this._scheduleResultsReveal(b.results);
     }
   }
 
@@ -744,6 +910,17 @@ export class BattleScreen {
     const currentEnergy = Math.floor(b.energy ?? 0);
     const inCombat =
       b.phase === BATTLE_PHASES.ACTIVE_COMBAT || b.phase === BATTLE_PHASES.WAVE_TRANSITION;
+
+    // Precompute passive adjacent merge pairs so players immediately spot merge opportunities
+    const passiveMergeSlots = new Set();
+    if (inCombat) {
+      for (let i = 0; i < 5; i += 1) {
+        if (cardSystem.canMerge(i, i + 1)) {
+          passiveMergeSlots.add(i);
+          passiveMergeSlots.add(i + 1);
+        }
+      }
+    }
 
     let drewNewCard = false;
     let hasMergeOption = false;
@@ -777,6 +954,7 @@ export class BattleScreen {
 
       const isSelected = selected === idx;
       const canMergeTarget = selected !== -1 && selected !== idx && cardSystem.canMerge(selected, idx);
+      const isPassiveMergeReady = selected === -1 && passiveMergeSlots.has(idx);
       if (canMergeTarget) hasMergeOption = true;
 
       const cooldown = cardSystem.getCardCooldown(slot.cardId);
@@ -797,6 +975,7 @@ export class BattleScreen {
         `tactical-card--${rarityLower}`,
         isSelected ? 'is-selected' : '',
         canMergeTarget ? 'is-merge-target' : '',
+        isPassiveMergeReady ? 'is-merge-ready' : '',
         slot.tier > 1 ? 'is-upgraded' : '',
         slot.tier >= 3 ? 'is-max-tier' : '',
         !usable && !canMergeTarget ? 'is-unusable' : '',
@@ -829,9 +1008,11 @@ export class BattleScreen {
       } else if (!affordable) {
         hint = `Need ${slot.cost} E`;
       } else if (isSelected) {
-        hint = slot.category === 'unit' ? 'Click map / card' : 'Click again to cast';
+        hint = slot.category === 'unit' ? 'Click Ally Zone / card' : 'Click map / card';
+      } else if (isPassiveMergeReady) {
+        hint = 'Merge pair ready';
       } else {
-        hint = 'Click to select';
+        hint = 'Click or press key';
       }
       node.hint.textContent = hint;
 
@@ -877,16 +1058,68 @@ export class BattleScreen {
       const nextHint = !inCombat
         ? 'Start battle to play cards'
         : hasMergeOption
-          ? 'Gold card can merge!'
+          ? 'Click gold neighbor to merge!'
           : selected !== -1
-            ? 'Click card again or arena'
-            : 'Select card · Merge adjacent';
+            ? 'Click card again or battlefield'
+            : passiveMergeSlots.size > 0
+              ? 'Adjacent merge pair ready!'
+              : 'Keys 1-6 · Merge adjacent';
       this._setTextIfChanged('handHint', this._hudEls.handHint, nextHint);
     }
+
+    this._syncCardPreview();
 
     this._pendingMergeSlot = -1;
     if (drewNewCard) {
       audioManager?.playCardDraw?.();
+    }
+  }
+
+  _syncCardPreview() {
+    const h = this._hudEls;
+    if (!h?.previewStrip) return;
+    const b = this._ctx.gameState.battle;
+    const slots = this._ctx.cardSystem.getSlots();
+    const activeIdx = this._hoveredCardSlot >= 0 ? this._hoveredCardSlot : b.selectedCardSlot;
+    const card = activeIdx >= 0 ? slots[activeIdx] : null;
+
+    if (!card || b.phase === BATTLE_PHASES.RESULTS) {
+      h.previewStrip.hidden = true;
+      return;
+    }
+
+    h.previewStrip.hidden = false;
+    h.previewTitle.textContent = `${card.name} (${card.levelLabel} · ${card.cost}E)`;
+    h.previewDesc.textContent = card.description || CATEGORY_LABELS[card.category] || 'Tactical instruction';
+    h.previewUpgrade.textContent = card.upgradeSummary ? `Merge: ${card.upgradeSummary}` : '';
+  }
+
+  _scheduleResultsReveal(results) {
+    if (!this._container || !results) return;
+    if (this._resultsShownSessionId === results.sessionId) return;
+    this._resultsShownSessionId = results.sessionId;
+
+    const splash = this._hudEls?.outcomeSplash || this._container.querySelector('#battle-outcome-splash');
+    if (this._resultsRevealTimer) {
+      clearTimeout(this._resultsRevealTimer);
+      this._resultsRevealTimer = null;
+    }
+
+    if (splash) {
+      splash.hidden = false;
+      splash.className = `battle-outcome-splash ${results.victory ? 'is-victory' : 'is-defeat'}`;
+      splash.innerHTML = `
+        <div class="battle-outcome-splash__band">
+          <div class="battle-outcome-splash__kicker">Stage ${results.stageCode} · ${results.stageName}</div>
+          <div class="battle-outcome-splash__title">${results.victory ? 'VICTORY' : 'DEFEAT'}</div>
+        </div>
+      `;
+      this._resultsRevealTimer = setTimeout(() => {
+        splash.hidden = true;
+        this._renderResultsOverlay(results);
+      }, 650);
+    } else {
+      this._renderResultsOverlay(results);
     }
   }
 
@@ -898,6 +1131,9 @@ export class BattleScreen {
     const commander = this._ctx.heroSystem.getActiveCommander();
     const themeClass = commander?.id ? `theme-${commander.id}` : 'theme-astra';
     const r = results.rewards || {};
+    const hasNewUnlock =
+      (Array.isArray(r.bonusUnits) && r.bonusUnits.length > 0) ||
+      (Array.isArray(r.bonusCards) && r.bonusCards.length > 0);
     const materialItems = (r.materials || [])
       .map((m) => `<span>${m.name} ×${m.quantity}</span>`)
       .join('<span class="meta-sep">·</span>');
@@ -913,6 +1149,12 @@ export class BattleScreen {
         return `<span>Unlocked Card: ${cardDef?.name || cid}</span>`;
       })
       .join('<span class="meta-sep">·</span>');
+
+    const defeatTip = !results.victory
+      ? results.ultimatesUsed === 0
+        ? 'Tip: Trigger your Commander Ultimate [Space] once charged to swing critical waves.'
+        : 'Tip: Merge identical adjacent cards to Lv.II–III for major power spikes, or upgrade units in Formation.'
+      : '';
 
     overlay.hidden = false;
     overlay.innerHTML = `
@@ -946,7 +1188,7 @@ export class BattleScreen {
 
         <div class="results-detail-col">
           <div>
-            <div class="section-kicker">Combat Telemetry</div>
+            <div class="section-kicker">Battle Summary</div>
             <div class="results-stats-grid" style="margin-top: 10px;">
               <div class="results-stat">
                 <span class="results-stat__label">Duration</span>
@@ -991,8 +1233,17 @@ export class BattleScreen {
             ${bonusCardItems ? `<div class="meta-line" style="color: var(--accent-blue-bright); font-weight: 600;">${bonusCardItems}</div>` : ''}
           </div>
 
+          ${defeatTip ? `<div class="results-tip">${defeatTip}</div>` : ''}
+
           <div class="btn-row" style="margin-top: auto; justify-content: flex-end;">
-            <button type="button" id="btn-results-home" class="btn btn-ghost">Return to Home</button>
+            <button type="button" id="btn-results-home" class="btn btn-ghost">Home</button>
+            ${
+              !results.victory
+                ? '<button type="button" id="btn-results-formation" class="btn btn-secondary">Upgrade Squad</button>'
+                : hasNewUnlock
+                  ? '<button type="button" id="btn-results-formation" class="btn btn-secondary">Equip Unlock</button>'
+                  : ''
+            }
             <button type="button" id="btn-results-retry" class="btn btn-secondary">Retry Stage</button>
             ${
               results.nextStageId
@@ -1021,8 +1272,18 @@ export class BattleScreen {
       this._ctx.screenManager.navigate('home');
     });
 
+    overlay.querySelector('#btn-results-formation')?.addEventListener('click', () => {
+      this._ctx.audioManager.playClick();
+      this._ctx.screenManager.navigate('formation');
+    });
+
     overlay.querySelector('#btn-results-retry')?.addEventListener('click', () => {
       this._ctx.audioManager.playClick();
+      if (this._resultsRevealTimer) {
+        clearTimeout(this._resultsRevealTimer);
+        this._resultsRevealTimer = null;
+      }
+      this._resultsShownSessionId = null;
       overlay.hidden = true;
       overlay.innerHTML = '';
       this._hudCache = {};
@@ -1036,6 +1297,11 @@ export class BattleScreen {
 
     overlay.querySelector('#btn-results-next')?.addEventListener('click', () => {
       this._ctx.audioManager.playClick();
+      if (this._resultsRevealTimer) {
+        clearTimeout(this._resultsRevealTimer);
+        this._resultsRevealTimer = null;
+      }
+      this._resultsShownSessionId = null;
       this._ctx.progressionSystem.selectStage(results.nextStageId);
       overlay.hidden = true;
       overlay.innerHTML = '';
@@ -1059,14 +1325,16 @@ export class BattleScreen {
       portrait.alt = commander.name;
       this._ctx.assetManager.bindImageElement(portrait, commander.portraitAssetId);
     }
-    if (eyebrow) eyebrow.textContent = `${commander?.name || 'Commander'} · Orbital Ultimate`;
+    if (eyebrow) {
+      eyebrow.textContent = `${commander?.name || 'Commander'} · ${commander?.realm || 'Commander Ultimate'}`;
+    }
     if (title) {
       title.textContent = skill?.displayNameZh
         ? `${skill.name} · ${skill.displayNameZh}`
         : skill?.name || 'Starfall Judgment';
     }
     if (sub) {
-      sub.textContent = commander?.title || 'Commander Override Engaged';
+      sub.textContent = commander?.title || 'Tactical Command Engaged';
     }
 
     overlay.classList.add('is-visible');

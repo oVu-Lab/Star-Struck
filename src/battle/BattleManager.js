@@ -99,6 +99,8 @@ export class BattleManager {
     this._debugMode = false;
     this._sessionId = null;
     this._rewardsApplied = false;
+    this._pointerWorld = null;
+    this._hoverDais = false;
     this._unsubs = [];
 
     this._bindCombatFeedback();
@@ -270,6 +272,33 @@ export class BattleManager {
 
   getSelectedPrepUnitUid() {
     return this._selectedPrepUnitUid;
+  }
+
+  getSelectedPrepUnit() {
+    if (!this._selectedPrepUnitUid) return null;
+    return this._units.getByUid(this._selectedPrepUnitUid) || null;
+  }
+
+  getSelectedCardSnapshot() {
+    const idx = this._state?.battle?.selectedCardSlot ?? -1;
+    if (idx < 0) return null;
+    const slots = this._cards?.getSlots?.() || [];
+    return slots[idx] || null;
+  }
+
+  handleCanvasHover(screenX, screenY) {
+    if (!this._renderer) return;
+    const { width, height } = this._renderer.getDimensions();
+    this._pointerWorld = this.battlefield.screenToWorld(screenX, screenY, width, height);
+    this._hoverDais =
+      (this._phase === BATTLE_PHASES.ACTIVE_COMBAT ||
+        this._phase === BATTLE_PHASES.WAVE_TRANSITION) &&
+      Boolean(this._renderer.hitTestCommanderDais?.(screenX, screenY));
+  }
+
+  clearCanvasHover() {
+    this._pointerWorld = null;
+    this._hoverDais = false;
   }
 
   /**
@@ -481,6 +510,16 @@ export class BattleManager {
         return { action: 'prep_moved', ...res, world };
       }
       return { action: 'none', world };
+    }
+
+    // During active combat, clicking the Commander Dais triggers the Commander Ultimate
+    if (
+      (this._phase === BATTLE_PHASES.ACTIVE_COMBAT ||
+        this._phase === BATTLE_PHASES.WAVE_TRANSITION) &&
+      this._renderer.hitTestCommanderDais?.(screenX, screenY)
+    ) {
+      const ultRes = this.triggerUltimate();
+      return { action: 'commander_dais', ...ultRes, world };
     }
 
     // During active combat, clicking the battlefield deploys a selected card at that world point
@@ -801,10 +840,28 @@ export class BattleManager {
             kind: 'deploy',
             x: unit.x,
             y: unit.y,
-            radius: 6 + card.tier * 1.5,
+            radius: 6 + card.tier * 1.8,
             color: card.tier > 1 ? '#e2b75b' : '#38bdf8',
-            duration: 0.5,
+            secondaryColor: card.tier >= 3 ? '#fde68a' : '#7dd3fc',
+            duration: card.tier > 1 ? 0.65 : 0.5,
           });
+          this._spawnWorldParticles(
+            unit.x,
+            unit.y,
+            card.tier > 1 ? '#fbbf24' : '#38bdf8',
+            card.tier >= 3 ? 14 : card.tier === 2 ? 9 : 5,
+            'rising',
+          );
+          if (card.tier > 1 && i === 0) {
+            this._anim?.spawnFloatingText({
+              x: unit.x,
+              y: unit.y,
+              text: `${card.tier >= 3 ? 'Lv.III' : 'Lv.II'} ${unit.name}`,
+              color: '#fde68a',
+              isCrit: card.tier >= 3,
+              kind: 'buff',
+            });
+          }
         }
       }
 
@@ -825,6 +882,7 @@ export class BattleManager {
         const stunSec = eff.stunSecByTier?.[tierKey] ?? 0;
         let hitCount = 0;
 
+        let statusTagged = false;
         for (const enemy of enemies) {
           if (Math.hypot(enemy.x - center.x, enemy.y - center.y) <= radius) {
             const res = this._combat.applyDamage({
@@ -844,6 +902,16 @@ export class BattleManager {
                 value: Math.round(eff.burnDamagePerSec * (1 + (card.tier - 1) * 0.4)),
                 durationSec: eff.burnDurationSec || 3.5,
               });
+              if (!statusTagged) {
+                this._anim?.spawnFloatingText({
+                  x: enemy.x,
+                  y: enemy.y,
+                  text: 'BURN',
+                  color: '#fb923c',
+                  kind: 'status',
+                });
+                statusTagged = true;
+              }
             }
             if (stunSec > 0 && enemy.hp > 0 && enemy.state !== UNIT_STATES.DEAD) {
               this._units.applyStatusEffect(enemy, {
@@ -852,6 +920,16 @@ export class BattleManager {
                 value: 1,
                 durationSec: stunSec,
               });
+              if (!statusTagged) {
+                this._anim?.spawnFloatingText({
+                  x: enemy.x,
+                  y: enemy.y,
+                  text: 'STUN',
+                  color: '#fbbf24',
+                  kind: 'status',
+                });
+                statusTagged = true;
+              }
             }
           }
         }
@@ -864,6 +942,7 @@ export class BattleManager {
           color: eff.color || '#38bdf8',
           duration: 0.7,
         });
+        this._spawnWorldParticles(center.x, center.y, eff.color || '#38bdf8', 12, 'burst');
         this._anim?.triggerScreenShake(5, 0.28);
         return { kind: eff.kind, center, radius, hitCount };
       }
@@ -895,6 +974,13 @@ export class BattleManager {
               value: shred,
               durationSec: eff.shredDurationSec || 5.0,
             });
+            this._anim?.spawnFloatingText({
+              x: target.x,
+              y: target.y,
+              text: 'SUNDER',
+              color: '#f87171',
+              kind: 'status',
+            });
           }
           this._anim?.spawnWorldEffect({
             kind: 'lance',
@@ -920,6 +1006,7 @@ export class BattleManager {
         const shred = eff.defenseShredByTier?.[tierKey] ?? 0.22;
         const durationSec = eff.durationSecByTier?.[tierKey] ?? 5.5;
         let hitCount = 0;
+        let debuffTagged = false;
 
         for (const enemy of enemies) {
           if (Math.hypot(enemy.x - center.x, enemy.y - center.y) <= radius) {
@@ -950,6 +1037,16 @@ export class BattleManager {
                   durationSec,
                 });
               }
+              if (!debuffTagged && (slow > 0 || shred > 0)) {
+                this._anim?.spawnFloatingText({
+                  x: enemy.x,
+                  y: enemy.y,
+                  text: slow > 0 ? 'SLOW + SUNDER' : 'SUNDER',
+                  color: '#a5b4fc',
+                  kind: 'status',
+                });
+                debuffTagged = true;
+              }
             }
           }
         }
@@ -961,6 +1058,7 @@ export class BattleManager {
           color: eff.color || '#818cf8',
           duration: 0.75,
         });
+        this._spawnWorldParticles(center.x, center.y, eff.color || '#818cf8', 10, 'burst');
         return { kind: 'aoe_debuff', center, radius, hitCount };
       }
 
@@ -1206,6 +1304,15 @@ export class BattleManager {
         color: eff.color || '#f59e0b',
         duration: 0.72,
       });
+      this._anim?.spawnFloatingText({
+        x: 34,
+        y: 44,
+        text: card.name.toUpperCase(),
+        color: eff.color || '#fbbf24',
+        isCrit: true,
+        kind: 'tactic',
+      });
+      this._spawnWorldParticles(34, 50, eff.color || '#f59e0b', 10, 'rising');
       this._state.setBattle({ activeTactic: { ...this._activeTactic } });
       return { kind: 'tactic', tactic: this._activeTactic };
     }
@@ -1215,6 +1322,7 @@ export class BattleManager {
       this._audio?.playHeal();
       const allies = this._units.getBySide('ally');
       const durationSec = eff.durationSecByTier?.[tierKey] ?? 9;
+      const anchor = allies[0] ? { x: allies[0].x, y: allies[0].y } : { x: 32, y: 50 };
 
       if (eff.kind === 'support_buff') {
         const defBonus = eff.defenseBonusByTier?.[tierKey] ?? 0.28;
@@ -1233,6 +1341,23 @@ export class BattleManager {
             durationSec,
           });
         }
+        this._anim?.spawnWorldEffect({
+          kind: 'heal_wave',
+          x: anchor.x,
+          y: anchor.y,
+          radius: 34,
+          color: eff.color || '#38bdf8',
+          duration: 0.65,
+        });
+        this._anim?.spawnFloatingText({
+          x: anchor.x,
+          y: anchor.y,
+          text: `WARD +${Math.round(shieldAmt)}`,
+          color: '#7dd3fc',
+          isCrit: true,
+          kind: 'buff',
+        });
+        this._spawnWorldParticles(anchor.x, anchor.y, '#38bdf8', 10, 'rising');
         return { kind: 'support_buff', affected: allies.length };
       }
 
@@ -1252,6 +1377,23 @@ export class BattleManager {
             durationSec,
           });
         }
+        this._anim?.spawnWorldEffect({
+          kind: 'tactic_pulse',
+          x: anchor.x,
+          y: anchor.y,
+          radius: 32,
+          color: eff.color || '#38bdf8',
+          duration: 0.6,
+        });
+        this._anim?.spawnFloatingText({
+          x: anchor.x,
+          y: anchor.y,
+          text: `+${gain} ENERGY`,
+          color: '#38bdf8',
+          isCrit: true,
+          kind: 'buff',
+        });
+        this._spawnWorldParticles(anchor.x, anchor.y, '#38bdf8', 10, 'rising');
         return { kind: 'energy_and_buff', energyGained: gain, affected: allies.length };
       }
 
@@ -1272,6 +1414,23 @@ export class BattleManager {
             skillSystem: this._skills,
           });
         }
+        this._anim?.spawnWorldEffect({
+          kind: 'heal_wave',
+          x: anchor.x,
+          y: anchor.y,
+          radius: 36,
+          color: eff.color || '#34d399',
+          duration: 0.7,
+        });
+        this._anim?.spawnFloatingText({
+          x: anchor.x,
+          y: anchor.y,
+          text: `MEND +${Math.round(healBonus * 100)}%`,
+          color: '#34d399',
+          isCrit: true,
+          kind: 'heal',
+        });
+        this._spawnWorldParticles(anchor.x, anchor.y, '#34d399', 10, 'rising');
         return { kind: 'heal_enhancement', affected: allies.length };
       }
 
@@ -1287,6 +1446,23 @@ export class BattleManager {
             durationSec,
           });
         }
+        this._anim?.spawnWorldEffect({
+          kind: 'tactic_pulse',
+          x: anchor.x,
+          y: anchor.y,
+          radius: 34,
+          color: eff.color || '#e2b75b',
+          duration: 0.65,
+        });
+        this._anim?.spawnFloatingText({
+          x: anchor.x,
+          y: anchor.y,
+          text: `+${ultGain} ULT`,
+          color: '#fde68a',
+          isCrit: true,
+          kind: 'buff',
+        });
+        this._spawnWorldParticles(anchor.x, anchor.y, '#fbbf24', 12, 'rising');
         return { kind: 'ultimate_charge', ultimateGained: ultGain, affected: allies.length };
       }
 
@@ -1317,6 +1493,15 @@ export class BattleManager {
           color: eff.color || '#34d399',
           duration: 0.65,
         });
+        this._anim?.spawnFloatingText({
+          x: anchor.x,
+          y: anchor.y,
+          text: cleansedTotal > 0 ? `CLEANSED (${cleansedTotal})` : 'PURIFY + WARD',
+          color: '#6ee7b7',
+          isCrit: true,
+          kind: 'heal',
+        });
+        this._spawnWorldParticles(anchor.x, anchor.y, '#34d399', 10, 'rising');
         return { kind: 'cleanse_and_ward', affected: allies.length, cleansedTotal };
       }
 
@@ -1337,6 +1522,23 @@ export class BattleManager {
             durationSec,
           });
         }
+        this._anim?.spawnWorldEffect({
+          kind: 'tactic_pulse',
+          x: anchor.x,
+          y: anchor.y,
+          radius: 34,
+          color: eff.color || '#38bdf8',
+          duration: 0.6,
+        });
+        this._anim?.spawnFloatingText({
+          x: anchor.x,
+          y: anchor.y,
+          text: `HASTE +${Math.round(atkSpdBonus * 100)}%`,
+          color: '#7dd3fc',
+          isCrit: true,
+          kind: 'buff',
+        });
+        this._spawnWorldParticles(anchor.x, anchor.y, '#7dd3fc', 10, 'rising');
         return { kind: 'haste_buff', affected: allies.length };
       }
     }
@@ -1700,6 +1902,9 @@ export class BattleManager {
       activeTactic: this._activeTactic,
       commander: this._heroes?.getActiveCommander?.() || null,
       ultimateEnergy: this._state?.battle?.ultimateEnergy ?? 0,
+      pointerWorld: this._pointerWorld,
+      hoverDais: this._hoverDais,
+      selectedCard: this.getSelectedCardSnapshot(),
     });
   }
 }

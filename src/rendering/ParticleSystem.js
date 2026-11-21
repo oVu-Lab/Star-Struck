@@ -31,8 +31,11 @@ export class ParticleSystem {
     return 1.0;
   }
 
-  seedAmbient(width, height, quality = 'high') {
+  seedAmbient(width, height, quality = 'high', palette = null) {
     this._quality = quality || 'high';
+    const colors = Array.isArray(palette) && palette.length > 0
+      ? palette
+      : ['#e2b75b', '#f8fafc', '#38bdf8'];
     const target = quality === 'low' ? 14 : quality === 'medium' ? 24 : 36;
     this._ambient = [];
     for (let i = 0; i < target; i += 1) {
@@ -44,7 +47,7 @@ export class ParticleSystem {
         size: 1 + Math.random() * 1.8,
         alpha: 0.16 + Math.random() * 0.32,
         phase: Math.random() * Math.PI * 2,
-        color: i % 4 === 0 ? '#e2b75b' : i % 7 === 0 ? '#f8fafc' : '#38bdf8',
+        color: colors[i % colors.length],
       });
     }
   }
