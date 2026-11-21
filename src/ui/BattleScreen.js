@@ -244,6 +244,14 @@ export class BattleScreen {
               disabled
             >
               <img id="battle-commander-avatar" class="dock-commander-card__art" alt="${commander?.name || 'Commander'}" />
+              <div class="dock-commander-card__fx" aria-hidden="true">
+                <span class="dock-commander-card__foil"></span>
+                <span class="dock-commander-card__glitter"></span>
+                <span class="dock-commander-card__flare dock-commander-card__flare--a"></span>
+                <span class="dock-commander-card__flare dock-commander-card__flare--b"></span>
+                <span class="dock-commander-card__flare dock-commander-card__flare--c"></span>
+                <span class="dock-commander-card__ready-badge">ULT READY</span>
+              </div>
               <div class="dock-commander-card__bar-wrap" aria-hidden="true">
                 <div class="dock-commander-card__ult-meta">
                   <span id="hud-ult-name" class="dock-commander-card__ult-name">${commander?.ultimateSkill?.name || 'Starfall Judgment'}</span>
@@ -808,31 +816,35 @@ export class BattleScreen {
       b.remainingDeckCount > 0 ? `Deck: ${b.remainingDeckCount} left` : 'Deck empty';
     this._setTextIfChanged('deckRem', h.deckRem, deckText);
 
-    const ultVal = Math.min(100, Math.floor(b.ultimateEnergy || 0));
+    const ultMax = Math.max(1, b.ultimateMaxEnergy || 100);
+    const ultRaw = b.ultimateEnergy || 0;
+    const ultPctNum = Math.min(100, Math.floor((ultRaw / ultMax) * 100));
     const ultReady =
-      ultVal >= 100 &&
+      ultRaw >= ultMax &&
       (phase === BATTLE_PHASES.ACTIVE_COMBAT || phase === BATTLE_PHASES.WAVE_TRANSITION);
-    if (this._hudCache.ultVal !== ultVal || this._hudCache.ultReady !== ultReady) {
-      this._hudCache.ultVal = ultVal;
+    if (this._hudCache.ultVal !== ultPctNum || this._hudCache.ultReady !== ultReady) {
+      this._hudCache.ultVal = ultPctNum;
       this._hudCache.ultReady = ultReady;
-      if (h.ultBar) h.ultBar.style.width = `${ultVal}%`;
+      if (h.ultBar) h.ultBar.style.width = `${ultPctNum}%`;
       if (h.ultPct) {
-        h.ultPct.textContent = ultReady ? 'READY [SPC]' : `${ultVal}%`;
+        h.ultPct.textContent = ultReady ? 'READY [SPC]' : `${ultPctNum}%`;
       }
       if (h.ultBtn) {
         h.ultBtn.disabled = !ultReady;
         h.ultBtn.classList.toggle('is-ult-ready', ultReady);
+        h.ultBtn.setAttribute('data-ult-ready', String(ultReady));
         const cmd = this._ctx.heroSystem.getActiveCommander();
         const ultName = cmd?.ultimateSkill?.name || 'Ultimate';
         h.ultBtn.setAttribute(
           'aria-label',
           ultReady
             ? `Release ${cmd?.name || 'Commander'} Ultimate: ${ultName}`
-            : `${cmd?.name || 'Commander'} Ultimate charging (${ultVal}%)`,
+            : `${cmd?.name || 'Commander'} Ultimate charging (${ultPctNum}%)`,
         );
       }
       if (h.cmdConsole) {
         h.cmdConsole.classList.toggle('is-ult-ready', ultReady);
+        h.cmdConsole.setAttribute('data-ult-ready', String(ultReady));
       }
     }
 

@@ -19,6 +19,78 @@ export const ASTRA_HERO_ID = 'astra';
 export const MAX_SIMULTANEOUS_ASTRA_CARDS = 6;
 
 /**
+ * Supported interactive preview preset for Commander Card Preview Mode:
+ * enables mouse-controlled 3D tilt & parallax while keeping automatic rotation off.
+ */
+export const ASTRA_CARD_PREVIEW_OPTIONS = Object.freeze({
+  autoplay: false,
+  interactive: true,
+  tilt: 1,
+  animateEffects: true,
+});
+
+/**
+ * Data-driven registry of Commanders that have a collectible holographic card.
+ * New Commander collectible cards can be registered here without changing UI
+ * screen or preview logic.
+ */
+const COLLECTIBLE_COMMANDER_CARDS = new Map([
+  [
+    ASTRA_HERO_ID,
+    {
+      id: ASTRA_HERO_ID,
+      displayName: 'ASTRA',
+      CardClass: AstraCard,
+      assets: null,
+      glow: null,
+    },
+  ],
+]);
+
+/**
+ * Register a collectible Commander card definition for reusable display & preview.
+ *
+ * @param {string} heroId
+ * @param {object} [config]
+ */
+export function registerCollectibleCommanderCard(heroId, config = {}) {
+  const key = String(heroId || '').toLowerCase();
+  if (!key) return;
+  COLLECTIBLE_COMMANDER_CARDS.set(key, {
+    id: key,
+    displayName: config.displayName || key.toUpperCase(),
+    CardClass: config.CardClass || AstraCard,
+    assets: config.assets || null,
+    glow: config.glow ?? null,
+  });
+}
+
+/**
+ * Look up collectible card configuration for a Commander hero object or ID.
+ *
+ * @param {string|object|null|undefined} heroOrId
+ * @returns {object|null}
+ */
+export function getCommanderCardConfig(heroOrId) {
+  if (!heroOrId) return null;
+  const key =
+    typeof heroOrId === 'string'
+      ? heroOrId.toLowerCase()
+      : String(heroOrId.id || '').toLowerCase();
+  return COLLECTIBLE_COMMANDER_CARDS.get(key) || null;
+}
+
+/**
+ * Return true when the given Commander has a registered collectible card.
+ *
+ * @param {string|object|null|undefined} heroOrId
+ * @returns {boolean}
+ */
+export function hasCollectibleCommanderCard(heroOrId) {
+  return Boolean(getCommanderCardConfig(heroOrId));
+}
+
+/**
  * Return true when a hero object or hero ID refers to Commander Astra.
  *
  * @param {string|object|null|undefined} heroOrId
@@ -33,9 +105,9 @@ export function isAstraHero(heroOrId) {
 }
 
 /**
- * Build the AstraCard `data` payload from real Star Struck hero data.
- * Keeps `name: 'ASTRA'` so the holographic top-band title matches the original
- * card design while carrying full Star Struck commander metadata on `card.getData()`.
+ * Build the collectible card `data` payload from real Star Struck hero data.
+ * Uses the registered card displayName (e.g. 'ASTRA') so the holographic
+ * top-band title matches the card artwork while carrying full commander metadata.
  *
  * @param {object|null|undefined} hero
  * @param {object} [extra]
@@ -43,9 +115,15 @@ export function isAstraHero(heroOrId) {
  */
 export function buildAstraCardData(hero, extra = {}) {
   const safeHero = hero || {};
+  const cardCfg = getCommanderCardConfig(safeHero);
+  const cardName =
+    cardCfg?.displayName ||
+    String(safeHero.name || 'ASTRA')
+      .split(' ')[0]
+      .toUpperCase();
   return {
     id: safeHero.id || ASTRA_HERO_ID,
-    name: 'ASTRA',
+    name: cardName,
     fullName: safeHero.name || 'Astra Valen',
     title: safeHero.title || 'Starlight Tactician',
     rarity: safeHero.rarity || 'SSR',
@@ -101,9 +179,9 @@ function mountPortraitFallback(container, { hero, assetManager, fallbackAssetId 
 }
 
 /**
- * Per-screen lifecycle registry for static AstraCard instances.
- * Guarantees that every mounted card uses ASTRA_CARD_STATIC_OPTIONS and is
- * deterministically destroyed on re-render, tab switch, overlay close, or unmount.
+ * Per-screen lifecycle registry for Commander collectible card instances.
+ * Enforces ASTRA_CARD_STATIC_OPTIONS by default, supports interactive preview
+ * mode via `mode: 'preview'`, and deterministically cleans up all instances.
  */
 export class AstraCardRegistry {
   /**
@@ -111,9 +189,9 @@ export class AstraCardRegistry {
    * @param {number} [options.maxInstances=6]
    * @param {typeof AstraCard} [options.CardClass=AstraCard]
    */
-  constructor({ maxInstances = MAX_SIMULTANEOUS_ASTRA_CARDS, CardClass = AstraCard } = {}) {
+  constructor({ maxInstances = MAX_SIMULTANEOUS_ASTRA_CARDS, CardClass = null } = {}) {
     this._maxInstances = Math.max(1, Number(maxInstances) || MAX_SIMULTANEOUS_ASTRA_CARDS);
-    this._CardClass = CardClass || AstraCard;
+    this._CardClassOverride = CardClass || null;
     this._instances = [];
   }
 
@@ -126,7 +204,8 @@ export class AstraCardRegistry {
   }
 
   /**
-   * Mount a stationary AstraCard into `container` using the documented static preset.
+   * Mount a Commander collectible card into `container`.
+   * Normal UI uses `mode: 'static'` (stationary); preview modal uses `mode: 'preview'`.
    *
    * @param {HTMLElement|object|null} container
    * @param {object} [opts]
@@ -138,10 +217,12 @@ export class AstraCardRegistry {
     const {
       hero = null,
       extraData = {},
+      mode = 'static',
       selected = false,
       selectable = false,
       studio = false,
-      glow = null,
+      glow = undefined,
+      assets = undefined,
       onClick = null,
       onSelect = null,
       onHoverStart = null,
@@ -157,18 +238,27 @@ export class AstraCardRegistry {
       return null;
     }
 
-    const isRealAstraCard = this._CardClass === AstraCard;
+    const cardCfg = getCommanderCardConfig(hero);
+    const CardClass = this._CardClassOverride || cardCfg?.CardClass || AstraCard;
+    const isRealAstraCard = CardClass === AstraCard;
     if (isRealAstraCard && !canMountWebGLCard(container)) {
       mountPortraitFallback(container, { hero, assetManager, fallbackAssetId });
       return null;
     }
 
+    const modePreset =
+      mode === 'preview' ? ASTRA_CARD_PREVIEW_OPTIONS : ASTRA_CARD_STATIC_OPTIONS;
+
+    const resolvedGlow = glow !== undefined ? glow : (cardCfg?.glow ?? null);
+    const resolvedAssets = assets !== undefined ? assets : (cardCfg?.assets || undefined);
+
     const cardOptions = {
-      ...ASTRA_CARD_STATIC_OPTIONS,
+      ...modePreset,
       selectable: Boolean(selectable),
       selected: Boolean(selected),
       studio: Boolean(studio),
-      glow,
+      glow: resolvedGlow,
+      ...(resolvedAssets ? { assets: resolvedAssets } : {}),
       data: buildAstraCardData(hero, extraData),
       onClick: typeof onClick === 'function' ? onClick : undefined,
       onSelect: typeof onSelect === 'function' ? onSelect : undefined,
@@ -188,7 +278,7 @@ export class AstraCardRegistry {
 
     let card = null;
     try {
-      card = new this._CardClass(container, cardOptions);
+      card = new CardClass(container, cardOptions);
       this._instances.push(card);
       return card;
     } catch (error) {
@@ -197,6 +287,36 @@ export class AstraCardRegistry {
       }
       mountPortraitFallback(container, { hero, assetManager, fallbackAssetId });
       return null;
+    }
+  }
+
+  /**
+   * Pause rendering on all currently mounted instances (e.g. while preview modal is open).
+   */
+  pauseAll() {
+    for (const card of this._instances) {
+      try {
+        card.pause?.();
+      } catch {
+        // Ignore pause errors on detaching elements
+      }
+    }
+  }
+
+  /**
+   * Resume rendering on all currently mounted instances and enforce normal static options.
+   */
+  resumeAll({ restoreStatic = false } = {}) {
+    for (const card of this._instances) {
+      try {
+        if (restoreStatic && typeof card.setOptions === 'function') {
+          card.setOptions({ ...ASTRA_CARD_STATIC_OPTIONS });
+        }
+        card.resume?.();
+        card.resize?.();
+      } catch {
+        // Ignore resume errors on detaching elements
+      }
     }
   }
 

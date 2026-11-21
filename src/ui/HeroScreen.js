@@ -3,13 +3,23 @@
  * Compact Left Roster Rail · Center Full-Height Portrait Stage · Right Tactical Dossier.
  */
 
-import { AstraCardRegistry, isAstraHero } from './AstraCardMount.js';
+import {
+  AstraCardRegistry,
+  hasCollectibleCommanderCard,
+} from './AstraCardMount.js';
 
 export class HeroScreen {
   constructor(ctx) {
     this._ctx = ctx;
     this._unsubs = [];
     this._astraCards = new AstraCardRegistry({ CardClass: ctx?.AstraCardClass });
+    this._previewCards = new AstraCardRegistry({
+      maxInstances: 1,
+      CardClass: ctx?.AstraCardClass,
+    });
+    this._previewModalEl = null;
+    this._previewHeroId = null;
+    this._previewKeyHandler = null;
   }
 
   mount(container) {
@@ -21,15 +31,126 @@ export class HeroScreen {
   }
 
   unmount() {
+    this._closeCardPreview({ resumeStage: false });
     this._astraCards.destroyAll();
     for (const unsub of this._unsubs) unsub();
     this._unsubs = [];
     this._container = null;
   }
 
+  _openCardPreview(hero) {
+    if (!hero || !hasCollectibleCommanderCard(hero) || !this._container) return;
+    if (typeof document === 'undefined' || typeof document.createElement !== 'function') return;
+
+    this._closeCardPreview({ resumeStage: false });
+
+    const { assetManager, audioManager, formationSystem } = this._ctx;
+    audioManager?.playClick?.();
+
+    this._previewHeroId = hero.id;
+    this._astraCards.pauseAll();
+
+    const modal = document.createElement('div');
+    modal.id = 'commander-card-preview-modal';
+    modal.className = `card-preview-modal theme-${hero.id}`;
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', `${hero.name} Interactive Card Preview`);
+    modal.setAttribute('data-preview-hero-id', hero.id);
+
+    modal.innerHTML = `
+      <div class="card-preview-modal__backdrop" data-close-card-preview></div>
+      <div class="card-preview-modal__stage">
+        <button
+          type="button"
+          id="btn-close-card-preview"
+          class="card-preview-modal__close"
+          data-close-card-preview
+          aria-label="Close card preview"
+        >
+          Close [Esc]
+        </button>
+        <div
+          id="commander-card-preview-slot"
+          class="card-preview-modal__card-slot"
+          data-commander-preview-slot="${hero.id}"
+        ></div>
+        <div class="card-preview-modal__hint">
+          Move cursor over card to inspect 3D tilt &amp; holographic parallax
+        </div>
+      </div>
+    `;
+
+    this._container.appendChild(modal);
+    this._previewModalEl = modal;
+
+    const previewSlot = modal.querySelector('#commander-card-preview-slot');
+    this._previewCards.mount(previewSlot, {
+      hero,
+      mode: 'preview',
+      extraData: {
+        activeCommander: hero.id === formationSystem?.getCommanderId?.(),
+        previewMode: true,
+      },
+      selectable: false,
+      selected: false,
+      studio: false,
+      assetManager,
+      fallbackAssetId: hero.portraitAssetId,
+    });
+
+    for (const closeTarget of modal.querySelectorAll('[data-close-card-preview]')) {
+      closeTarget.addEventListener('click', () => {
+        audioManager?.playClick?.();
+        this._closeCardPreview();
+      });
+    }
+
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+      this._previewKeyHandler = (ev) => {
+        if (ev.key === 'Escape') {
+          ev.preventDefault?.();
+          this._closeCardPreview();
+        }
+      };
+      window.addEventListener('keydown', this._previewKeyHandler);
+    }
+  }
+
+  _closeCardPreview({ resumeStage = true } = {}) {
+    this._previewCards.destroyAll();
+
+    if (
+      this._previewKeyHandler &&
+      typeof window !== 'undefined' &&
+      typeof window.removeEventListener === 'function'
+    ) {
+      window.removeEventListener('keydown', this._previewKeyHandler);
+    }
+    this._previewKeyHandler = null;
+
+    if (this._previewModalEl) {
+      if (typeof this._previewModalEl.remove === 'function') {
+        this._previewModalEl.remove();
+      } else if (this._container?.children) {
+        const idx = this._container.children.indexOf(this._previewModalEl);
+        if (idx !== -1) this._container.children.splice(idx, 1);
+      }
+      this._previewModalEl = null;
+    }
+
+    this._previewHeroId = null;
+
+    if (resumeStage) {
+      this._astraCards.resumeAll({ restoreStatic: true });
+    }
+  }
+
   render() {
     if (!this._container) return;
+    this._closeCardPreview({ resumeStage: false });
     this._astraCards.destroyAll();
+
     const { heroSystem, formationSystem, gameState, assetManager, audioManager, screenManager } =
       this._ctx;
     const allHeroes = heroSystem.getAllHeroes();
@@ -48,7 +169,7 @@ export class HeroScreen {
     const selTheme = selectedHero?.id ? `theme-${selectedHero.id}` : 'theme-astra';
     const selRarity = (selectedHero?.rarity || 'SSR').toLowerCase();
 
-    const isAstraSelected = isAstraHero(selectedHero);
+    const hasCollectibleCard = hasCollectibleCommanderCard(selectedHero);
 
     this._container.innerHTML = `
       <section class="screen-frame" aria-label="Commander Heroes">
@@ -87,32 +208,43 @@ export class HeroScreen {
           ${
             selectedHero
               ? `
-                <div class="hero-art-stage hero-art-stage--${selRarity} ${selTheme}${isAstraSelected ? ' hero-art-stage--astra-card' : ''}" aria-label="${isAstraSelected ? 'Astra Collectible Commander Card' : 'Commander Portrait'}">
-                  ${
-                    isAstraSelected
-                      ? `
-                        <div class="hero-art-stage__card-frame">
-                          <div id="hero-astra-card-slot" class="hero-art-stage__card-slot" data-astra-card-slot="hero-detail"></div>
+                ${
+                  hasCollectibleCard
+                    ? `
+                      <div
+                        class="hero-art-stage hero-art-stage--collectible ${selTheme}"
+                        aria-label="${selectedHero.name} Collectible Commander Card"
+                      >
+                        <div
+                          id="hero-collectible-card-slot"
+                          class="hero-art-stage__collectible-slot"
+                          data-astra-card-slot="hero-detail"
+                          data-commander-card-id="${selectedHero.id}"
+                          title="Click card to inspect interactive 3D preview"
+                        ></div>
+                      </div>
+                    `
+                    : `
+                      <div class="hero-art-stage hero-art-stage--${selRarity} ${selTheme}" aria-label="Commander Portrait">
+                        <img id="hero-detail-img" alt="${selectedHero.name}" />
+                        <div class="hero-art-stage__scrim">
+                          <div class="meta-line">
+                            <span class="rarity-${selRarity}">${selectedHero.rarity}</span>
+                            <span class="meta-sep" aria-hidden="true">·</span>
+                            <span style="color: var(--hero-accent-light); font-weight: 600;">${selectedHero.realm || selectedHero.faction}</span>
+                          </div>
+                          <strong style="font-size: 1.15rem; font-family: var(--font-display); color: var(--text-on-dark);">
+                            ${selectedHero.title}
+                          </strong>
+                          ${
+                            selectedHero.motif
+                              ? `<span class="meta-line" style="font-size: 0.76rem;">${selectedHero.motif}</span>`
+                              : ''
+                          }
                         </div>
-                      `
-                      : `<img id="hero-detail-img" alt="${selectedHero.name}" />`
-                  }
-                  <div class="hero-art-stage__scrim${isAstraSelected ? ' hero-art-stage__scrim--below' : ''}">
-                    <div class="meta-line">
-                      <span class="rarity-${selRarity}">${selectedHero.rarity}</span>
-                      <span class="meta-sep" aria-hidden="true">·</span>
-                      <span style="color: var(--hero-accent-light); font-weight: 600;">${selectedHero.realm || selectedHero.faction}</span>
-                    </div>
-                    <strong style="font-size: 1.15rem; font-family: var(--font-display); color: var(--text-on-dark);">
-                      ${selectedHero.title}
-                    </strong>
-                    ${
-                      selectedHero.motif
-                        ? `<span class="meta-line" style="font-size: 0.76rem;">${selectedHero.motif}</span>`
-                        : ''
-                    }
-                  </div>
-                </div>
+                      </div>
+                    `
+                }
 
                 <aside class="surface surface--celestial hero-dossier ${selTheme}" aria-label="Commander Dossier">
                   <div>
@@ -281,19 +413,26 @@ export class HeroScreen {
       rail.appendChild(item);
     }
 
-    if (isAstraSelected && selectedHero) {
-      const astraSlot = this._container.querySelector('#hero-astra-card-slot');
-      this._astraCards.mount(astraSlot, {
+    if (hasCollectibleCard && selectedHero) {
+      const cardSlot = this._container.querySelector('#hero-collectible-card-slot');
+      const mountedCard = this._astraCards.mount(cardSlot, {
         hero: selectedHero,
+        mode: 'static',
         extraData: {
           activeCommander: selectedHero.id === activeCommanderId,
         },
-        selectable: false,
+        selectable: true,
         selected: false,
         studio: false,
+        onClick: () => this._openCardPreview(selectedHero),
         assetManager,
         fallbackAssetId: selectedHero.portraitAssetId,
       });
+      if (!mountedCard && cardSlot) {
+        cardSlot.setAttribute('role', 'button');
+        cardSlot.setAttribute('tabindex', '0');
+        cardSlot.addEventListener('click', () => this._openCardPreview(selectedHero));
+      }
     } else {
       const detailImg = this._container.querySelector('#hero-detail-img');
       if (detailImg && selectedHero) {

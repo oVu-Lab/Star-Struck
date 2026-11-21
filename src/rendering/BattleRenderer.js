@@ -332,7 +332,17 @@ export class BattleRenderer {
 
     // 4b. Off-Field Commander Dais (interactive & distinct presence flanking the Ally Zone)
     if (commander) {
-      this._drawCommanderDais(ctx, bf, w, h, commander, ultimateEnergy, elapsed, hoverDais);
+      this._drawCommanderDais(
+        ctx,
+        bf,
+        w,
+        h,
+        commander,
+        ultimateEnergy,
+        elapsed,
+        hoverDais,
+        phase,
+      );
     } else {
       this._lastDaisRect = null;
     }
@@ -799,13 +809,59 @@ export class BattleRenderer {
     }
   }
 
-  _drawCommanderDais(ctx, bf, w, h, commander, ultimateEnergy, elapsed, hoverDais = false) {
+  _drawStarFlare(ctx, x, y, radius, alpha, color = '#fff5cc', rotation = 0) {
+    if (alpha <= 0.02 || radius <= 0.5) return;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rotation);
+    ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+
+    // Soft starlight core bloom
+    const bloom = ctx.createRadialGradient(0, 0, 0, 0, 0, radius * 0.9);
+    bloom.addColorStop(0, '#ffffff');
+    bloom.addColorStop(0.35, color);
+    bloom.addColorStop(1, 'rgba(255, 240, 180, 0)');
+    ctx.fillStyle = bloom;
+    ctx.beginPath();
+    ctx.arc(0, 0, radius * 0.9, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Crisp 4-point cross star spikes
+    const inner = radius * 0.16;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(0, -radius);
+    ctx.lineTo(inner, -inner);
+    ctx.lineTo(radius, 0);
+    ctx.lineTo(inner, inner);
+    ctx.lineTo(0, radius);
+    ctx.lineTo(-inner, inner);
+    ctx.lineTo(-radius, 0);
+    ctx.lineTo(-inner, -inner);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  _drawCommanderDais(
+    ctx,
+    bf,
+    w,
+    h,
+    commander,
+    ultimateEnergy,
+    elapsed,
+    hoverDais = false,
+    phase = 'active_combat',
+  ) {
     // Anchor Commander on an elevated command dais flanking the left edge of the
     // widened rectangular Ally Zone so it never overlaps units or clips off-screen.
     const leftEdge = bf.worldToScreen(0, 52, w, h);
     const s = Math.max(0.72, Math.min(1.16, leftEdge.scale / 8.2));
-    const ultPct = Math.max(0, Math.min(1, (ultimateEnergy || 0) / 100));
+    const ultMax = Math.max(1, this._state?.battle?.ultimateMaxEnergy || 100);
+    const ultPct = Math.max(0, Math.min(1, (ultimateEnergy || 0) / ultMax));
     const ultReady = ultPct >= 1;
+    const isAstra = commander.id === 'astra';
 
     const themeColors = {
       astra: { accent: '#e5be6a', glow: 'rgba(229, 190, 106, 0.42)', ring: '#f7e1a5' },
@@ -857,8 +913,8 @@ export class BattleRenderer {
     const allyAnchor = bf.worldToScreen(8, 52, w, h);
     ctx.save();
     ctx.strokeStyle = palette.accent;
-    ctx.globalAlpha = ultReady ? 0.36 + Math.sin(elapsed * 5) * 0.14 : 0.18;
-    ctx.lineWidth = ultReady ? 2 : 1.2;
+    ctx.globalAlpha = ultReady ? 0.44 + Math.sin(elapsed * 5.2) * 0.18 : 0.18;
+    ctx.lineWidth = ultReady ? 2.2 : 1.2;
     ctx.setLineDash([5, 6]);
     ctx.beginPath();
     ctx.moveTo(cx + 22 * s, cy);
@@ -874,7 +930,7 @@ export class BattleRenderer {
     ctx.fill();
 
     ctx.fillStyle = '#141720';
-    ctx.strokeStyle = hoverDais ? '#f2d89b' : palette.accent;
+    ctx.strokeStyle = ultReady || hoverDais ? '#f6e1a6' : palette.accent;
     ctx.lineWidth = ultReady || hoverDais ? 2.4 : 1.5;
     ctx.beginPath();
     ctx.ellipse(cx, cy, 32 * s, 12.5 * s, 0, 0, Math.PI * 2);
@@ -884,8 +940,8 @@ export class BattleRenderer {
     // Outer rotating rune ring
     ctx.save();
     ctx.strokeStyle = palette.ring;
-    ctx.globalAlpha = ultReady || hoverDais ? 0.88 : 0.45;
-    ctx.lineWidth = ultReady || hoverDais ? 2 : 1.3;
+    ctx.globalAlpha = ultReady || hoverDais ? 0.92 : 0.45;
+    ctx.lineWidth = ultReady || hoverDais ? 2.2 : 1.3;
     ctx.setLineDash([9, 6]);
     ctx.beginPath();
     ctx.ellipse(cx, cy, (38 + Math.sin(elapsed * 3) * 1.8) * s, (15 + Math.sin(elapsed * 3) * 0.7) * s, 0, 0, Math.PI * 2);
@@ -896,28 +952,40 @@ export class BattleRenderer {
     // Ultimate charge arc around the dais rim
     if (ultPct > 0.01) {
       ctx.save();
-      ctx.strokeStyle = ultReady ? '#f5dca0' : palette.accent;
-      ctx.lineWidth = 2.8;
+      ctx.strokeStyle = ultReady ? '#fff0bd' : palette.accent;
+      ctx.lineWidth = ultReady ? 3.2 : 2.8;
       ctx.beginPath();
       ctx.ellipse(cx, cy, 34.5 * s, 13.8 * s, 0, -Math.PI * 0.5, -Math.PI * 0.5 + Math.PI * 2 * ultPct);
       ctx.stroke();
       ctx.restore();
     }
 
-    // 3. Elevated Chamfered Commander Portrait Frame
+    // 3. Elevated Chamfered Commander Portrait Frame + Luminous Halo
+    const auraPulse = ultReady ? 0.92 + Math.sin(elapsed * 4.5) * 0.12 : hoverDais ? 0.82 : 0.68;
+    const auraRadius = cardH * auraPulse;
     const aura = ctx.createRadialGradient(
       cx,
       frameY + cardH * 0.5,
       6 * s,
       cx,
       frameY + cardH * 0.5,
-      cardH * (hoverDais ? 0.82 : 0.68),
+      auraRadius,
     );
-    aura.addColorStop(0, palette.glow);
-    aura.addColorStop(1, 'rgba(8, 9, 14, 0)');
+    if (ultReady && isAstra) {
+      aura.addColorStop(0, 'rgba(255, 236, 166, 0.78)');
+      aura.addColorStop(0.48, 'rgba(132, 186, 255, 0.34)');
+      aura.addColorStop(1, 'rgba(8, 9, 14, 0)');
+    } else if (ultReady) {
+      aura.addColorStop(0, palette.ring);
+      aura.addColorStop(0.5, palette.glow);
+      aura.addColorStop(1, 'rgba(8, 9, 14, 0)');
+    } else {
+      aura.addColorStop(0, palette.glow);
+      aura.addColorStop(1, 'rgba(8, 9, 14, 0)');
+    }
     ctx.fillStyle = aura;
     ctx.beginPath();
-    ctx.arc(cx, frameY + cardH * 0.5, cardH * (hoverDais ? 0.82 : 0.68), 0, Math.PI * 2);
+    ctx.arc(cx, frameY + cardH * 0.5, auraRadius, 0, Math.PI * 2);
     ctx.fill();
 
     // Clipped portrait card body
@@ -929,7 +997,7 @@ export class BattleRenderer {
       ctx.clip();
     }
 
-    if (commander.id === 'astra') {
+    if (isAstra) {
       const astraBg = this._assets.getImageElement('hero_bg_astra');
       if (astraBg && astraBg.complete && astraBg.naturalWidth > 0) {
         ctx.drawImage(astraBg, frameX, frameY, cardW, cardH);
@@ -961,6 +1029,55 @@ export class BattleRenderer {
       ctx.fillRect(frameX, frameY, cardW, cardH);
     }
 
+    // Enhanced Ultimate-Ready Holographic Foil Sweep & Glitter inside portrait clip
+    if (ultReady) {
+      ctx.save();
+      const prevComposite = ctx.globalCompositeOperation;
+      ctx.globalCompositeOperation = 'lighter';
+
+      // Periodic diagonal prismatic foil reflection sweep
+      const sweepCycle = (elapsed * 0.62) % 1;
+      const sweepX = frameX - cardW * 0.9 + sweepCycle * (cardW * 2.8);
+      const foilGrad = ctx.createLinearGradient(
+        sweepX,
+        frameY,
+        sweepX + cardW * 0.55,
+        frameY + cardH * 0.65,
+      );
+      foilGrad.addColorStop(0, 'rgba(255, 240, 184, 0)');
+      foilGrad.addColorStop(0.35, isAstra ? 'rgba(255, 232, 152, 0.34)' : 'rgba(255, 242, 194, 0.28)');
+      foilGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.56)');
+      foilGrad.addColorStop(0.65, isAstra ? 'rgba(146, 210, 255, 0.36)' : 'rgba(245, 220, 160, 0.28)');
+      foilGrad.addColorStop(1, 'rgba(255, 240, 184, 0)');
+      ctx.fillStyle = foilGrad;
+      ctx.fillRect(frameX, frameY, cardW, cardH);
+
+      // Twinkling golden & starlight glitter flecks
+      const glitterSeeds = [
+        [0.18, 0.2, 5.2, 0.0],
+        [0.78, 0.16, 4.7, 1.4],
+        [0.34, 0.38, 6.1, 2.3],
+        [0.82, 0.44, 5.5, 3.7],
+        [0.24, 0.58, 4.9, 4.8],
+        [0.66, 0.28, 6.4, 5.5],
+        [0.52, 0.14, 5.8, 0.9],
+        [0.44, 0.52, 5.1, 2.9],
+      ];
+      for (let i = 0; i < glitterSeeds.length; i += 1) {
+        const [gx, gy, speed, offset] = glitterSeeds[i];
+        const twinkle = Math.max(0, Math.sin(elapsed * speed + offset));
+        if (twinkle < 0.18) continue;
+        ctx.globalAlpha = twinkle * (isAstra ? 0.92 : 0.72);
+        ctx.fillStyle = i % 3 === 0 ? '#ffffff' : i % 3 === 1 ? '#ffe89c' : '#cfe8ff';
+        ctx.beginPath();
+        ctx.arc(frameX + cardW * gx, frameY + cardH * gy, (1.1 + twinkle * 1.1) * s, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      ctx.globalCompositeOperation = prevComposite;
+      ctx.restore();
+    }
+
     // Subtle bottom scrim inside portrait frame
     const scrim = ctx.createLinearGradient(frameX, frameY + cardH * 0.55, frameX, frameY + cardH);
     scrim.addColorStop(0, 'rgba(10, 12, 18, 0)');
@@ -971,13 +1088,13 @@ export class BattleRenderer {
 
     // Crisp outer chamfer border
     traceChamfer();
-    ctx.strokeStyle = ultReady || hoverDais ? '#f5dca0' : palette.accent;
-    ctx.lineWidth = ultReady || hoverDais ? 2.6 : 1.8;
+    ctx.strokeStyle = ultReady ? '#fff1be' : hoverDais ? '#f5dca0' : palette.accent;
+    ctx.lineWidth = ultReady ? 2.8 : hoverDais ? 2.6 : 1.8;
     ctx.stroke();
 
     // Top crest diamond
     const crestY = frameY - 2 * s;
-    ctx.fillStyle = ultReady ? '#f5dca0' : palette.accent;
+    ctx.fillStyle = ultReady ? '#fff2c2' : palette.accent;
     ctx.beginPath();
     ctx.moveTo(cx, crestY - 5.5 * s);
     ctx.lineTo(cx + 5.5 * s, crestY);
@@ -986,11 +1103,38 @@ export class BattleRenderer {
     ctx.closePath();
     ctx.fill();
 
+    // Animated 4-point celestial star flares when Ultimate is Ready
+    if (ultReady) {
+      const flareColor = isAstra ? '#ffe79e' : palette.ring;
+      const f1 = 0.55 + Math.sin(elapsed * 4.4) * 0.45;
+      const f2 = 0.55 + Math.sin(elapsed * 4.4 + 2.1) * 0.45;
+      const f3 = 0.55 + Math.sin(elapsed * 4.4 + 4.2) * 0.45;
+      this._drawStarFlare(ctx, cx, crestY, (8.5 + f1 * 4.5) * s, f1, flareColor, elapsed * 0.4);
+      this._drawStarFlare(
+        ctx,
+        frameX + cardW - cut * 0.5,
+        frameY + cut * 0.7,
+        (6.2 + f2 * 3.4) * s,
+        f2 * 0.92,
+        '#cfe8ff',
+        -elapsed * 0.35,
+      );
+      this._drawStarFlare(
+        ctx,
+        frameX + cut * 0.6,
+        frameY + cardH * 0.42,
+        (5.5 + f3 * 3.0) * s,
+        f3 * 0.88,
+        flareColor,
+        elapsed * 0.3,
+      );
+    }
+
     // Commander Name & Role Tag
     const labelY = frameY + cardH - 6 * s;
     ctx.font = `700 ${Math.max(8, Math.round(8.2 * s))}px "JetBrains Mono", monospace`;
     ctx.textAlign = 'center';
-    ctx.fillStyle = ultReady ? '#f5dca0' : palette.ring;
+    ctx.fillStyle = ultReady ? '#fff2be' : palette.ring;
     ctx.fillText(ultReady ? 'ULT READY' : 'COMMANDER', cx, labelY - 10 * s);
 
     ctx.font = `700 ${Math.max(9, Math.round(10 * s))}px Cinzel, Georgia, serif`;
@@ -1000,7 +1144,7 @@ export class BattleRenderer {
 
     if (hoverDais && ultReady) {
       ctx.font = `700 ${Math.max(8, Math.round(8.2 * s))}px "JetBrains Mono", monospace`;
-      ctx.fillStyle = '#f5dca0';
+      ctx.fillStyle = '#fff2be';
       ctx.fillText('CLICK TO CAST', cx, frameY - 12 * s);
     }
 

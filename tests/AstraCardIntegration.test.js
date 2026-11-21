@@ -15,14 +15,23 @@ import { EconomySystem } from '../src/systems/EconomySystem.js';
 import { ProgressionSystem } from '../src/systems/ProgressionSystem.js';
 import { GachaSystem } from '../src/systems/GachaSystem.js';
 import {
+  ASTRA_CARD_PREVIEW_OPTIONS,
   ASTRA_CARD_STATIC_OPTIONS,
   AstraCardRegistry,
   buildAstraCardData,
+  hasCollectibleCommanderCard,
   isAstraHero,
+  registerCollectibleCommanderCard,
 } from '../src/ui/AstraCardMount.js';
+import { HomeScreen } from '../src/ui/HomeScreen.js';
 import { HeroScreen } from '../src/ui/HeroScreen.js';
 import { FormationScreen } from '../src/ui/FormationScreen.js';
 import { SummonScreen } from '../src/ui/SummonScreen.js';
+import { BattleScreen } from '../src/ui/BattleScreen.js';
+import { BattleRenderer } from '../src/rendering/BattleRenderer.js';
+import { Battlefield } from '../src/battle/Battlefield.js';
+import { SkillSystem } from '../src/battle/SkillSystem.js';
+import { BATTLE_PHASES } from '../src/battle/BattleManager.js';
 import { ASSETS_CONFIG, PORTRAIT_CANVAS } from '../src/rendering/AssetManager.js';
 
 const ROOT = process.cwd();
@@ -108,8 +117,36 @@ function createMockElement(tagName = 'div', attrs = {}) {
     className: attrs.class || '',
     id: attrs.id || '',
     textContent: '',
+    hidden: false,
+    disabled: false,
+    style: {},
+    dataset: {},
     _innerHTML: '',
     children,
+    parentNode: null,
+    classList: {
+      add(...names) {
+        const set = new Set(el.className.split(/\s+/).filter(Boolean));
+        for (const n of names) if (n) set.add(n);
+        el.className = [...set].join(' ');
+      },
+      remove(...names) {
+        const set = new Set(el.className.split(/\s+/).filter(Boolean));
+        for (const n of names) set.delete(n);
+        el.className = [...set].join(' ');
+      },
+      toggle(name, force) {
+        const set = new Set(el.className.split(/\s+/).filter(Boolean));
+        const shouldAdd = force === undefined ? !set.has(name) : Boolean(force);
+        if (shouldAdd) set.add(name);
+        else set.delete(name);
+        el.className = [...set].join(' ');
+        return shouldAdd;
+      },
+      contains(name) {
+        return el.className.split(/\s+/).includes(name);
+      },
+    },
     set innerHTML(html) {
       this._innerHTML = String(html);
       this._parsed = parseHtmlElements(this._innerHTML);
@@ -153,8 +190,16 @@ function createMockElement(tagName = 'div', attrs = {}) {
       }
     },
     appendChild(child) {
+      child.parentNode = this;
       children.push(child);
       return child;
+    },
+    remove() {
+      if (this.parentNode?.children) {
+        const idx = this.parentNode.children.indexOf(this);
+        if (idx !== -1) this.parentNode.children.splice(idx, 1);
+        this.parentNode = null;
+      }
     },
     closest() {
       return null;
@@ -230,14 +275,24 @@ function createFakeAstraCardClass() {
   class FakeAstraCard {
     constructor(container, options) {
       this.container = container;
-      this.options = options;
+      this.options = { ...options };
       this.data = { ...(options.data || {}) };
       this.destroyed = false;
+      this.paused = false;
       this.resized = 0;
       created.push(this);
     }
     getData() {
       return { ...this.data };
+    }
+    setOptions(next) {
+      this.options = { ...this.options, ...(next || {}) };
+    }
+    pause() {
+      this.paused = true;
+    }
+    resume() {
+      this.paused = false;
     }
     resize() {
       this.resized += 1;
@@ -365,10 +420,29 @@ test('AstraCardRegistry enforces static options, preserves game data, caps WebGL
   assert.equal(c2.destroyed, true);
 });
 
-test('HeroScreen mounts static AstraCard for Astra and destroys it on hero switch & unmount', async () => {
+test('HeroScreen renders frameless Astra card without redundant caption, supports reusable interactive Card Preview Mode, and cleans up', async () => {
   const prevDocument = globalThis.document;
+  const prevWindow = globalThis.window;
+  const winListeners = new Map();
   globalThis.document = {
     createElement: (tag) => createMockElement(tag),
+  };
+  globalThis.window = {
+    addEventListener(type, fn) {
+      if (!winListeners.has(type)) winListeners.set(type, []);
+      winListeners.get(type).push(fn);
+    },
+    removeEventListener(type, fn) {
+      const list = winListeners.get(type);
+      if (!list) return;
+      const idx = list.indexOf(fn);
+      if (idx !== -1) list.splice(idx, 1);
+    },
+    dispatchKey(key) {
+      for (const fn of [...(winListeners.get('keydown') || [])]) {
+        fn({ key, preventDefault() {} });
+      }
+    },
   };
 
   try {
@@ -394,6 +468,7 @@ test('HeroScreen mounts static AstraCard for Astra and destroys it on hero switc
     gameState.setUI({ selectedHeroId: 'astra', heroFilter: 'ALL' });
     screen.mount(container);
 
+    // 1. Frameless card display & removal of redundant below-card caption
     assert.equal(FakeCard.created.length, 1, 'Expected 1 AstraCard instance on HeroScreen for Astra');
     const firstCard = FakeCard.created[0];
     assert.equal(firstCard.destroyed, false);
@@ -401,28 +476,379 @@ test('HeroScreen mounts static AstraCard for Astra and destroys it on hero switc
     assert.equal(firstCard.options.interactive, false);
     assert.equal(firstCard.options.tilt, 0);
     assert.equal(firstCard.options.animateEffects, true);
+    assert.equal(firstCard.options.selectable, true);
+    assert.equal(firstCard.options.selected, false);
     assert.equal(firstCard.data.fullName, 'Astra Valen');
     assert.equal(firstCard.data.name, 'ASTRA');
     assert.equal(container.querySelector('#hero-detail-img'), null);
+    assert.equal(
+      container.querySelector('.hero-art-stage__scrim'),
+      null,
+      'Redundant below-card caption scrim must be removed for collectible Commander cards',
+    );
+    assert.equal(
+      container.querySelector('.hero-art-stage__card-frame'),
+      null,
+      'Extra outer card-frame slot wrapper must not be rendered around collectible card',
+    );
+    assert.ok(
+      container.querySelector('.hero-art-stage--collectible'),
+      'Collectible card stage must use frameless .hero-art-stage--collectible layout',
+    );
+    assert.ok(
+      container.querySelector('.hero-dossier'),
+      'Right dossier panel beside the card must remain intact',
+    );
+    assert.doesNotMatch(
+      container.innerHTML,
+      /High Fantasy Knighthood/,
+      'Redundant motif caption must not be rendered below Astra collectible card',
+    );
 
-    // Switch to Kael: AstraCard must be destroyed and portrait img restored
+    // 2. Click collectible card -> enters Interactive Card Preview Mode
+    firstCard.options.onClick(firstCard.getData(), firstCard);
+    assert.equal(firstCard.paused, true, 'Stage card must pause while preview modal is active');
+    assert.equal(FakeCard.created.length, 2, 'Opening preview must mount interactive preview card');
+    const previewCard = FakeCard.created[1];
+    assert.deepEqual(
+      {
+        autoplay: previewCard.options.autoplay,
+        interactive: previewCard.options.interactive,
+        tilt: previewCard.options.tilt,
+        animateEffects: previewCard.options.animateEffects,
+      },
+      ASTRA_CARD_PREVIEW_OPTIONS,
+      'Preview card must enable interactive mouse 3D tilt/parallax without autoplay',
+    );
+    const modal = container.querySelector('#commander-card-preview-modal');
+    assert.ok(modal, 'Interactive preview modal must mount in container');
+
+    // Close preview via Close button -> destroys preview card & restores static stage card
+    const closeBtn = modal.querySelector('#btn-close-card-preview');
+    assert.ok(closeBtn, 'Preview modal must provide clear close button');
+    closeBtn.click();
+    assert.equal(previewCard.destroyed, true, 'Closing preview must destroy preview WebGL instance');
+    assert.equal(container.querySelector('#commander-card-preview-modal'), null);
+    assert.equal(firstCard.paused, false, 'Closing preview must resume stage card');
+    assert.equal(firstCard.options.interactive, false, 'Stage card must stay non-interactive after closing preview');
+    assert.equal(firstCard.options.tilt, 0, 'Stage card must stay stationary (tilt: 0) after closing preview');
+    assert.equal(firstCard.options.autoplay, false);
+
+    // Re-open preview and exit via Escape key
+    firstCard.options.onClick(firstCard.getData(), firstCard);
+    assert.equal(FakeCard.created.length, 3);
+    const escPreviewCard = FakeCard.created[2];
+    globalThis.window.dispatchKey('Escape');
+    assert.equal(escPreviewCard.destroyed, true, 'Pressing Escape must close preview and destroy instance');
+    assert.equal(container.querySelector('#commander-card-preview-modal'), null);
+    assert.equal(firstCard.paused, false);
+
+    // 3. Switch to Kael (non-collectible commander): AstraCard destroyed, portrait stage & scrim preserved
     gameState.setUI({ selectedHeroId: 'kael' });
     screen.render();
     assert.equal(firstCard.destroyed, true, 'AstraCard must be destroyed when switching away from Astra');
-    assert.equal(FakeCard.created.length, 1, 'Non-Astra commander must not mount AstraCard');
-    assert.ok(container.querySelector('#hero-detail-img'), 'Non-Astra commander must render portrait image');
+    assert.equal(FakeCard.created.length, 3, 'Non-collectible commander must not mount WebGL card');
+    assert.ok(container.querySelector('#hero-detail-img'), 'Non-collectible commander must render portrait image');
+    assert.ok(container.querySelector('.hero-art-stage__scrim'), 'Non-collectible commander must retain portrait scrim');
 
-    // Switch back to Astra, then unmount
+    // 4. Switch back to Astra, open preview, then unmount -> both stage and preview cards destroyed
     gameState.setUI({ selectedHeroId: 'astra' });
     screen.render();
-    assert.equal(FakeCard.created.length, 2);
-    const secondCard = FakeCard.created[1];
-    assert.equal(secondCard.destroyed, false);
-
+    const stageCard2 = FakeCard.created[3];
+    stageCard2.options.onClick(stageCard2.getData(), stageCard2);
+    const previewCard3 = FakeCard.created[4];
     screen.unmount();
-    assert.equal(secondCard.destroyed, true, 'AstraCard must be destroyed on HeroScreen unmount');
+    assert.equal(stageCard2.destroyed, true, 'Stage card must be destroyed on HeroScreen unmount');
+    assert.equal(previewCard3.destroyed, true, 'Open preview card must be destroyed on HeroScreen unmount');
+    assert.equal((winListeners.get('keydown') || []).length, 0, 'Escape listener must be removed on unmount');
   } finally {
     globalThis.document = prevDocument;
+    globalThis.window = prevWindow;
+  }
+});
+
+test('Commander collectible card preview registry is reusable for future commanders (not hardcoded to Astra)', async () => {
+  const prevDocument = globalThis.document;
+  globalThis.document = {
+    createElement: (tag) => createMockElement(tag),
+  };
+
+  try {
+    const customHero = {
+      id: 'test_commander_nova',
+      name: 'Nova Valen',
+      title: 'Solar Arbiter',
+      rarity: 'SSR',
+      role: 'Tactician',
+      faction: 'Celestial Order',
+      realm: 'Celestial Order',
+      owned: true,
+      level: 5,
+      copies: 2,
+      biography: 'Test commander for reusable preview verification.',
+      portraitAssetId: 'hero_portrait_astra',
+      passiveSkill: { name: 'Solar Aura', description: 'Test passive' },
+      ultimateSkill: { name: 'Supernova', description: 'Test ultimate', energyCost: 100 },
+    };
+
+    assert.equal(hasCollectibleCommanderCard(customHero), false);
+    registerCollectibleCommanderCard(customHero.id, {
+      displayName: 'NOVA',
+      glow: '#ffaa44',
+    });
+    assert.equal(hasCollectibleCommanderCard(customHero), true);
+
+    const FakeCard = createFakeAstraCardClass();
+    const registry = new AstraCardRegistry({ CardClass: FakeCard });
+    const slot = createMockElement('div');
+    const previewCard = registry.mount(slot, {
+      hero: customHero,
+      mode: 'preview',
+    });
+
+    assert.ok(previewCard, 'Registered future Commander must mount through shared AstraCardRegistry');
+    assert.equal(previewCard.data.id, 'test_commander_nova');
+    assert.equal(previewCard.data.name, 'NOVA');
+    assert.equal(previewCard.options.glow, '#ffaa44');
+    assert.equal(previewCard.options.interactive, true);
+    assert.equal(previewCard.options.tilt, 1);
+    assert.equal(previewCard.options.autoplay, false);
+    registry.destroyAll();
+  } finally {
+    globalThis.document = prevDocument;
+  }
+});
+
+test('HomeScreen keeps default Commanders button untouched without mounting AstraCard', async () => {
+  const registry = await loadRealRegistry();
+  const {
+    eventBus,
+    gameState,
+    heroSystem,
+    formationSystem,
+    cardSystem,
+    progressionSystem,
+    economySystem,
+  } = createSystems(registry);
+  const assets = createMockAssets();
+  const screen = new HomeScreen({
+    eventBus,
+    gameState,
+    dataRegistry: registry,
+    heroSystem,
+    formationSystem,
+    cardSystem,
+    progressionSystem,
+    economySystem,
+    missionSystem: { getClaimableCount: () => 0 },
+    assetManager: assets,
+    audioManager: createMockAudio(),
+    screenManager: { navigate() {} },
+    openGuide() {},
+  });
+
+  const container = createMockElement('div');
+  screen.mount(container);
+
+  const commandersBtn = container.querySelector('[data-nav="heroes"]');
+  assert.ok(commandersBtn, 'HomeScreen must preserve default Commanders navigation button');
+  assert.equal(
+    container.querySelector('[data-astra-card-slot]'),
+    null,
+    'HomeScreen must not replace Commanders button or portrait with AstraCard',
+  );
+  assert.ok(
+    container.querySelector('#home-commander-img'),
+    'HomeScreen must preserve full-bleed commander showcase portrait',
+  );
+
+  screen.unmount();
+});
+
+test('BattleScreen and BattleRenderer bind enhanced ultimate-ready effects strictly to actual battle ultimateEnergy state', async () => {
+  const prevDocument = globalThis.document;
+  const prevWindow = globalThis.window;
+  globalThis.document = {
+    createElement: (tag) => createMockElement(tag),
+  };
+  globalThis.window = {
+    addEventListener() {},
+    removeEventListener() {},
+  };
+
+  try {
+    const registry = await loadRealRegistry();
+    const { eventBus, gameState, heroSystem, formationSystem, cardSystem, progressionSystem } =
+      createSystems(registry);
+    const skillSystem = new SkillSystem({
+      gameState,
+      heroSystem,
+      eventBus,
+      dataRegistry: registry,
+    });
+
+    const stage = progressionSystem.getSelectedStage();
+    gameState.setBattle({
+      stageId: stage.id,
+      phase: BATTLE_PHASES.PREPARATION,
+      status: 'running',
+      ultimateEnergy: 0,
+      ultimateMaxEnergy: 100,
+      energy: 60,
+      maxEnergy: 100,
+      waveIndex: 1,
+      totalWaves: 3,
+      friendlyCount: 2,
+      friendlyCap: 6,
+      enemyCount: 0,
+      enemyCap: 10,
+      remainingDeckCount: 6,
+      elapsedSec: 0,
+      speedMultiplier: 1,
+    });
+
+    const battleManagerStub = {
+      startSession() {},
+      stopSession() {},
+      getSelectedPrepUnitUid() {
+        return null;
+      },
+      getPrepUnitByUid() {
+        return null;
+      },
+      triggerUltimate() {
+        return skillSystem.activateUltimate({});
+      },
+    };
+
+    const screen = new BattleScreen({
+      eventBus,
+      gameState,
+      dataRegistry: registry,
+      heroSystem,
+      formationSystem,
+      cardSystem,
+      progressionSystem,
+      battleManager: battleManagerStub,
+      assetManager: createMockAssets(),
+      audioManager: createMockAudio(),
+      screenManager: { navigate() {} },
+      notify() {},
+    });
+
+    const container = createMockElement('div');
+    screen.mount(container);
+
+    const ultBtn = container.querySelector('#btn-trigger-ultimate');
+    const cmdConsole = container.querySelector('#commander-console');
+    assert.ok(ultBtn && cmdConsole);
+    assert.ok(container.querySelector('.dock-commander-card__fx'), 'Ultimate button must contain enhanced FX overlay');
+    assert.ok(container.querySelector('.dock-commander-card__foil'), 'Ultimate FX must include foil reflection layer');
+    assert.ok(container.querySelector('.dock-commander-card__glitter'), 'Ultimate FX must include glitter layer');
+    assert.equal(
+      container.querySelectorAll('.dock-commander-card__flare').length,
+      3,
+      'Ultimate FX must include 3 star flare accents',
+    );
+
+    // Charging during preparation -> NOT ready
+    assert.equal(ultBtn.getAttribute('data-ult-ready'), 'false');
+    assert.equal(ultBtn.classList.contains('is-ult-ready'), false);
+    assert.equal(ultBtn.disabled, true);
+
+    // Even at 100 energy during PREPARATION -> NOT ready
+    gameState.setBattle({ ultimateEnergy: 100, phase: BATTLE_PHASES.PREPARATION });
+    screen._syncHud();
+    assert.equal(ultBtn.getAttribute('data-ult-ready'), 'false');
+    assert.equal(ultBtn.classList.contains('is-ult-ready'), false);
+
+    // Active combat at 99 energy -> NOT ready
+    gameState.setBattle({ ultimateEnergy: 99, phase: BATTLE_PHASES.ACTIVE_COMBAT });
+    screen._syncHud();
+    assert.equal(ultBtn.getAttribute('data-ult-ready'), 'false');
+    assert.equal(ultBtn.classList.contains('is-ult-ready'), false);
+
+    // Active combat at 100 energy -> READY!
+    gameState.setBattle({ ultimateEnergy: 100, phase: BATTLE_PHASES.ACTIVE_COMBAT });
+    screen._syncHud();
+    assert.equal(ultBtn.getAttribute('data-ult-ready'), 'true');
+    assert.equal(ultBtn.classList.contains('is-ult-ready'), true);
+    assert.equal(cmdConsole.classList.contains('is-ult-ready'), true);
+    assert.equal(ultBtn.disabled, false);
+
+    // Cast real ultimate via SkillSystem -> ultimateEnergy resets to 0 -> immediately returns to normal
+    const res = skillSystem.activateUltimate({});
+    assert.equal(res.ok, true);
+    assert.equal(gameState.battle.ultimateEnergy, 0);
+    screen._syncHud();
+    assert.equal(ultBtn.getAttribute('data-ult-ready'), 'false');
+    assert.equal(ultBtn.classList.contains('is-ult-ready'), false);
+    assert.equal(cmdConsole.classList.contains('is-ult-ready'), false);
+    assert.equal(ultBtn.disabled, true);
+
+    screen.unmount();
+
+    // Verify BattleRenderer._drawCommanderDais invokes star flares strictly when ultimate is ready
+    const mockGrad = { addColorStop() {} };
+    const noop = () => {};
+    const mockCtx = {
+      save: noop,
+      restore: noop,
+      translate: noop,
+      rotate: noop,
+      scale: noop,
+      beginPath: noop,
+      closePath: noop,
+      moveTo: noop,
+      lineTo: noop,
+      arc: noop,
+      ellipse: noop,
+      fill: noop,
+      stroke: noop,
+      fillRect: noop,
+      fillText: noop,
+      drawImage: noop,
+      setLineDash: noop,
+      clip: noop,
+      createRadialGradient: () => mockGrad,
+      createLinearGradient: () => mockGrad,
+      globalAlpha: 1,
+      globalCompositeOperation: 'source-over',
+    };
+    const bf = new Battlefield({
+      balance: registry.balance,
+      terrainConfig: registry.terrains[0],
+    });
+    const renderer = new BattleRenderer({
+      assetManager: { getImageElement: () => null },
+      animationManager: { getShakeOffset: () => ({ x: 0, y: 0 }), getElapsed: () => 1.2 },
+      particleSystem: null,
+      gameState,
+    });
+    const astra = heroSystem.getHeroById('astra');
+
+    let flareCalls = 0;
+    const origFlare = renderer._drawStarFlare.bind(renderer);
+    renderer._drawStarFlare = (...args) => {
+      flareCalls += 1;
+      return origFlare(...args);
+    };
+
+    // Charging (40/100) -> zero star flares
+    renderer._drawCommanderDais(mockCtx, bf, 1024, 600, astra, 40, 1.2, false, BATTLE_PHASES.ACTIVE_COMBAT);
+    assert.equal(flareCalls, 0, 'Charging dais must not render ultimate-ready star flares');
+
+    // Ready (100/100 in active combat) -> 3 star flares rendered
+    renderer._drawCommanderDais(mockCtx, bf, 1024, 600, astra, 100, 1.2, false, BATTLE_PHASES.ACTIVE_COMBAT);
+    assert.equal(flareCalls, 3, 'Ultimate-ready dais must render 3 celestial star flares');
+
+    // After ultimate used (0/100) -> back to zero star flares immediately
+    flareCalls = 0;
+    renderer._drawCommanderDais(mockCtx, bf, 1024, 600, astra, 0, 1.5, false, BATTLE_PHASES.ACTIVE_COMBAT);
+    assert.equal(flareCalls, 0, 'Post-cast dais must immediately restore normal non-ready rendering');
+  } finally {
+    globalThis.document = prevDocument;
+    globalThis.window = prevWindow;
   }
 });
 
