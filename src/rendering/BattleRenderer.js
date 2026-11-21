@@ -929,6 +929,27 @@ export class BattleRenderer {
       ctx.clip();
     }
 
+    if (commander.id === 'astra') {
+      const astraBg = this._assets.getImageElement('hero_bg_astra');
+      if (astraBg && astraBg.complete && astraBg.naturalWidth > 0) {
+        ctx.drawImage(astraBg, frameX, frameY, cardW, cardH);
+      } else {
+        const bgGrad = ctx.createRadialGradient(
+          cx,
+          frameY + cardH * 0.34,
+          4 * s,
+          cx,
+          frameY + cardH * 0.45,
+          cardH * 0.72,
+        );
+        bgGrad.addColorStop(0, '#2a3763');
+        bgGrad.addColorStop(0.55, '#131a34');
+        bgGrad.addColorStop(1, '#090c1a');
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(frameX, frameY, cardW, cardH);
+      }
+    }
+
     const portrait = this._assets.getImageElement(commander.portraitAssetId);
     if (portrait && portrait.complete && portrait.naturalWidth > 0) {
       ctx.drawImage(portrait, frameX, frameY, cardW, cardH);

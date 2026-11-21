@@ -3,10 +3,13 @@
  * Compact Left Roster Rail · Center Full-Height Portrait Stage · Right Tactical Dossier.
  */
 
+import { AstraCardRegistry, isAstraHero } from './AstraCardMount.js';
+
 export class HeroScreen {
   constructor(ctx) {
     this._ctx = ctx;
     this._unsubs = [];
+    this._astraCards = new AstraCardRegistry({ CardClass: ctx?.AstraCardClass });
   }
 
   mount(container) {
@@ -18,6 +21,7 @@ export class HeroScreen {
   }
 
   unmount() {
+    this._astraCards.destroyAll();
     for (const unsub of this._unsubs) unsub();
     this._unsubs = [];
     this._container = null;
@@ -25,6 +29,7 @@ export class HeroScreen {
 
   render() {
     if (!this._container) return;
+    this._astraCards.destroyAll();
     const { heroSystem, formationSystem, gameState, assetManager, audioManager, screenManager } =
       this._ctx;
     const allHeroes = heroSystem.getAllHeroes();
@@ -42,6 +47,8 @@ export class HeroScreen {
     const activeCommanderId = formationSystem.getCommanderId();
     const selTheme = selectedHero?.id ? `theme-${selectedHero.id}` : 'theme-astra';
     const selRarity = (selectedHero?.rarity || 'SSR').toLowerCase();
+
+    const isAstraSelected = isAstraHero(selectedHero);
 
     this._container.innerHTML = `
       <section class="screen-frame" aria-label="Commander Heroes">
@@ -80,9 +87,17 @@ export class HeroScreen {
           ${
             selectedHero
               ? `
-                <div class="hero-art-stage hero-art-stage--${selRarity} ${selTheme}" aria-label="Commander Portrait">
-                  <img id="hero-detail-img" alt="${selectedHero.name}" />
-                  <div class="hero-art-stage__scrim">
+                <div class="hero-art-stage hero-art-stage--${selRarity} ${selTheme}${isAstraSelected ? ' hero-art-stage--astra-card' : ''}" aria-label="${isAstraSelected ? 'Astra Collectible Commander Card' : 'Commander Portrait'}">
+                  ${
+                    isAstraSelected
+                      ? `
+                        <div class="hero-art-stage__card-frame">
+                          <div id="hero-astra-card-slot" class="hero-art-stage__card-slot" data-astra-card-slot="hero-detail"></div>
+                        </div>
+                      `
+                      : `<img id="hero-detail-img" alt="${selectedHero.name}" />`
+                  }
+                  <div class="hero-art-stage__scrim${isAstraSelected ? ' hero-art-stage__scrim--below' : ''}">
                     <div class="meta-line">
                       <span class="rarity-${selRarity}">${selectedHero.rarity}</span>
                       <span class="meta-sep" aria-hidden="true">·</span>
@@ -266,9 +281,24 @@ export class HeroScreen {
       rail.appendChild(item);
     }
 
-    const detailImg = this._container.querySelector('#hero-detail-img');
-    if (detailImg && selectedHero) {
-      assetManager.bindImageElement(detailImg, selectedHero.portraitAssetId);
+    if (isAstraSelected && selectedHero) {
+      const astraSlot = this._container.querySelector('#hero-astra-card-slot');
+      this._astraCards.mount(astraSlot, {
+        hero: selectedHero,
+        extraData: {
+          activeCommander: selectedHero.id === activeCommanderId,
+        },
+        selectable: false,
+        selected: false,
+        studio: false,
+        assetManager,
+        fallbackAssetId: selectedHero.portraitAssetId,
+      });
+    } else {
+      const detailImg = this._container.querySelector('#hero-detail-img');
+      if (detailImg && selectedHero) {
+        assetManager.bindImageElement(detailImg, selectedHero.portraitAssetId);
+      }
     }
 
     for (const tab of this._container.querySelectorAll('[data-filter]')) {

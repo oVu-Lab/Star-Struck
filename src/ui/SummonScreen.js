@@ -12,6 +12,7 @@
  */
 
 import { formatNumber } from '../utils/MathUtils.js';
+import { AstraCardRegistry, isAstraHero } from './AstraCardMount.js';
 
 /**
  * Determine a banner's availability status using only real banner metadata.
@@ -113,6 +114,10 @@ export class SummonScreen {
     this._ctx = ctx;
     this._unsubs = [];
     this._overlayMode = null; // null | 'history' | 'results'
+    this._astraCards = new AstraCardRegistry({
+      maxInstances: 6,
+      CardClass: ctx?.AstraCardClass,
+    });
     this._onKeyDown = (event) => {
       if (event.key === 'Escape' && this._overlayMode) {
         this._overlayMode = null;
@@ -134,6 +139,7 @@ export class SummonScreen {
   }
 
   unmount() {
+    this._astraCards.destroyAll();
     for (const unsub of this._unsubs) unsub();
     this._unsubs = [];
     if (typeof window !== 'undefined' && window.removeEventListener) {
@@ -145,6 +151,7 @@ export class SummonScreen {
 
   render() {
     if (!this._container) return;
+    this._astraCards.destroyAll();
     const {
       gachaSystem,
       economySystem,
@@ -419,6 +426,30 @@ export class SummonScreen {
       if (aid) assetManager.bindImageElement(artEl, aid);
     }
 
+    // Mount static AstraCard instances for Commander Astra pull results
+    if (this._overlayMode === 'results') {
+      for (const slotEl of this._container.querySelectorAll('[data-astra-result-slot]')) {
+        const resultIdx = Number(slotEl.getAttribute('data-astra-result-slot'));
+        const entry = results[resultIdx];
+        if (!entry || entry.itemType === 'card') continue;
+        const heroDef = entry.hero || dataRegistry?.heroesById?.get(entry.heroId) || null;
+        if (!isAstraHero(heroDef || entry.heroId)) continue;
+        this._astraCards.mount(slotEl, {
+          hero: heroDef,
+          extraData: {
+            isNew: Boolean(entry.isNew),
+            bonusCard: entry.bonusCard?.name || null,
+            pullIndex: resultIdx,
+          },
+          selectable: false,
+          selected: false,
+          studio: false,
+          assetManager,
+          fallbackAssetId: heroDef?.portraitAssetId || 'hero_portrait_astra',
+        });
+      }
+    }
+
     // Banner selection clicks
     for (const tab of this._container.querySelectorAll('[data-banner-id]')) {
       tab.addEventListener('click', () => {
@@ -498,28 +529,39 @@ export class SummonScreen {
     });
 
     // Pull result item inspection navigation (preserved from existing implementation)
+    const inspectResult = (cardEl) => {
+      const inspectType = cardEl.getAttribute('data-inspect-type');
+      const inspectId = cardEl.getAttribute('data-inspect-id');
+      if (!inspectId) return;
+      audioManager.playClick();
+      this._overlayMode = null;
+      this._astraCards.destroyAll();
+      if (inspectType === 'hero') {
+        gameState.setUI({ selectedHeroId: inspectId });
+        screenManager.navigate('heroes');
+      } else if (inspectType === 'unit') {
+        gameState.setUI({ formationTab: 'squad', selectedRosterUnitId: inspectId });
+        screenManager.navigate('formation');
+      } else {
+        gameState.setUI({
+          inventoryFilter: 'cards',
+          inventoryCardCat: 'all',
+          selectedInventoryId: inspectId,
+        });
+        screenManager.navigate('inventory');
+      }
+    };
+
     for (const cardBtn of this._container.querySelectorAll('[data-inspect-type]')) {
-      cardBtn.addEventListener('click', () => {
-        const inspectType = cardBtn.getAttribute('data-inspect-type');
-        const inspectId = cardBtn.getAttribute('data-inspect-id');
-        if (!inspectId) return;
-        audioManager.playClick();
-        this._overlayMode = null;
-        if (inspectType === 'hero') {
-          gameState.setUI({ selectedHeroId: inspectId });
-          screenManager.navigate('heroes');
-        } else if (inspectType === 'unit') {
-          gameState.setUI({ formationTab: 'squad', selectedRosterUnitId: inspectId });
-          screenManager.navigate('formation');
-        } else {
-          gameState.setUI({
-            inventoryFilter: 'cards',
-            inventoryCardCat: 'all',
-            selectedInventoryId: inspectId,
-          });
-          screenManager.navigate('inventory');
-        }
-      });
+      cardBtn.addEventListener('click', () => inspectResult(cardBtn));
+      if (cardBtn.getAttribute('role') === 'button') {
+        cardBtn.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            inspectResult(cardBtn);
+          }
+        });
+      }
     }
   }
 
@@ -667,6 +709,28 @@ export class SummonScreen {
                     : entry.isNew
                       ? 'New Commander'
                       : 'Duplicate Copy';
+                  const heroId = entry.hero?.id || entry.heroId;
+                  const heroName = entry.hero?.name || entry.heroId;
+                  if (isAstraHero(heroId)) {
+                    return `
+                      <div
+                        role="button"
+                        tabindex="0"
+                        class="summon-result-card is-${entry.rarity.toLowerCase()} summon-result-card--astra"
+                        style="--stagger-idx: ${idx};"
+                        data-inspect-type="hero"
+                        data-inspect-id="${heroId}"
+                        title="Inspect ${heroName}"
+                      >
+                        <div class="summon-result-card__astra-slot" data-astra-result-slot="${idx}"></div>
+                        <div class="summon-result-card__meta summon-result-card__meta--astra">
+                          <span class="rarity-${entry.rarity.toLowerCase()}" style="font-size: 0.72rem;">${entry.rarity} · Commander</span>
+                          <strong style="font-size: 0.88rem; color: var(--text-primary);">${heroName}</strong>
+                          <span style="font-size: 0.72rem; color: var(--text-secondary);">${bonusText}</span>
+                        </div>
+                      </div>
+                    `;
+                  }
                   const artId = entry.hero?.portraitAssetId || '';
                   return `
                     <button
@@ -674,16 +738,16 @@ export class SummonScreen {
                       class="summon-result-card is-${entry.rarity.toLowerCase()}"
                       style="--stagger-idx: ${idx};"
                       data-inspect-type="hero"
-                      data-inspect-id="${entry.hero?.id || entry.heroId}"
-                      title="Inspect ${entry.hero?.name || entry.heroId}"
+                      data-inspect-id="${heroId}"
+                      title="Inspect ${heroName}"
                     >
                       <div class="summon-result-card__head">
                         <span class="summon-result-card__thumb summon-result-card__thumb--portrait">
-                          <img data-pull-art="${artId}" alt="${entry.hero?.name || entry.heroId}" />
+                          <img data-pull-art="${artId}" alt="${heroName}" />
                         </span>
                         <div class="summon-result-card__meta">
                           <span class="rarity-${entry.rarity.toLowerCase()}" style="font-size: 0.72rem;">${entry.rarity} · Commander</span>
-                          <strong style="font-size: 0.86rem; color: var(--text-primary);">${entry.hero?.name || entry.heroId}</strong>
+                          <strong style="font-size: 0.86rem; color: var(--text-primary);">${heroName}</strong>
                         </div>
                       </div>
                       <span style="font-size: 0.72rem; color: var(--text-secondary);">${bonusText}</span>

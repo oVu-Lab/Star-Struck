@@ -1,6 +1,6 @@
 // AstraCard — reusable holographic Commander card component (Three.js r128, WebGL).
 // Vanilla ES module. No build step required. See README.md for the integration API.
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.module.js'; // pinned r128; vendor locally for offline builds
+import * as THREE from 'three'; // pinned local r128 package (three@0.128.0)
 
 const W = 1152, H = 1744;
 const VS = `varying vec2 vUv;varying vec3 vP;void main(){vUv=uv;vP=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`;
@@ -105,12 +105,11 @@ gl_PointSize=uS*(.5+seed.z)*300./-mv.z;vA=sin(f*3.1416)*(.5+.5*sin(uP*3.+seed.x*
 const PFS = `precision highp float;varying float vA;void main(){float d=length(gl_PointCoord-.5);gl_FragColor=vec4(vec3(1.,.88,.62),smoothstep(.5,0.,d)*vA*.8);}`;
 
 // ---------------------------------------------------------------- module config
-const asset = f => new URL('./assets/' + f, import.meta.url).href;
 const DEFAULT_ASSETS = Object.freeze({
-  bg: asset('bg.jpeg'),
-  character: asset('character.png'),
-  frame: asset('frame.jpeg'),
-  depth: asset('depth.jpeg')
+  bg: new URL('./assets/bg.jpeg', import.meta.url).href,
+  character: new URL('./assets/character.png', import.meta.url).href,
+  frame: new URL('./assets/frame.jpeg', import.meta.url).href,
+  depth: new URL('./assets/depth.jpeg', import.meta.url).href
 });
 const DEFAULT_FRAME = Object.freeze({
   crop: [30, 38, 1095, 1674], // outermost gold line of frame.jpeg -> card edge
@@ -605,6 +604,7 @@ export class AstraCard {
     this._applyInteractivity();
     this._applyGlow();
     if ('selected' in next) this.setSelected(!!next.selected);
+    if ('tilt' in next) this._fit();
     this._dirty = true;
 
     if (JSON.stringify(this._urls()) !== prevUrls || JSON.stringify(this.o.frame) !== prevFrame) {
@@ -1039,7 +1039,7 @@ export class AstraCard {
   }
 
   _setCam(a) {
-    const vh = Math.max(3.7, 2.6 / a);
+    const vh = this.o.tilt === 0 ? Math.max(3.12, 2.08 / a) : Math.max(3.7, 2.6 / a);
     this.cam.aspect = a;
     this.cam.position.set(0, 0, vh / 2 / Math.tan(Math.PI / 12));
     this.cam.updateProjectionMatrix();
