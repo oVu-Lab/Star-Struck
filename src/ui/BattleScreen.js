@@ -145,22 +145,40 @@ export class BattleScreen {
             </span>
           </div>
           <div class="prep-floating-bar__actions">
-            <select
-              id="prep-commander-select"
-              class="prep-select"
+            <div
+              id="prep-commander-switcher"
+              class="prep-commander-switcher"
+              role="radiogroup"
               aria-label="Select Commander for battle"
             >
               ${heroSystem
                 .getOwnedHeroes()
-                .map(
-                  (h) => `
-                    <option value="${h.id}" ${h.id === commander?.id ? 'selected' : ''}>
-                      Cmdr: ${h.name}
-                    </option>
-                  `,
-                )
+                .map((h) => {
+                  const isAct = h.id === commander?.id;
+                  const rLower = (h.rarity || 'R').toLowerCase();
+                  const shortName = (h.name || h.id).split(' ')[0];
+                  const tip = `${h.name} (${h.rarity}) — Passive: ${h.passiveSkill?.name || '—'} · Ultimate: ${h.ultimateSkill?.name || '—'}`;
+                  return `
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked="${isAct}"
+                      class="prep-cmd-tile theme-${h.id} ${isAct ? 'is-active' : ''}"
+                      data-prep-commander="${h.id}"
+                      title="${tip}"
+                    >
+                      <span class="prep-cmd-tile__thumb">
+                        <img data-prep-cmd-portrait="${h.portraitAssetId}" alt="${h.name}" />
+                      </span>
+                      <span class="prep-cmd-tile__meta">
+                        <span class="prep-cmd-tile__name">${shortName}</span>
+                        <span class="prep-cmd-tile__rarity rarity-${rLower}">${h.rarity || 'R'}</span>
+                      </span>
+                    </button>
+                  `;
+                })
                 .join('')}
-            </select>
+            </div>
             <button type="button" id="btn-prep-swap-class" class="btn btn-secondary btn-sm" disabled>
               Swap Class
             </button>
@@ -188,29 +206,20 @@ export class BattleScreen {
           <div id="tactical-card-slots" class="card-slots-grid" role="group" aria-label="Six tactical card slots"></div>
 
           <aside id="commander-console" class="dock-commander-module ${themeClass}" aria-label="Commander Ultimate">
-            <div class="dock-commander__head">
-              <div class="dock-commander__avatar" id="commander-avatar-frame">
-                <img id="battle-commander-avatar" alt="${commander?.name || 'Commander'}" />
+            <button
+              type="button"
+              id="btn-trigger-ultimate"
+              class="dock-commander-card"
+              aria-label="${commander?.name || 'Commander'} Ultimate (${commander?.ultimateSkill?.name || 'Starfall Judgment'}): 0%"
+              title="${commander?.name || 'Commander'} · ${commander?.ultimateSkill?.name || 'Starfall Judgment'}"
+              disabled
+            >
+              <img id="battle-commander-avatar" class="dock-commander-card__art" alt="${commander?.name || 'Commander'}" />
+              <div class="dock-commander-card__bar-wrap" aria-hidden="true">
+                <div class="dock-commander-card__track">
+                  <div id="hud-ult-bar" class="dock-commander-card__fill" style="width: 0%;"></div>
+                </div>
               </div>
-              <div class="dock-commander__meta">
-                <div id="battle-commander-name" class="dock-commander__name">${commander?.name || 'Astra Valen'}</div>
-                <div id="battle-commander-ult" class="dock-commander__ult-name">${commander?.ultimateSkill?.name || 'Starfall Judgment'}</div>
-                <div id="battle-commander-passive" class="meta-line" style="font-size: 0.68rem;">${commander?.passiveSkill?.name || 'Astral Aegis'}</div>
-              </div>
-            </div>
-
-            <div>
-              <div class="setting-control__top" style="font-size: 0.72rem; margin-bottom: 4px;">
-                <span style="color: var(--text-muted);">Ultimate</span>
-                <span id="hud-ult-pct" class="tabular-nums" style="color: var(--celestial-ivory);">0 / 100</span>
-              </div>
-              <div class="progress-track">
-                <div id="hud-ult-bar" class="progress-fill progress-fill--gold" style="width: 0%;"></div>
-              </div>
-            </div>
-
-            <button type="button" id="btn-trigger-ultimate" class="btn btn-gold dock-ult-btn" disabled>
-              Charging (0%)
             </button>
           </aside>
         </div>
@@ -240,6 +249,10 @@ export class BattleScreen {
     if (commander) {
       if (avatarEl) assetManager.bindImageElement(avatarEl, commander.portraitAssetId);
       if (cutinPortraitEl) assetManager.bindImageElement(cutinPortraitEl, commander.portraitAssetId);
+    }
+    for (const imgEl of container.querySelectorAll('[data-prep-cmd-portrait]')) {
+      const aid = imgEl.getAttribute('data-prep-cmd-portrait');
+      if (aid) assetManager.bindImageElement(imgEl, aid);
     }
 
     const canvas = container.querySelector('#battle-canvas');
@@ -271,17 +284,26 @@ export class BattleScreen {
       this._renderCardSlots();
     });
 
-    container.querySelector('#prep-commander-select')?.addEventListener('change', (ev) => {
-      const res = battleManager.setPrepCommander(ev.target.value);
-      if (res.ok) {
-        const nextCmd = heroSystem.getActiveCommander();
-        this._refreshCommanderConsole(nextCmd);
-        this._ctx.notify(`Commander switched to ${nextCmd?.name || ev.target.value}.`);
-      } else if (res.reason) {
-        this._ctx.notify(res.reason, 'warn');
-      }
-      this._syncPrepControls();
-    });
+    for (const tile of container.querySelectorAll('[data-prep-commander]')) {
+      tile.addEventListener('click', () => {
+        const nextId = tile.getAttribute('data-prep-commander');
+        if (!nextId) return;
+        const res = battleManager.setPrepCommander(nextId);
+        if (res.ok) {
+          const nextCmd = heroSystem.getActiveCommander();
+          this._refreshCommanderConsole(nextCmd);
+          for (const other of container.querySelectorAll('[data-prep-commander]')) {
+            const active = other.getAttribute('data-prep-commander') === nextId;
+            other.classList.toggle('is-active', active);
+            other.setAttribute('aria-checked', String(active));
+          }
+          this._ctx.notify(`Commander switched to ${nextCmd?.name || nextId}.`);
+        } else if (res.reason) {
+          this._ctx.notify(res.reason, 'warn');
+        }
+        this._syncPrepControls();
+      });
+    }
 
     container.querySelector('#btn-prep-swap-class')?.addEventListener('click', () => {
       const uid = battleManager.getSelectedPrepUnitUid();
@@ -308,7 +330,7 @@ export class BattleScreen {
       gameState.mutatePersistent('settings', (p) => {
         p.settings.muted = nextMuted;
       });
-      saveManager?.save(gameState.getPersistent());
+      saveManager?.save(gameState.toSerializableSave());
       audioManager?.syncVolumes?.();
       this._syncMuteBtn();
       if (!nextMuted) audioManager?.playClick?.();
@@ -541,9 +563,7 @@ export class BattleScreen {
     if (!this._container || !commander) return;
     const avatarEl = this._container.querySelector('#battle-commander-avatar');
     const cutinImg = this._container.querySelector('#cutin-portrait-img');
-    const nameEl = this._container.querySelector('#battle-commander-name');
-    const ultEl = this._container.querySelector('#battle-commander-ult');
-    const passiveEl = this._container.querySelector('#battle-commander-passive');
+    const ultBtn = this._container.querySelector('#btn-trigger-ultimate');
     const cmdConsole = this._container.querySelector('#commander-console');
     const cutinEl = this._container.querySelector('#ultimate-cutin');
 
@@ -555,9 +575,9 @@ export class BattleScreen {
       cutinImg.alt = commander.name;
       this._ctx.assetManager.bindImageElement(cutinImg, commander.portraitAssetId);
     }
-    if (nameEl) nameEl.textContent = commander.name;
-    if (ultEl) ultEl.textContent = commander.ultimateSkill?.name || 'Ultimate';
-    if (passiveEl) passiveEl.textContent = commander.passiveSkill?.name || 'Passive';
+    if (ultBtn) {
+      ultBtn.title = `${commander.name} · ${commander.ultimateSkill?.name || 'Ultimate'}`;
+    }
 
     const themeClass = `theme-${commander.id}`;
     for (const el of [cmdConsole, cutinEl]) {
@@ -640,11 +660,18 @@ export class BattleScreen {
     if (this._hudCache.ultVal !== ultVal || this._hudCache.ultReady !== ultReady) {
       this._hudCache.ultVal = ultVal;
       this._hudCache.ultReady = ultReady;
-      if (h.ultPct) h.ultPct.textContent = `${ultVal} / ${b.ultimateMaxEnergy || 100}`;
       if (h.ultBar) h.ultBar.style.width = `${ultVal}%`;
       if (h.ultBtn) {
         h.ultBtn.disabled = !ultReady;
-        h.ultBtn.textContent = ultReady ? 'Activate Ultimate' : `Charging (${ultVal}%)`;
+        h.ultBtn.classList.toggle('is-ult-ready', ultReady);
+        const cmd = this._ctx.heroSystem.getActiveCommander();
+        const ultName = cmd?.ultimateSkill?.name || 'Ultimate';
+        h.ultBtn.setAttribute(
+          'aria-label',
+          ultReady
+            ? `Release ${cmd?.name || 'Commander'} Ultimate: ${ultName}`
+            : `${cmd?.name || 'Commander'} Ultimate charging (${ultVal}%)`,
+        );
       }
       if (h.cmdConsole) {
         h.cmdConsole.classList.toggle('is-ult-ready', ultReady);

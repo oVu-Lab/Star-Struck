@@ -19,6 +19,8 @@ export class GameState {
       inventoryCardCat: 'all',
       selectedInventoryId: null,
       formationTab: 'squad',
+      selectedSquadSlot: 0,
+      selectedRosterUnitId: null,
       summonSideTab: 'results',
       selectedBannerId: 'banner_starlight_command',
       chapterFilter: 'all',

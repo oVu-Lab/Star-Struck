@@ -109,6 +109,8 @@ export class BattleRenderer {
     telegraphs = [],
     selectedPrepUnitUid = null,
     activeTactic = null,
+    commander = null,
+    ultimateEnergy = 0,
   }) {
     if (!this._ctx || !this._canvas) return;
     const bf = battlefield || this._battlefield;
@@ -156,6 +158,11 @@ export class BattleRenderer {
 
     // 4. Decorative & Blocked Ground Terrain Features
     this._drawGroundFeatures(ctx, bf, w, h, elapsed);
+
+    // 4b. Off-Field Commander Orbital Dais (strong visual presence flanking the Ally Zone)
+    if (commander) {
+      this._drawCommanderDais(ctx, bf, w, h, commander, ultimateEnergy, elapsed);
+    }
 
     // 5. Boss/Skill Telegraphs on the ground plane
     this._drawTelegraphs(ctx, bf, w, h, telegraphs);
@@ -409,6 +416,167 @@ export class BattleRenderer {
       ctx.stroke();
       ctx.restore();
     }
+  }
+
+  _drawCommanderDais(ctx, bf, w, h, commander, ultimateEnergy, elapsed) {
+    // Position Commander on an elevated orbital command dais outside the left Ally Zone
+    // so the Commander has unmistakable presence without obscuring any battlefield units.
+    const p = bf.worldToScreen(-13.5, 44, w, h);
+    const s = Math.max(0.74, Math.min(1.32, p.scale / 7.2));
+    const ultPct = Math.max(0, Math.min(1, (ultimateEnergy || 0) / 100));
+    const ultReady = ultPct >= 1;
+
+    const themeColors = {
+      astra: { accent: '#e6be64', glow: 'rgba(230, 190, 100, 0.42)', ring: '#f7dc94' },
+      kael: { accent: '#38bdf8', glow: 'rgba(56, 189, 248, 0.42)', ring: '#7dd3fc' },
+      lyra: { accent: '#34d399', glow: 'rgba(52, 211, 153, 0.42)', ring: '#6ee7b7' },
+      seraphina: { accent: '#a78bfa', glow: 'rgba(167, 139, 250, 0.42)', ring: '#c4b5fd' },
+      vanguard_zero: { accent: '#60a5fa', glow: 'rgba(96, 165, 250, 0.42)', ring: '#93c5fd' },
+    };
+    const palette = themeColors[commander.id] || themeColors.astra;
+    const floatY = Math.sin(elapsed * 2.2) * 3.2 * s;
+
+    // Keep dais safely inside canvas margins across all desktop resolutions
+    const cardW = 68 * s;
+    const cardH = 96 * s;
+    const cx = Math.max(cardW * 0.5 + 16, Math.min(w - cardW * 0.5 - 16, p.x));
+    const cy = Math.max(cardH + 74, Math.min(h - 170, p.y));
+
+    ctx.save();
+
+    // 1. Subtle energy tether connecting Commander Dais to Ally Zone center
+    const allyAnchor = bf.worldToScreen(8, 48, w, h);
+    ctx.save();
+    ctx.strokeStyle = palette.accent;
+    ctx.globalAlpha = ultReady ? 0.34 + Math.sin(elapsed * 5) * 0.14 : 0.16;
+    ctx.lineWidth = ultReady ? 2 : 1.2;
+    ctx.setLineDash([5, 6]);
+    ctx.beginPath();
+    ctx.moveTo(cx + 22 * s, cy);
+    ctx.lineTo(allyAnchor.x, allyAnchor.y);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+
+    // 2. Ground Command Platform Shadow & Stepped Dais
+    ctx.fillStyle = 'rgba(2, 6, 16, 0.65)';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + 5 * s, 38 * s, 16 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#0c1830';
+    ctx.strokeStyle = palette.accent;
+    ctx.lineWidth = ultReady ? 2.4 : 1.6;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, 34 * s, 14.5 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Outer rotating orbital rune ring (visibly distinguishes Commander from regular units)
+    ctx.save();
+    ctx.strokeStyle = palette.ring;
+    ctx.globalAlpha = ultReady ? 0.85 : 0.45;
+    ctx.lineWidth = ultReady ? 2.2 : 1.4;
+    ctx.setLineDash([10, 6]);
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, (40 + Math.sin(elapsed * 3) * 2) * s, (17.5 + Math.sin(elapsed * 3) * 0.8) * s, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+
+    // Ultimate charge arc around the dais rim
+    if (ultPct > 0.01) {
+      ctx.save();
+      ctx.strokeStyle = ultReady ? '#fde68a' : palette.accent;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, 36.5 * s, 15.8 * s, 0, -Math.PI * 0.5, -Math.PI * 0.5 + Math.PI * 2 * ultPct);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 3. Elevated Commander Portrait Frame (2.3x larger than ordinary units)
+    const frameX = cx - cardW * 0.5;
+    const frameY = cy - cardH - 10 * s + floatY;
+    const cornerR = 8 * s;
+
+    // Ambient hero aura behind portrait
+    const aura = ctx.createRadialGradient(cx, frameY + cardH * 0.5, 6 * s, cx, frameY + cardH * 0.5, cardH * 0.72);
+    aura.addColorStop(0, palette.glow);
+    aura.addColorStop(1, 'rgba(6, 11, 22, 0)');
+    ctx.fillStyle = aura;
+    ctx.beginPath();
+    ctx.arc(cx, frameY + cardH * 0.5, cardH * 0.72, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Clipped portrait card body
+    ctx.save();
+    ctx.beginPath();
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(frameX, frameY, cardW, cardH, cornerR);
+    } else {
+      ctx.rect(frameX, frameY, cardW, cardH);
+    }
+    ctx.fillStyle = '#0a1428';
+    ctx.fill();
+    if (typeof ctx.clip === 'function') {
+      ctx.clip();
+    }
+
+    const portrait = this._assets.getImageElement(commander.portraitAssetId);
+    if (portrait && portrait.complete && portrait.naturalWidth > 0) {
+      ctx.drawImage(portrait, frameX, frameY, cardW, cardH);
+    } else {
+      const grad = ctx.createLinearGradient(frameX, frameY, frameX, frameY + cardH);
+      grad.addColorStop(0, '#16294f');
+      grad.addColorStop(1, '#091122');
+      ctx.fillStyle = grad;
+      ctx.fillRect(frameX, frameY, cardW, cardH);
+    }
+
+    // Subtle bottom scrim inside portrait frame
+    const scrim = ctx.createLinearGradient(frameX, frameY + cardH * 0.58, frameX, frameY + cardH);
+    scrim.addColorStop(0, 'rgba(6, 11, 22, 0)');
+    scrim.addColorStop(1, 'rgba(6, 11, 22, 0.92)');
+    ctx.fillStyle = scrim;
+    ctx.fillRect(frameX, frameY + cardH * 0.58, cardW, cardH * 0.42);
+    ctx.restore();
+
+    // Crisp luminous outer border around Commander portrait
+    ctx.beginPath();
+    if (typeof ctx.roundRect === 'function') {
+      ctx.roundRect(frameX, frameY, cardW, cardH, cornerR);
+    } else {
+      ctx.rect(frameX, frameY, cardW, cardH);
+    }
+    ctx.strokeStyle = ultReady ? '#fde68a' : palette.accent;
+    ctx.lineWidth = ultReady ? 2.8 : 2;
+    ctx.stroke();
+
+    // Top crest diamond
+    const crestY = frameY - 2 * s;
+    ctx.fillStyle = ultReady ? '#fde68a' : palette.accent;
+    ctx.beginPath();
+    ctx.moveTo(cx, crestY - 6 * s);
+    ctx.lineTo(cx + 6 * s, crestY);
+    ctx.lineTo(cx, crestY + 6 * s);
+    ctx.lineTo(cx - 6 * s, crestY);
+    ctx.closePath();
+    ctx.fill();
+
+    // Commander Name & Role Tag
+    const labelY = frameY + cardH - 6 * s;
+    ctx.font = `700 ${Math.max(8, Math.round(8.5 * s))}px "JetBrains Mono", monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = ultReady ? '#fde68a' : palette.ring;
+    ctx.fillText(ultReady ? 'ULT READY' : 'COMMANDER', cx, labelY - 10 * s);
+
+    ctx.font = `700 ${Math.max(9, Math.round(10.5 * s))}px Outfit, sans-serif`;
+    ctx.fillStyle = '#f8fafc';
+    const shortName = (commander.name || 'Commander').split(' ')[0];
+    ctx.fillText(shortName, cx, labelY);
+
+    ctx.restore();
   }
 
   _drawGroundFeatures(ctx, bf, w, h, elapsed) {

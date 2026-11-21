@@ -279,7 +279,7 @@ export class Game {
       this.gameState.mutatePersistent('settings', (p) => {
         p.settings.muted = nextMuted;
       });
-      this.saveManager?.save(this.gameState.getPersistent());
+      this.saveManager?.save(this.gameState.toSerializableSave());
       this.audioManager?.syncVolumes?.();
       this._syncMuteButton();
       if (!nextMuted) {

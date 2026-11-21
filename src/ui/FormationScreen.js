@@ -140,12 +140,46 @@ export class FormationScreen {
       (gameState.inventory.items || []).find((i) => i.id === 'item_xp_chip')?.quantity || 0;
     const activeTheme = activeCommander?.id ? `theme-${activeCommander.id}` : 'theme-astra';
 
+    const selectedSlotIdx = Math.max(
+      0,
+      Math.min(3, Number(gameState.ui.selectedSquadSlot ?? 0)),
+    );
+    const activeSlot = unitSlots[selectedSlotIdx] || unitSlots[0];
+    const selectedUnit =
+      allUnits.find((u) => u.id === gameState.ui.selectedRosterUnitId) ||
+      allUnits.find((u) => u.id === activeSlot?.unitId) ||
+      allUnits[0];
+    const inSquadIds = new Set(unitSlots.map((s) => s.unitId));
+
+    const slotMeta = [
+      { pos: 'Frontline · Top', shortPos: 'Front 1', col: 'front', row: 'top' },
+      { pos: 'Frontline · Bot', shortPos: 'Front 2', col: 'front', row: 'bot' },
+      { pos: 'Rearline · Top', shortPos: 'Rear 3', col: 'rear', row: 'top' },
+      { pos: 'Rearline · Bot', shortPos: 'Rear 4', col: 'rear', row: 'bot' },
+    ];
+
+    const detailRoleStat = selectedUnit
+      ? selectedUnit.scaledStats.healPower > 0
+        ? { label: 'HEAL', val: selectedUnit.scaledStats.healPower }
+        : selectedUnit.scaledStats.shieldPower > 0
+          ? { label: 'SHIELD', val: selectedUnit.scaledStats.shieldPower }
+          : { label: 'ATK', val: selectedUnit.scaledStats.attack }
+      : { label: 'ATK', val: 0 };
+
+    const canUpgradeSelected =
+      selectedUnit &&
+      selectedUnit.unlocked &&
+      selectedUnit.level < selectedUnit.maxLevel &&
+      gameState.resources.credits >= selectedUnit.upgradeCreditCost &&
+      xpChips >= selectedUnit.upgradeChipCost;
+    const isAlreadyInSelectedSlot = activeSlot?.unitId === selectedUnit?.id;
+
     bodyEl.innerHTML = `
       <div class="formation-workspace formation-workspace--squad">
         <div class="surface surface--celestial workspace-pane ${activeTheme}">
           <div class="workspace-pane__head">
             <div>
-              <div class="section-kicker section-kicker--gold">Active Commander &amp; Starting Squad</div>
+              <div class="section-kicker section-kicker--gold">Active Commander &amp; Starting Formation</div>
               <h2 class="section-heading" style="margin-top: 2px;">${activeCommander?.name || 'Astra Valen'}</h2>
             </div>
             <span class="meta-line">
@@ -173,87 +207,215 @@ export class FormationScreen {
               .join('')}
           </div>
 
-          <div class="workspace-pane__head">
-            <span class="section-heading" style="font-size: 0.9rem;">4 Tactical Starting Slots</span>
-            <span class="meta-line tabular-nums">${unlockedUnits.length} / ${allUnits.length} Unit Classes Unlocked</span>
+          <div class="formation-map" aria-label="Starting Battlefield Formation Preview">
+            <div class="formation-map__lane">
+              <span class="formation-map__lane-label">Rearline</span>
+              <div class="formation-map__nodes">
+                ${[2, 3]
+                  .map((idx) => {
+                    const s = unitSlots[idx];
+                    const isSel = idx === selectedSlotIdx;
+                    return `
+                      <button type="button" class="formation-node ${isSel ? 'is-selected' : ''}" data-select-slot="${idx}">
+                        <span class="formation-node__art">
+                          <img data-unit-art="${s?.unit?.spriteAssetId || ''}" alt="${s?.unit?.name || ''}" />
+                        </span>
+                        <span class="formation-node__info">
+                          <span class="formation-node__slot tabular-nums">Slot ${idx + 1}</span>
+                          <span class="formation-node__name">${s?.unit?.name || s?.unitId}</span>
+                        </span>
+                      </button>
+                    `;
+                  })
+                  .join('')}
+              </div>
+            </div>
+
+            <div class="formation-map__divider" aria-hidden="true">
+              <span>ALLY ZONE</span>
+            </div>
+
+            <div class="formation-map__lane">
+              <span class="formation-map__lane-label">Frontline</span>
+              <div class="formation-map__nodes">
+                ${[0, 1]
+                  .map((idx) => {
+                    const s = unitSlots[idx];
+                    const isSel = idx === selectedSlotIdx;
+                    return `
+                      <button type="button" class="formation-node ${isSel ? 'is-selected' : ''}" data-select-slot="${idx}">
+                        <span class="formation-node__art">
+                          <img data-unit-art="${s?.unit?.spriteAssetId || ''}" alt="${s?.unit?.name || ''}" />
+                        </span>
+                        <span class="formation-node__info">
+                          <span class="formation-node__slot tabular-nums">Slot ${idx + 1}</span>
+                          <span class="formation-node__name">${s?.unit?.name || s?.unitId}</span>
+                        </span>
+                      </button>
+                    `;
+                  })
+                  .join('')}
+              </div>
+            </div>
           </div>
 
-          <div id="formation-unit-slots" class="squad-grid-2x2"></div>
+          <div class="workspace-pane__head">
+            <span class="section-heading" style="font-size: 0.88rem;">
+              Starting Squad · Editing <span style="color: var(--accent-blue-bright);">Slot ${selectedSlotIdx + 1}</span>
+            </span>
+            <span class="meta-line" style="font-size: 0.74rem;">Select a slot, then assign a unit from the collection</span>
+          </div>
+
+          <div id="formation-unit-slots" class="squad-grid-2x2">
+            ${unitSlots
+              .map((slot) => {
+                const u = slot.unit;
+                const isSel = slot.slotIndex === selectedSlotIdx;
+                const meta = slotMeta[slot.slotIndex] || { pos: `Slot ${slot.slotIndex + 1}` };
+                return `
+                  <div class="squad-slot ${isSel ? 'is-selected' : ''}" data-select-slot="${slot.slotIndex}" role="button" tabindex="0" aria-pressed="${isSel}">
+                    <div class="squad-slot__top">
+                      <div class="squad-slot__art">
+                        <img data-unit-art="${u?.spriteAssetId || ''}" alt="${u?.name || slot.unitId}" />
+                      </div>
+                      <div style="min-width: 0; flex: 1;">
+                        <div class="meta-line tabular-nums" style="font-size: 0.7rem;">
+                          <span style="color: ${isSel ? 'var(--accent-blue-bright)' : 'var(--text-muted)'}; font-weight: 700;">Slot ${slot.slotIndex + 1}</span>
+                          <span class="meta-sep" aria-hidden="true">·</span>
+                          <span>${meta.shortPos}</span>
+                          <span class="meta-sep" aria-hidden="true">·</span>
+                          <span style="color: var(--accent-blue-bright);">${u?.cost ?? 20}E</span>
+                        </div>
+                        <div style="font-weight: 600; font-size: 0.88rem; color: var(--celestial-ivory); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                          ${u?.name || slot.unitId}
+                        </div>
+                        <div class="meta-line tabular-nums" style="font-size: 0.72rem;">
+                          <span class="rarity-${(u?.rarity || 'R').toLowerCase()}">${u?.rarity || 'R'} · Lv.${u?.level ?? 1}</span>
+                          <span class="meta-sep" aria-hidden="true">·</span>
+                          <span>${u?.role || ''}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="squad-slot__footer">
+                      <span class="squad-slot__status">${isSel ? 'Target Slot' : 'Click to edit'}</span>
+                      <div class="btn-row" style="gap: 5px;">
+                        <button type="button" class="btn btn-ghost btn-xs" data-swap-left="${slot.slotIndex}" title="Move earlier" ${slot.slotIndex === 0 ? 'disabled' : ''}>←</button>
+                        <button type="button" class="btn btn-ghost btn-xs" data-swap-right="${slot.slotIndex}" title="Move later" ${slot.slotIndex === 3 ? 'disabled' : ''}>→</button>
+                      </div>
+                    </div>
+                  </div>
+                `;
+              })
+              .join('')}
+          </div>
         </div>
 
         <div class="surface workspace-pane">
           <div class="workspace-pane__head">
             <div>
-              <div class="section-kicker">Barracks Workshop</div>
-              <h2 class="section-heading" style="margin-top: 2px;">Unit Roster &amp; Upgrades</h2>
+              <div class="section-kicker">Unit Collection</div>
+              <h2 class="section-heading" style="margin-top: 2px;">${unlockedUnits.length} / ${allUnits.length} Unlocked</h2>
             </div>
-            <span class="meta-line tabular-nums">
-              <span>${formatNumber(gameState.resources.credits)} Credits</span>
+            <span class="meta-line tabular-nums" style="font-size: 0.78rem;">
+              <span>${formatNumber(gameState.resources.credits)} Cr</span>
               <span class="meta-sep" aria-hidden="true">·</span>
               <span style="color: var(--accent-blue-bright);">${formatNumber(xpChips)} XP Chips</span>
             </span>
           </div>
 
-          <div class="scroll-pane">
-            <div id="formation-unit-roster" class="roster-grid-compact">
+          <div class="scroll-pane" style="flex: 1;">
+            <div id="formation-unit-roster" class="unit-collection-grid">
               ${allUnits
                 .map((u) => {
-                  const canAfford =
-                    u.unlocked &&
-                    u.level < u.maxLevel &&
-                    gameState.resources.credits >= u.upgradeCreditCost &&
-                    xpChips >= u.upgradeChipCost;
-                  const roleStat =
-                    u.scaledStats.healPower > 0
-                      ? `HEAL ${u.scaledStats.healPower}`
-                      : u.scaledStats.shieldPower > 0
-                        ? `SHD ${u.scaledStats.shieldPower}`
-                        : `ATK ${u.scaledStats.attack}`;
+                  const isSel = selectedUnit?.id === u.id;
+                  const inSquad = inSquadIds.has(u.id);
+                  const rLower = (u.rarity || 'R').toLowerCase();
                   return `
-                    <article class="unit-roster-card ${u.unlocked ? '' : 'is-locked'}">
-                      <div class="workspace-pane__head">
-                        <strong style="font-size: 0.88rem; color: var(--celestial-ivory);">${u.name}</strong>
-                        <span class="rarity-${(u.rarity || 'R').toLowerCase()} tabular-nums" style="font-size: 0.78rem;">
-                          ${u.unlocked ? `Lv.${u.level}` : 'Locked'}
+                    <button
+                      type="button"
+                      class="unit-tile unit-tile--${rLower} ${isSel ? 'is-selected' : ''} ${u.unlocked ? '' : 'is-locked'}"
+                      data-select-unit="${u.id}"
+                    >
+                      <div class="unit-tile__top">
+                        <span class="rarity-${rLower} tabular-nums" style="font-size: 0.68rem;">
+                          ${u.unlocked ? `${u.rarity} · Lv.${u.level}` : 'Locked'}
                         </span>
+                        ${inSquad ? '<span class="unit-tile__deployed" title="In starting squad">In Squad</span>' : ''}
                       </div>
-                      <div class="meta-line" style="font-size: 0.76rem;">
-                        <span>${u.role}</span>
-                        <span class="meta-sep" aria-hidden="true">·</span>
-                        <span class="tabular-nums">${u.cost} E</span>
+                      <div class="unit-tile__art">
+                        <img data-unit-art="${u.spriteAssetId}" alt="${u.name}" />
                       </div>
-                      <div class="meta-line tabular-nums" style="font-size: 0.76rem; color: var(--celestial-ivory);">
-                        <span>HP ${u.scaledStats.maxHp}</span>
-                        <span class="meta-sep" aria-hidden="true">·</span>
-                        <span>${roleStat}</span>
-                        <span class="meta-sep" aria-hidden="true">·</span>
-                        <span>DEF ${u.scaledStats.defense}</span>
-                      </div>
-                      ${
-                        u.unlocked
-                          ? `
-                            <button
-                              type="button"
-                              class="btn ${canAfford ? 'btn-primary' : 'btn-secondary'} btn-sm"
-                              style="margin-top: 2px; width: 100%;"
-                              data-upgrade-unit="${u.id}"
-                              ${u.level >= u.maxLevel || !canAfford ? 'disabled' : ''}
-                            >
-                              ${
-                                u.level >= u.maxLevel
-                                  ? 'Max Level'
-                                  : `Upgrade (${u.upgradeCreditCost} Cr · ${u.upgradeChipCost} Chips)`
-                              }
-                            </button>
-                          `
-                          : `<div class="meta-line" style="font-size: 0.74rem; color: var(--text-muted); margin-top: 2px;">Unlock via Campaign or Armory</div>`
-                      }
-                    </article>
+                      <div class="unit-tile__name">${u.name}</div>
+                      <div class="unit-tile__role">${u.role}</div>
+                    </button>
                   `;
                 })
                 .join('')}
             </div>
           </div>
+
+          ${
+            selectedUnit
+              ? `
+                <div class="unit-detail-dock" aria-label="Selected Unit Details">
+                  <div class="unit-detail-dock__head">
+                    <div class="unit-detail-dock__art">
+                      <img data-unit-art="${selectedUnit.spriteAssetId}" alt="${selectedUnit.name}" />
+                    </div>
+                    <div style="min-width: 0; flex: 1;">
+                      <div class="workspace-pane__head" style="gap: 6px;">
+                        <strong style="font-size: 0.96rem; color: var(--celestial-ivory);">${selectedUnit.name}</strong>
+                        <span class="meta-line tabular-nums" style="font-size: 0.76rem;">
+                          <span class="rarity-${(selectedUnit.rarity || 'R').toLowerCase()}">${selectedUnit.rarity}</span>
+                          <span class="meta-sep" aria-hidden="true">·</span>
+                          <span>${selectedUnit.unlocked ? `Lv.${selectedUnit.level}/${selectedUnit.maxLevel}` : 'Locked'}</span>
+                          <span class="meta-sep" aria-hidden="true">·</span>
+                          <span style="color: var(--accent-blue-bright);">${selectedUnit.cost} E</span>
+                        </span>
+                      </div>
+                      <div class="meta-line" style="font-size: 0.74rem; margin-top: 2px;">${selectedUnit.role}</div>
+                      <div class="unit-detail-dock__stats tabular-nums">
+                        <span><strong>HP</strong> ${selectedUnit.scaledStats.maxHp}</span>
+                        <span><strong>${detailRoleStat.label}</strong> ${detailRoleStat.val}</span>
+                        <span><strong>DEF</strong> ${selectedUnit.scaledStats.defense}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <p class="unit-detail-dock__desc">${selectedUnit.description || ''}</p>
+
+                  <div class="unit-detail-dock__actions">
+                    ${
+                      selectedUnit.unlocked
+                        ? `
+                          <button
+                            type="button"
+                            class="btn btn-primary btn-sm"
+                            data-assign-unit="${selectedUnit.id}"
+                            ${isAlreadyInSelectedSlot ? 'disabled' : ''}
+                          >
+                            ${isAlreadyInSelectedSlot ? `Assigned to Slot ${selectedSlotIdx + 1}` : `Assign to Slot ${selectedSlotIdx + 1}`}
+                          </button>
+                          <button
+                            type="button"
+                            class="btn ${canUpgradeSelected ? 'btn-gold' : 'btn-secondary'} btn-sm"
+                            data-upgrade-unit="${selectedUnit.id}"
+                            ${selectedUnit.level >= selectedUnit.maxLevel || !canUpgradeSelected ? 'disabled' : ''}
+                          >
+                            ${
+                              selectedUnit.level >= selectedUnit.maxLevel
+                                ? 'Max Level'
+                                : `Upgrade → Lv.${selectedUnit.level + 1} (${selectedUnit.upgradeCreditCost} Cr · ${selectedUnit.upgradeChipCost} Chips)`
+                            }
+                          </button>
+                        `
+                        : `<span class="meta-line" style="font-size: 0.78rem; color: var(--text-muted);">Unlock this unit via Campaign milestones or Armory Requisition.</span>`
+                    }
+                  </div>
+                </div>
+              `
+              : ''
+          }
         </div>
       </div>
     `;
@@ -262,79 +424,84 @@ export class FormationScreen {
       const aid = imgEl.getAttribute('data-cmd-portrait');
       if (aid) assetManager.bindImageElement(imgEl, aid);
     }
+    for (const imgEl of bodyEl.querySelectorAll('[data-unit-art]')) {
+      const aid = imgEl.getAttribute('data-unit-art');
+      if (aid) assetManager.bindImageElement(imgEl, aid);
+    }
 
-    const slotsEl = bodyEl.querySelector('#formation-unit-slots');
-    for (const slot of unitSlots) {
-      const unit = slot.unit;
-      const card = document.createElement('div');
-      card.className = 'squad-slot';
-      card.innerHTML = `
-        <div class="squad-slot__top">
-          <div class="squad-slot__art">
-            <img alt="${unit?.name || slot.unitId}" />
-          </div>
-          <div style="min-width: 0; flex: 1;">
-            <div class="meta-line tabular-nums" style="font-size: 0.72rem;">
-              <span>Slot ${slot.slotIndex + 1}</span>
-              <span class="meta-sep" aria-hidden="true">·</span>
-              <span>Lv.${unit?.level ?? 1}</span>
-              <span class="meta-sep" aria-hidden="true">·</span>
-              <span style="color: var(--accent-blue-bright);">${unit?.cost ?? 20} E</span>
-            </div>
-            <div style="font-weight: 600; font-size: 0.9rem; color: var(--celestial-ivory); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-              ${unit?.name || slot.unitId}
-            </div>
-            <div class="meta-line" style="font-size: 0.74rem;">${unit?.role || ''}</div>
-          </div>
-        </div>
-        <select
-          class="squad-slot__select"
-          aria-label="Unit type for slot ${slot.slotIndex + 1}"
-          data-slot-select="${slot.slotIndex}"
-        >
-          ${unlockedUnits
-            .map(
-              (u) => `
-                <option value="${u.id}" ${u.id === slot.unitId ? 'selected' : ''}>
-                  ${u.name} (Lv.${u.level})
-                </option>
-              `,
-            )
-            .join('')}
-        </select>
-        <div class="btn-row" style="justify-content: space-between;">
-          <button type="button" class="btn btn-ghost btn-sm" data-swap-left="${slot.slotIndex}" ${slot.slotIndex === 0 ? 'disabled' : ''}>
-            ← Left
-          </button>
-          <button type="button" class="btn btn-ghost btn-sm" data-swap-right="${slot.slotIndex}" ${slot.slotIndex === 3 ? 'disabled' : ''}>
-            Right →
-          </button>
-        </div>
-      `;
-
-      const img = card.querySelector('img');
-      if (unit) assetManager.bindImageElement(img, unit.spriteAssetId);
-
-      card.querySelector('[data-slot-select]')?.addEventListener('change', (ev) => {
-        const res = formationSystem.setUnitSlot(slot.slotIndex, ev.target.value);
-        if (!res.ok && res.reason) {
-          audioManager.playInvalid();
-          this._ctx.notify(res.reason, 'warn');
-        } else {
-          audioManager.playClick();
+    for (const el of bodyEl.querySelectorAll('[data-select-slot]')) {
+      el.addEventListener('click', (ev) => {
+        if (ev.target.closest('[data-swap-left], [data-swap-right]')) return;
+        const idx = Number(el.getAttribute('data-select-slot'));
+        const slot = unitSlots[idx];
+        audioManager.playClick();
+        gameState.setUI({
+          selectedSquadSlot: idx,
+          selectedRosterUnitId: slot?.unitId || gameState.ui.selectedRosterUnitId,
+        });
+        this.render();
+      });
+      el.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          el.click();
         }
       });
-      card.querySelector('[data-swap-left]')?.addEventListener('click', () => {
-        formationSystem.swapUnitSlots(slot.slotIndex, slot.slotIndex - 1);
-        audioManager.playClick();
-      });
-      card.querySelector('[data-swap-right]')?.addEventListener('click', () => {
-        formationSystem.swapUnitSlots(slot.slotIndex, slot.slotIndex + 1);
-        audioManager.playClick();
-      });
-
-      slotsEl.appendChild(card);
     }
+
+    for (const btn of bodyEl.querySelectorAll('[data-swap-left]')) {
+      btn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const idx = Number(btn.getAttribute('data-swap-left'));
+        formationSystem.swapUnitSlots(idx, idx - 1);
+        gameState.setUI({ selectedSquadSlot: Math.max(0, idx - 1) });
+        audioManager.playClick();
+      });
+    }
+
+    for (const btn of bodyEl.querySelectorAll('[data-swap-right]')) {
+      btn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const idx = Number(btn.getAttribute('data-swap-right'));
+        formationSystem.swapUnitSlots(idx, idx + 1);
+        gameState.setUI({ selectedSquadSlot: Math.min(3, idx + 1) });
+        audioManager.playClick();
+      });
+    }
+
+    for (const tile of bodyEl.querySelectorAll('[data-select-unit]')) {
+      tile.addEventListener('click', () => {
+        const uid = tile.getAttribute('data-select-unit');
+        audioManager.playClick();
+        gameState.setUI({ selectedRosterUnitId: uid });
+        this.render();
+      });
+      tile.addEventListener('dblclick', () => {
+        const uid = tile.getAttribute('data-select-unit');
+        const res = formationSystem.setUnitSlot(selectedSlotIdx, uid);
+        if (res.ok) {
+          audioManager.playDeploy();
+          const unitDef = formationSystem.getUnitProgress(uid);
+          this._ctx.notify(`${unitDef?.name || uid} assigned to Slot ${selectedSlotIdx + 1}.`, 'success');
+        } else if (res.reason) {
+          audioManager.playInvalid();
+          this._ctx.notify(res.reason, 'warn');
+        }
+      });
+    }
+
+    bodyEl.querySelector('[data-assign-unit]')?.addEventListener('click', (ev) => {
+      const uid = ev.currentTarget.getAttribute('data-assign-unit');
+      const res = formationSystem.setUnitSlot(selectedSlotIdx, uid);
+      if (res.ok) {
+        audioManager.playDeploy();
+        const unitDef = formationSystem.getUnitProgress(uid);
+        this._ctx.notify(`${unitDef?.name || uid} assigned to Slot ${selectedSlotIdx + 1}.`, 'success');
+      } else if (res.reason) {
+        audioManager.playInvalid();
+        this._ctx.notify(res.reason, 'warn');
+      }
+    });
 
     for (const btn of bodyEl.querySelectorAll('[data-commander-id]')) {
       btn.addEventListener('click', () => {

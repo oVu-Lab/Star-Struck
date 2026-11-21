@@ -1698,6 +1698,8 @@ export class BattleManager {
       telegraphs: this._combat.getTelegraphs(),
       selectedPrepUnitUid: this._selectedPrepUnitUid,
       activeTactic: this._activeTactic,
+      commander: this._heroes?.getActiveCommander?.() || null,
+      ultimateEnergy: this._state?.battle?.ultimateEnergy ?? 0,
     });
   }
 }

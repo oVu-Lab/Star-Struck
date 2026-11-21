@@ -845,11 +845,142 @@
   border: 1px solid var(--border-strong);
 }
 
-/* Starting 4-Slot Squad Grid (2x2) */
+/* Compact Extra-Small Button */
+.btn-xs {
+  min-height: 26px;
+  min-width: 28px;
+  padding: 2px 8px;
+  font-size: 0.76rem;
+}
+
+/* Visual Battlefield Formation Preview Diagram */
+.formation-map {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background:
+    radial-gradient(ellipse 80% 90% at 50% 50%, rgba(56, 189, 248, 0.09), transparent 72%),
+    rgba(7, 13, 27, 0.86);
+  border: 1px solid rgba(56, 189, 248, 0.24);
+  flex-shrink: 0;
+}
+
+.formation-map__lane {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.formation-map__lane-label {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.formation-map__nodes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.formation-map__divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border-left: 1px dashed rgba(56, 189, 248, 0.26);
+  border-right: 1px dashed rgba(56, 189, 248, 0.26);
+}
+
+.formation-map__divider span {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: rgba(56, 189, 248, 0.62);
+}
+
+.formation-node {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  background: rgba(15, 26, 48, 0.88);
+  border: 1px solid var(--border-subtle);
+  transition: border-color var(--duration-fast), background-color var(--duration-fast), box-shadow var(--duration-fast);
+}
+
+.formation-node:hover {
+  border-color: var(--accent-blue);
+}
+
+.formation-node.is-selected {
+  border-color: var(--accent-blue-bright);
+  background: rgba(24, 42, 76, 0.96);
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.28);
+}
+
+.formation-node__art {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  background: rgba(6, 11, 22, 0.85);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  flex-shrink: 0;
+}
+
+.formation-node__art img {
+  max-height: 22px;
+  width: auto;
+}
+
+.formation-node__info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.formation-node__slot {
+  font-size: 0.64rem;
+  color: var(--text-muted);
+}
+
+.formation-node.is-selected .formation-node__slot {
+  color: var(--accent-blue-bright);
+  font-weight: 700;
+}
+
+.formation-node__name {
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--celestial-ivory);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Starting 4-Slot Squad Grid (2x2 Interactive Cards) */
 .squad-grid-2x2 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 11px;
+  gap: 10px;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -857,18 +988,28 @@
 }
 
 .squad-slot {
-  background: rgba(9, 16, 31, 0.78);
+  cursor: pointer;
+  background: rgba(9, 16, 31, 0.82);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  padding: 11px 12px;
+  padding: 10px 11px;
   display: flex;
   flex-direction: column;
-  gap: 9px;
-  transition: border-color var(--duration-fast);
+  gap: 8px;
+  transition: border-color var(--duration-fast), background-color var(--duration-fast), box-shadow var(--duration-fast);
 }
 
 .squad-slot:hover {
   border-color: var(--border-strong);
+  background: rgba(15, 26, 48, 0.9);
+}
+
+.squad-slot.is-selected {
+  border-color: var(--accent-blue-bright);
+  background:
+    radial-gradient(ellipse 90% 70% at 100% 0%, rgba(56, 189, 248, 0.14), transparent 70%),
+    rgba(18, 32, 60, 0.95);
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.2);
 }
 
 .squad-slot__top {
@@ -878,8 +1019,8 @@
 }
 
 .squad-slot__art {
-  width: 56px;
-  height: 56px;
+  width: 50px;
+  height: 50px;
   border-radius: var(--radius-sm);
   background: radial-gradient(circle at 50% 60%, rgba(56, 189, 248, 0.16), rgba(7, 13, 27, 0.9) 76%);
   border: 1px solid var(--border-subtle);
@@ -891,48 +1032,181 @@
 }
 
 .squad-slot__art img {
-  max-height: 46px;
+  max-height: 40px;
   width: auto;
   object-fit: contain;
 }
 
-.squad-slot__select {
-  width: 100%;
-  min-height: 32px;
-  padding: 5px 10px;
-  border-radius: var(--radius-sm);
-  background: #152340;
-  border: 1px solid var(--border-strong);
-  color: var(--celestial-ivory);
-  font-size: 0.82rem;
-  font-weight: 500;
+.squad-slot__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-subtle);
 }
 
-/* Unit Roster Compact 2-Col Grid */
-.roster-grid-compact {
+.squad-slot__status {
+  font-size: 0.71rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.squad-slot.is-selected .squad-slot__status {
+  color: var(--accent-blue-bright);
+}
+
+/* Simplified Visual Unit Collection Grid + Compact Selected Unit Detail Panel */
+.unit-collection-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+  gap: 8px;
   align-content: start;
 }
 
-.unit-roster-card {
-  background: rgba(9, 16, 31, 0.78);
+.unit-tile {
+  text-align: left;
+  background: linear-gradient(180deg, rgba(16, 28, 52, 0.92) 0%, rgba(9, 16, 31, 0.94) 100%);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  padding: 11px 12px;
+  padding: 8px 9px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  transition: border-color var(--duration-fast);
+  gap: 4px;
+  transition: border-color var(--duration-fast), transform var(--duration-fast), box-shadow var(--duration-fast);
 }
 
-.unit-roster-card:hover:not(.is-locked) {
+.unit-tile--sr { border-top: 2px solid var(--rarity-sr); }
+.unit-tile--ssr { border-top: 2px solid var(--rarity-ssr); }
+.unit-tile--r { border-top: 2px solid var(--rarity-r); }
+
+.unit-tile:hover {
   border-color: var(--border-strong);
+  transform: translateY(-2px);
 }
 
-.unit-roster-card.is-locked {
-  opacity: 0.56;
+.unit-tile.is-selected {
+  border-color: var(--accent-blue-bright);
+  background:
+    radial-gradient(ellipse 90% 60% at 50% 0%, rgba(56, 189, 248, 0.18), transparent 72%),
+    rgba(20, 35, 66, 0.96);
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.24);
+}
+
+.unit-tile.is-locked {
+  opacity: 0.52;
+  filter: saturate(0.45);
+}
+
+.unit-tile__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.unit-tile__deployed {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--state-ally);
+  letter-spacing: 0.03em;
+}
+
+.unit-tile__art {
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 2px 0;
+}
+
+.unit-tile__art img {
+  max-height: 42px;
+  width: auto;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.45));
+}
+
+.unit-tile__name {
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--celestial-ivory);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.unit-tile__role {
+  font-size: 0.69rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Compact Selected Unit Detail Panel */
+.unit-detail-dock {
+  flex-shrink: 0;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: rgba(7, 13, 27, 0.9);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.unit-detail-dock__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.unit-detail-dock__art {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-sm);
+  background: radial-gradient(circle at 50% 60%, rgba(56, 189, 248, 0.2), rgba(6, 11, 22, 0.94) 76%);
+  border: 1px solid var(--border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  flex-shrink: 0;
+}
+
+.unit-detail-dock__art img {
+  max-height: 46px;
+  width: auto;
+}
+
+.unit-detail-dock__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 4px;
+  font-size: 0.78rem;
+  color: var(--celestial-ivory);
+}
+
+.unit-detail-dock__stats strong {
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-right: 3px;
+}
+
+.unit-detail-dock__desc {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.unit-detail-dock__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
 /* Deck Builder Cards & Live Summary */
@@ -1512,11 +1786,35 @@
   }
 }
 
+@media (max-height: 780px) {
+  .workspace-pane {
+    padding: 12px 14px;
+    gap: 9px;
+  }
+
+  .formation-map {
+    padding: 8px 10px;
+  }
+
+  .unit-tile__art {
+    height: 38px;
+  }
+
+  .unit-tile__art img {
+    max-height: 34px;
+  }
+
+  .unit-detail-dock {
+    padding: 10px 12px;
+    gap: 6px;
+  }
+}
+
 @media (max-width: 680px) {
   .home-op-strip,
   .home-quick-grid,
   .squad-grid-2x2,
-  .roster-grid-compact,
+  .formation-map,
   .summon-results-grid {
     grid-template-columns: 1fr;
   }
