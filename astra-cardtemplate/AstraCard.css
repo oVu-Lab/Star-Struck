@@ -73,6 +73,7 @@
 .astra-card__canvas {
   position: absolute;
   inset: 0;
+  z-index: 1;
   width: 100%;
   height: 100%;
   display: block;
@@ -89,6 +90,7 @@
   position: absolute;
   left: 50%;
   bottom: 3.5%;
+  z-index: 0;
   width: 46%;
   height: 3%;
   margin-left: -23%;

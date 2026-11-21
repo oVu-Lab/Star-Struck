@@ -6,6 +6,7 @@
  */
 
 import { formatNumber } from '../utils/MathUtils.js';
+import { AstraCardRegistry, isAstraHero } from './AstraCardMount.js';
 
 const CATEGORY_LABELS = {
   all: 'All',
@@ -20,6 +21,7 @@ export class FormationScreen {
     this._ctx = ctx;
     this._unsubs = [];
     this._draftDeck = null;
+    this._astraCards = new AstraCardRegistry({ CardClass: ctx?.AstraCardClass });
   }
 
   mount(container) {
@@ -32,6 +34,7 @@ export class FormationScreen {
   }
 
   unmount() {
+    this._astraCards.destroyAll();
     for (const unsub of this._unsubs) unsub();
     this._unsubs = [];
     this._container = null;
@@ -49,6 +52,7 @@ export class FormationScreen {
 
   render() {
     if (!this._container) return;
+    this._astraCards.destroyAll();
     const {
       heroSystem,
       formationSystem,
@@ -199,37 +203,60 @@ export class FormationScreen {
       xpChips >= selectedUnit.upgradeChipCost;
     const isAlreadyInSelectedSlot = activeSlot?.unitId === selectedUnit?.id;
 
+    const isAstraActive = isAstraHero(activeCommander);
+
     bodyEl.innerHTML = `
       <div class="formation-workspace formation-workspace--squad">
         <div class="surface surface--celestial workspace-pane ${activeTheme}">
-          <div class="workspace-pane__head">
-            <div>
-              <div class="section-kicker section-kicker--gold">Active Commander &amp; Starting Formation</div>
-              <h2 class="section-heading" style="margin-top: 2px;">${activeCommander?.name || 'Astra Valen'}</h2>
+          <div class="formation-commander-banner">
+            <div class="formation-commander-card-wrap">
+              ${
+                isAstraActive
+                  ? `<div id="formation-astra-card-slot" class="formation-commander-card-slot" data-astra-card-slot="formation-commander" title="Inspect ${activeCommander?.name || 'Astra Valen'} in Commanders"></div>`
+                  : `
+                    <button
+                      type="button"
+                      class="formation-commander-card-fallback"
+                      data-inspect-active-commander="${activeCommander?.id || ''}"
+                      title="Inspect ${activeCommander?.name || 'Active Commander'} in Commanders"
+                    >
+                      <img data-cmd-portrait="${activeCommander?.portraitAssetId || ''}" alt="${activeCommander?.name || 'Active Commander'}" />
+                    </button>
+                  `
+              }
             </div>
-            <span class="meta-line">
-              <span>${activeCommander?.passiveSkill?.name || '—'}</span>
-              <span class="meta-sep" aria-hidden="true">·</span>
-              <span style="color: var(--hero-accent); font-weight: 600;">${activeCommander?.ultimateSkill?.name || '—'}</span>
-            </span>
-          </div>
 
-          <div class="commander-picker-strip" id="commander-selector-row">
-            ${ownedCommanders
-              .map(
-                (hero) => `
-                  <button
-                    type="button"
-                    class="commander-chip theme-${hero.id} ${hero.id === activeCommander?.id ? 'is-active' : ''}"
-                    data-commander-id="${hero.id}"
-                  >
-                    <img class="commander-chip__img" data-cmd-portrait="${hero.portraitAssetId}" alt="${hero.name}" />
-                    <span>${hero.name}</span>
-                    <span class="rarity-${(hero.rarity || 'R').toLowerCase()} tabular-nums">Lv.${hero.level}</span>
-                  </button>
-                `,
-              )
-              .join('')}
+            <div class="formation-commander-banner__body">
+              <div class="workspace-pane__head">
+                <div>
+                  <div class="section-kicker section-kicker--gold">Active Commander &amp; Starting Formation</div>
+                  <h2 class="section-heading" style="margin-top: 2px;">${activeCommander?.name || 'Astra Valen'}</h2>
+                </div>
+                <span class="meta-line">
+                  <span>${activeCommander?.passiveSkill?.name || '—'}</span>
+                  <span class="meta-sep" aria-hidden="true">·</span>
+                  <span style="color: var(--hero-accent); font-weight: 600;">${activeCommander?.ultimateSkill?.name || '—'}</span>
+                </span>
+              </div>
+
+              <div class="commander-picker-strip" id="commander-selector-row">
+                ${ownedCommanders
+                  .map(
+                    (hero) => `
+                      <button
+                        type="button"
+                        class="commander-chip theme-${hero.id} ${hero.id === activeCommander?.id ? 'is-active' : ''}"
+                        data-commander-id="${hero.id}"
+                      >
+                        <img class="commander-chip__img" data-cmd-portrait="${hero.portraitAssetId}" alt="${hero.name}" />
+                        <span>${hero.name}</span>
+                        <span class="rarity-${(hero.rarity || 'R').toLowerCase()} tabular-nums">Lv.${hero.level}</span>
+                      </button>
+                    `,
+                  )
+                  .join('')}
+              </div>
+            </div>
           </div>
 
           <div class="formation-map" aria-label="Starting Battlefield Formation Preview">
@@ -478,6 +505,31 @@ export class FormationScreen {
     for (const imgEl of bodyEl.querySelectorAll('[data-unit-art]')) {
       const aid = imgEl.getAttribute('data-unit-art');
       if (aid) assetManager.bindImageElement(imgEl, aid);
+    }
+
+    const inspectActiveCommander = () => {
+      if (!activeCommander?.id) return;
+      audioManager.playClick();
+      gameState.setUI({ selectedHeroId: activeCommander.id });
+      this._ctx.screenManager.navigate('heroes');
+    };
+
+    if (isAstraActive && activeCommander) {
+      const astraSlot = bodyEl.querySelector('#formation-astra-card-slot');
+      this._astraCards.mount(astraSlot, {
+        hero: activeCommander,
+        extraData: { activeCommander: true },
+        selectable: true,
+        selected: false,
+        studio: false,
+        onClick: inspectActiveCommander,
+        assetManager,
+        fallbackAssetId: activeCommander.portraitAssetId,
+      });
+    } else {
+      bodyEl
+        .querySelector('[data-inspect-active-commander]')
+        ?.addEventListener('click', inspectActiveCommander);
     }
 
     for (const el of bodyEl.querySelectorAll('[data-select-slot]')) {
