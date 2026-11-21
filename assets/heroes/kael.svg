@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1152 1744" width="1152" height="1744">
+  <defs>
+    <linearGradient id="bg-kael" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#17243f"/>
+      <stop offset="100%" stop-color="#070c17"/>
+    </linearGradient>
+  </defs>
+  <rect width="1152" height="1744" fill="url(#bg-kael)"/>
+  <path d="M180 420 L972 280 M180 520 L972 380" stroke="#38bdf8" stroke-opacity="0.25" stroke-width="4"/>
+  <polygon points="576,340 730,610 422,610" fill="#1b2d4f" stroke="#a78bfa" stroke-width="5"/>
+  <path d="M320 1340 C350 960 450 820 576 820 C702 820 802 960 832 1340 L832 1744 L320 1744 Z" fill="#14223d" stroke="#a78bfa" stroke-opacity="0.55" stroke-width="5"/>
+  <path d="M410 1000 L742 840" stroke="#38bdf8" stroke-width="8"/>
+  <text x="576" y="1520" text-anchor="middle" fill="#a78bfa" font-family="sans-serif" font-size="38" letter-spacing="8">COMMANDER PLACEHOLDER</text>
+  <text x="576" y="1595" text-anchor="middle" fill="#edf2fa" font-family="sans-serif" font-weight="700" font-size="74">KAEL VIREL</text>
+</svg>

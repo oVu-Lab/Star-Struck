@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1152 1744" width="1152" height="1744">
+  <defs>
+    <linearGradient id="bg-astra" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#122447"/>
+      <stop offset="60%" stop-color="#0b152b"/>
+      <stop offset="100%" stop-color="#070c17"/>
+    </linearGradient>
+    <radialGradient id="halo-astra" cx="50%" cy="34%" r="42%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.34"/>
+      <stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1152" height="1744" fill="url(#bg-astra)"/>
+  <rect width="1152" height="1744" fill="url(#halo-astra)"/>
+  <circle cx="576" cy="560" r="320" fill="none" stroke="#e2b75b" stroke-opacity="0.28" stroke-width="4"/>
+  <polygon points="576,200 720,420 576,640 432,420" fill="none" stroke="#38bdf8" stroke-opacity="0.38" stroke-width="3"/>
+  <circle cx="576" cy="540" r="145" fill="#182c52" stroke="#38bdf8" stroke-width="5"/>
+  <path d="M310 1320 C330 960 440 820 576 820 C712 820 822 960 842 1320 L842 1744 L310 1744 Z" fill="#132340" stroke="#38bdf8" stroke-opacity="0.55" stroke-width="5"/>
+  <path d="M480 860 L576 1050 L672 860" fill="none" stroke="#e2b75b" stroke-width="6"/>
+  <rect x="476" y="1090" width="200" height="8" fill="#38bdf8" fill-opacity="0.7"/>
+  <text x="576" y="1520" text-anchor="middle" fill="#e2b75b" font-family="sans-serif" font-size="38" letter-spacing="8">COMMANDER PLACEHOLDER</text>
+  <text x="576" y="1595" text-anchor="middle" fill="#edf2fa" font-family="sans-serif" font-weight="700" font-size="74">ASTRA VALEN</text>
+</svg>

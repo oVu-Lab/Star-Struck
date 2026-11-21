@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1152 1744" width="1152" height="1744">
+  <defs>
+    <linearGradient id="bg-sera" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#221e3c"/>
+      <stop offset="100%" stop-color="#070c17"/>
+    </linearGradient>
+  </defs>
+  <rect width="1152" height="1744" fill="url(#bg-sera)"/>
+  <circle cx="576" cy="540" r="300" fill="none" stroke="#e2b75b" stroke-opacity="0.3" stroke-width="4" stroke-dasharray="18 12"/>
+  <polygon points="576,340 726,540 576,740 426,540" fill="#1e2444" stroke="#e2b75b" stroke-width="5"/>
+  <path d="M310 1330 C340 960 440 820 576 820 C712 820 812 960 842 1330 L842 1744 L310 1744 Z" fill="#161b34" stroke="#e2b75b" stroke-opacity="0.55" stroke-width="5"/>
+  <text x="576" y="1520" text-anchor="middle" fill="#e2b75b" font-family="sans-serif" font-size="38" letter-spacing="8">COMMANDER PLACEHOLDER</text>
+  <text x="576" y="1595" text-anchor="middle" fill="#edf2fa" font-family="sans-serif" font-weight="700" font-size="68">SERAPHINA</text>
+</svg>

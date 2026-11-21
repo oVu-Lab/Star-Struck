@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1152 1744" width="1152" height="1744">
+  <rect width="1152" height="1744" fill="#0d1628"/>
+  <rect x="336" y="340" width="480" height="420" rx="24" fill="#16233d" stroke="#38bdf8" stroke-opacity="0.45" stroke-width="5"/>
+  <path d="M320 1320 C350 960 450 830 576 830 C702 830 802 960 832 1320 L832 1744 L320 1744 Z" fill="#121e35" stroke="#38bdf8" stroke-opacity="0.45" stroke-width="5"/>
+  <text x="576" y="1520" text-anchor="middle" fill="#38bdf8" font-family="sans-serif" font-size="38" letter-spacing="8">COMMANDER PLACEHOLDER</text>
+  <text x="576" y="1595" text-anchor="middle" fill="#edf2fa" font-family="sans-serif" font-weight="700" font-size="74">ORIN VANCE</text>
+</svg>

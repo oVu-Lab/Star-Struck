@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 2,
+  "battlefield": {
+    "worldWidth": 100,
+    "worldHeight": 100,
+    "gridCols": 25,
+    "gridRows": 25,
+    "friendlyRegion": { "minX": 4, "maxX": 28, "minY": 8, "maxY": 92 },
+    "combatRegion": { "minX": 28, "maxX": 72, "minY": 6, "maxY": 94 },
+    "enemyRegion": { "minX": 72, "maxX": 96, "minY": 8, "maxY": 92 }
+  },
+  "unitCaps": {
+    "maxFriendly": 25,
+    "maxEnemy": 25,
+    "maxTotal": 50
+  },
+  "commandEnergy": {
+    "max": 100,
+    "starting": 60,
+    "regenPerSecond": 4.2
+  },
+  "ultimateEnergy": {
+    "max": 100,
+    "starting": 0,
+    "gainPerDamageDealt": 0.045,
+    "gainPerDamageReceived": 0.035,
+    "gainPerHeal": 0.045,
+    "gainPerKill": 4
+  },
+  "combat": {
+    "physicalDefenseScale": 1.0,
+    "magicalDefenseScale": 0.65,
+    "minDamage": 5,
+    "defaultCritChance": 0.08,
+    "defaultCritMultiplier": 1.5,
+    "targetSwitchThreshold": 1.22,
+    "pathRecalcIntervalSec": 0.45,
+    "unreachableTimeoutSec": 1.25,
+    "waveTransitionDurationSec": 2.4,
+    "battleStartDurationSec": 0.85,
+    "deathAnimDurationSec": 0.45,
+    "antiStallStartSec": 150,
+    "antiStallHealPenaltyPer30Sec": 0.12,
+    "maxHealPenalty": 0.6
+  },
+  "progression": {
+    "unitUpgradeCreditBase": 250,
+    "unitUpgradeXpChipCost": 2,
+    "maxUnitLevel": 20,
+    "unitLevelStatBonus": 0.08,
+    "repeatClearCreditRatio": 0.7,
+    "repeatClearAstriteRatio": 0.35
+  },
+  "deck": {
+    "deckSize": 12,
+    "handSlots": 6,
+    "maxCardLevel": 3
+  },
+  "speeds": [1, 2, 3],
+  "ratings": {
+    "S": { "minSurvivorRatio": 0.72, "maxDurationSec": 180 },
+    "A": { "minSurvivorRatio": 0.42, "maxDurationSec": 240 },
+    "B": { "minSurvivorRatio": 0.15, "maxDurationSec": 330 }
+  }
+}

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1152 1744" width="1152" height="1744">
+  <defs>
+    <linearGradient id="bg-lyra" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#112b38"/>
+      <stop offset="100%" stop-color="#070c17"/>
+    </linearGradient>
+  </defs>
+  <rect width="1152" height="1744" fill="url(#bg-lyra)"/>
+  <circle cx="576" cy="540" r="280" fill="none" stroke="#34d399" stroke-opacity="0.28" stroke-width="5"/>
+  <circle cx="576" cy="540" r="140" fill="#163242" stroke="#34d399" stroke-width="5"/>
+  <path d="M576 470 V610 M506 540 H646" stroke="#edf2fa" stroke-width="10"/>
+  <path d="M320 1320 C350 940 450 820 576 820 C702 820 802 940 832 1320 L832 1744 L320 1744 Z" fill="#122736" stroke="#34d399" stroke-opacity="0.55" stroke-width="5"/>
+  <text x="576" y="1520" text-anchor="middle" fill="#34d399" font-family="sans-serif" font-size="38" letter-spacing="8">COMMANDER PLACEHOLDER</text>
+  <text x="576" y="1595" text-anchor="middle" fill="#edf2fa" font-family="sans-serif" font-weight="700" font-size="74">LYRA SOLIS</text>
+</svg>

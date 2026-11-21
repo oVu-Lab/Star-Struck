@@ -1,0 +1,100 @@
+{
+  "schemaVersion": 1,
+  "heroes": [
+    {
+      "id": "astra",
+      "name": "Astra Valen",
+      "title": "Starlight Tactician",
+      "rarity": "SSR",
+      "role": "Vanguard Commander",
+      "faction": "Aegis Directorate",
+      "isCommander": true,
+      "portraitAssetId": "hero_portrait_astra",
+      "cutinAssetId": "hero_portrait_astra",
+      "passiveSkillId": "passive_astral_aegis",
+      "ultimateSkillId": "ult_starfall_barrage",
+      "baseStats": {
+        "commandPower": 140,
+        "energyRegen": 1.15,
+        "auraRadius": "army"
+      },
+      "biography": "Chief strategist of the Seventh Orbital Wing. Specializes in defensive formations and synchronized orbital fire."
+    },
+    {
+      "id": "kael",
+      "name": "Kael Virel",
+      "title": "Tempest Lancer",
+      "rarity": "SR",
+      "role": "Assault Commander",
+      "faction": "Zephyr Vanguard",
+      "isCommander": true,
+      "portraitAssetId": "hero_portrait_kael",
+      "cutinAssetId": "hero_portrait_kael",
+      "passiveSkillId": "passive_gale_stride",
+      "ultimateSkillId": "ult_tempest_charge",
+      "baseStats": {
+        "commandPower": 122,
+        "energyRegen": 1.1,
+        "auraRadius": "army"
+      },
+      "biography": "High-mobility cavalry commander known for breaking fortified enemy lines before counterattacks form."
+    },
+    {
+      "id": "lyra",
+      "name": "Lyra Solis",
+      "title": "Sanctum Weaver",
+      "rarity": "SR",
+      "role": "Support Commander",
+      "faction": "Lumen Conclave",
+      "isCommander": true,
+      "portraitAssetId": "hero_portrait_lyra",
+      "cutinAssetId": "hero_portrait_lyra",
+      "passiveSkillId": "passive_radiant_mending",
+      "ultimateSkillId": "ult_sanctuary_pulse",
+      "baseStats": {
+        "commandPower": 118,
+        "energyRegen": 1.25,
+        "auraRadius": "army"
+      },
+      "biography": "Field restorative specialist whose resonance array sustains advancing platoons across prolonged sieges."
+    },
+    {
+      "id": "seraphina",
+      "name": "Seraphina Kuros",
+      "title": "Arcane Marksman",
+      "rarity": "SSR",
+      "role": "Artillery Commander",
+      "faction": "Obsidian Observatory",
+      "isCommander": true,
+      "portraitAssetId": "hero_portrait_seraphina",
+      "cutinAssetId": "hero_portrait_seraphina",
+      "passiveSkillId": "passive_prism_sight",
+      "ultimateSkillId": "ult_celestial_volley",
+      "baseStats": {
+        "commandPower": 148,
+        "energyRegen": 1.05,
+        "auraRadius": "army"
+      },
+      "biography": "Ballistics prodigy commanding long-range arcane archer corps with pinpoint spectral guidance."
+    },
+    {
+      "id": "vanguard_zero",
+      "name": "Orin Vance",
+      "title": "Bastion Quartermaster",
+      "rarity": "R",
+      "role": "Logistics Commander",
+      "faction": "Iron Frontier",
+      "isCommander": true,
+      "portraitAssetId": "hero_portrait_vanguard_zero",
+      "cutinAssetId": "hero_portrait_vanguard_zero",
+      "passiveSkillId": "passive_rapid_supply",
+      "ultimateSkillId": "ult_fortified_line",
+      "baseStats": {
+        "commandPower": 100,
+        "energyRegen": 1.0,
+        "auraRadius": "army"
+      },
+      "biography": "Veteran frontline coordinator who accelerates deployment supply chains and reinforces base walls."
+    }
+  ]
+}

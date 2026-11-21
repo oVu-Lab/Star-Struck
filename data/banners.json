@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 2,
+  "banners": [
+    {
+      "id": "banner_starlight_command",
+      "bannerType": "commander",
+      "name": "Starlight Sovereign",
+      "subtitle": "Featured SSR Commander Recruitment",
+      "featuredHeroIds": ["astra", "seraphina"],
+      "featuredAssetId": "hero_portrait_astra",
+      "currency": "astrite",
+      "singleCost": 160,
+      "tenCost": 1600,
+      "pityConfig": {
+        "ssrHardPity": 80,
+        "tenPullMinRarity": "SR"
+      },
+      "rates": {
+        "SSR": 0.03,
+        "SR": 0.17,
+        "R": 0.8
+      },
+      "pool": {
+        "SSR": ["astra", "seraphina"],
+        "SR": ["kael", "lyra"],
+        "R": ["vanguard_zero"]
+      },
+      "duplicateBonusCards": [
+        "card_skill_stasis_pulse",
+        "card_skill_orbital_lance",
+        "card_skill_gravity_vortex",
+        "card_tactic_siege_formation",
+        "card_tactic_suppressive_volley",
+        "card_support_mending_aura",
+        "card_support_starlight_catalyst",
+        "card_support_haste_relay",
+        "card_solar_pyromancer",
+        "card_aegis_sentinel",
+        "card_chrono_weaver",
+        "card_astral_construct",
+        "card_skill_chain_lightning"
+      ]
+    },
+    {
+      "id": "banner_tactical_requisition",
+      "bannerType": "tactical",
+      "name": "Astral Armory Supply",
+      "subtitle": "Tactical Units & Command Cards Requisition",
+      "featuredHeroIds": ["astra"],
+      "featuredCardIds": ["card_astral_construct", "card_skill_chain_lightning", "card_solar_pyromancer"],
+      "featuredAssetId": "hero_portrait_seraphina",
+      "currency": "astrite",
+      "singleCost": 160,
+      "tenCost": 1600,
+      "pityConfig": {
+        "ssrHardPity": 80,
+        "tenPullMinRarity": "SR"
+      },
+      "rates": {
+        "SSR": 0.03,
+        "SR": 0.17,
+        "R": 0.8
+      },
+      "pool": {
+        "SSR": ["card_astral_construct", "card_skill_chain_lightning"],
+        "SR": [
+          "card_solar_pyromancer",
+          "card_aegis_sentinel",
+          "card_chrono_weaver",
+          "card_skill_stasis_pulse",
+          "card_skill_orbital_lance",
+          "card_skill_gravity_vortex",
+          "card_tactic_siege_formation",
+          "card_tactic_suppressive_volley",
+          "card_support_mending_aura",
+          "card_support_starlight_catalyst",
+          "card_support_haste_relay"
+        ],
+        "R": [
+          "card_shield_guard",
+          "card_wind_cavalry",
+          "card_arcane_archer",
+          "card_field_cleric",
+          "card_vanguard_breaker",
+          "card_pulse_skirmisher",
+          "card_skill_astral_nova",
+          "card_skill_sanctuary_wave",
+          "card_tactic_full_assault",
+          "card_tactic_focus_fire",
+          "card_tactic_emergency_defense",
+          "card_tactic_flank_maneuver",
+          "card_support_aegis_blessing",
+          "card_support_overclock_core",
+          "card_support_cleanse_beacon"
+        ]
+      }
+    }
+  ]
+}

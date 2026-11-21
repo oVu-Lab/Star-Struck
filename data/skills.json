@@ -1,0 +1,155 @@
+{
+  "schemaVersion": 3,
+  "skills": [
+    {
+      "id": "passive_astral_aegis",
+      "name": "Astral Aegis",
+      "type": "passive",
+      "target": "all_allies",
+      "effect": {
+        "stat": "maxHp",
+        "modifierType": "percent",
+        "value": 0.08
+      },
+      "description": "Increases all deployed friendly units' Maximum HP by 8% while Astra commands the field."
+    },
+    {
+      "id": "ult_starfall_barrage",
+      "name": "Starfall Judgment",
+      "displayNameZh": "星陨裁决",
+      "type": "ultimate",
+      "energyCost": 100,
+      "target": "all_battlefield",
+      "effect": {
+        "damage": 240,
+        "attackType": "magical",
+        "healAmount": 180,
+        "screenShake": true,
+        "cutinDurationMs": 1400,
+        "color": "#e2b75b"
+      },
+      "description": "Calls down Starfall Judgment across the battlefield, dealing magical damage to all enemies and healing all friendly units."
+    },
+    {
+      "id": "passive_gale_stride",
+      "name": "Gale Stride",
+      "type": "passive",
+      "target": "all_allies",
+      "effect": {
+        "stat": "moveSpeed",
+        "modifierType": "percent",
+        "value": 0.12,
+        "secondaryStat": "critChance",
+        "secondaryValue": 0.05
+      },
+      "description": "Boosts friendly army Movement Speed by 12% and Critical Chance by 5% across the battlefield."
+    },
+    {
+      "id": "ult_tempest_charge",
+      "name": "Tempest Charge",
+      "displayNameZh": "疾风突击",
+      "type": "ultimate",
+      "energyCost": 100,
+      "target": "all_battlefield",
+      "effect": {
+        "attackBuff": 0.32,
+        "speedBuff": 0.25,
+        "damage": 145,
+        "attackType": "physical",
+        "slowEnemies": 0.3,
+        "durationSec": 8,
+        "cutinDurationMs": 1300,
+        "color": "#38bdf8"
+      },
+      "description": "Surges allied morale, raising friendly Attack by 32% and Speed by 25% for 8s while blasting and slowing all enemies."
+    },
+    {
+      "id": "passive_radiant_mending",
+      "name": "Radiant Mending",
+      "type": "passive",
+      "target": "all_allies",
+      "effect": {
+        "stat": "healReceived",
+        "modifierType": "percent",
+        "value": 0.18
+      },
+      "description": "Enhances all healing and restoration received by friendly units by 18%."
+    },
+    {
+      "id": "ult_sanctuary_pulse",
+      "name": "Sanctuary Pulse",
+      "displayNameZh": "圣域脉冲",
+      "type": "ultimate",
+      "energyCost": 100,
+      "target": "all_allies",
+      "effect": {
+        "healAmount": 250,
+        "shieldAmount": 160,
+        "cleanseAllies": true,
+        "durationSec": 8,
+        "cutinDurationMs": 1300,
+        "color": "#34d399"
+      },
+      "description": "Emits a restorative pulse across the arena, cleansing debuffs while healing and shielding all friendly units."
+    },
+    {
+      "id": "passive_prism_sight",
+      "name": "Prism Sight",
+      "type": "passive",
+      "target": "all_allies",
+      "effect": {
+        "stat": "attack",
+        "modifierType": "percent",
+        "value": 0.10
+      },
+      "description": "Sharpens allied targeting optics, granting +10% Attack army-wide."
+    },
+    {
+      "id": "ult_celestial_volley",
+      "name": "Celestial Volley",
+      "displayNameZh": "星辰齐射",
+      "type": "ultimate",
+      "energyCost": 100,
+      "target": "all_enemies",
+      "effect": {
+        "damage": 295,
+        "attackType": "magical",
+        "armorPierce": 0.35,
+        "defenseShred": 0.2,
+        "durationSec": 6,
+        "cutinDurationMs": 1400,
+        "color": "#a78bfa"
+      },
+      "description": "Fires piercing spectral lances across all enemies, bypassing 35% Defense and sundering enemy Defense by 20% for 6s."
+    },
+    {
+      "id": "passive_rapid_supply",
+      "name": "Rapid Supply",
+      "type": "passive",
+      "target": "commander",
+      "effect": {
+        "stat": "energyRegen",
+        "modifierType": "percent",
+        "value": 0.12
+      },
+      "description": "Improves Command Energy recovery rate by 12% throughout the battle."
+    },
+    {
+      "id": "ult_fortified_line",
+      "name": "Fortified Line",
+      "displayNameZh": "钢铁防线",
+      "type": "ultimate",
+      "energyCost": 100,
+      "target": "all_allies",
+      "effect": {
+        "shieldAmount": 220,
+        "defenseBuff": 0.30,
+        "commandEnergyGain": 20,
+        "durationSec": 10,
+        "cutinDurationMs": 1200,
+        "color": "#38bdf8"
+      },
+      "description": "Projects a tactical barrier and +30% Defense onto all active allies for 10s while restoring 20 Command Energy."
+    }
+  ]
+}

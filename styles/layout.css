@@ -1,0 +1,416 @@
+/* ==========================================================================
+   Astral Command — Application Shell, Top Chrome & Viewport-First Grids (P4)
+   ========================================================================== */
+
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Full-Viewport Battle Mode hides the global menu top bar so the battlefield owns 100% of the screen */
+.app-shell.is-battle-mode {
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app-shell.is-battle-mode .top-bar {
+  display: none;
+}
+
+/* Slim Global Top Navigation Bar (54px) */
+.top-bar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  height: var(--topbar-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+  padding: 0 var(--space-5);
+  background: rgba(8, 14, 28, 0.94);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.top-bar::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(56, 189, 248, 0.32) 30%,
+    rgba(230, 190, 100, 0.28) 70%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+.brand-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  min-height: 40px;
+  padding-right: 4px;
+  transition: opacity var(--duration-fast) var(--ease-tactical);
+}
+
+.brand-mark:hover {
+  opacity: 0.9;
+}
+
+.brand-emblem {
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--accent-blue);
+  background: rgba(56, 189, 248, 0.08);
+  transform: rotate(45deg);
+  position: relative;
+  flex-shrink: 0;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.26);
+  transition: transform var(--duration-base) var(--ease-tactical), border-color var(--duration-fast);
+}
+
+.brand-mark:hover .brand-emblem {
+  border-color: var(--accent-gold);
+  transform: rotate(135deg);
+}
+
+.brand-emblem::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  background: linear-gradient(135deg, var(--celestial-ivory) 0%, var(--accent-gold) 100%);
+}
+
+.brand-name {
+  font-family: var(--font-display);
+  font-size: 0.98rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: linear-gradient(90deg, var(--celestial-ivory) 0%, #c8dcf5 72%, var(--accent-gold-bright) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.primary-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.primary-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.nav-link {
+  position: relative;
+  padding: 8px 13px;
+  min-height: 40px;
+  font-family: var(--font-display);
+  font-size: 0.88rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  transition:
+    color var(--duration-fast) var(--ease-tactical),
+    background-color var(--duration-fast) var(--ease-tactical);
+}
+
+.nav-link:hover {
+  color: var(--text-primary);
+  background: rgba(56, 189, 248, 0.06);
+}
+
+.nav-link.is-active {
+  color: var(--celestial-ivory);
+  background: rgba(56, 189, 248, 0.1);
+}
+
+.nav-link.is-active::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 2px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent-blue), var(--accent-gold-bright));
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.5);
+}
+
+.header-resources {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.resource-readout {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  white-space: nowrap;
+  padding: 3px 6px;
+  border-radius: var(--radius-sm);
+  transition: background-color 240ms var(--ease-tactical), transform 200ms var(--ease-tactical);
+}
+
+.resource-readout.is-gained {
+  background: rgba(56, 189, 248, 0.22);
+  transform: scale(1.06);
+}
+
+.resource-readout--gold.is-gained {
+  background: rgba(230, 190, 100, 0.24);
+}
+
+.resource-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.resource-value {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.resource-readout--gold .resource-value {
+  color: var(--accent-gold-bright);
+}
+
+/* Header Quick-Mute Audio Toggle */
+.audio-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: rgba(17, 27, 49, 0.72);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  transition:
+    color var(--duration-fast) var(--ease-tactical),
+    border-color var(--duration-fast) var(--ease-tactical),
+    background-color var(--duration-fast) var(--ease-tactical);
+}
+
+.audio-toggle-btn:hover {
+  color: var(--accent-blue);
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+}
+
+.audio-toggle-btn__icon {
+  width: 17px;
+  height: 17px;
+}
+
+.audio-toggle-btn .audio-slash {
+  display: none;
+}
+
+.audio-toggle-btn.is-muted {
+  color: var(--state-enemy);
+  border-color: rgba(248, 113, 113, 0.42);
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.audio-toggle-btn.is-muted .audio-wave-1,
+.audio-toggle-btn.is-muted .audio-wave-2 {
+  display: none;
+}
+
+.audio-toggle-btn.is-muted .audio-slash {
+  display: block;
+}
+
+/* Main Screen Viewport — Viewport-Locked Desktop Frame */
+.screen-viewport {
+  flex: 1;
+  width: 100%;
+  max-width: var(--content-max-width);
+  height: calc(100vh - var(--topbar-height));
+  margin: 0 auto;
+  padding: 16px 24px 18px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.screen-viewport.is-battle-mode {
+  max-width: none;
+  width: 100vw;
+  height: 100vh;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+}
+
+.screen-frame {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: screen-enter var(--duration-base) var(--ease-tactical) both;
+}
+
+@keyframes screen-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Compact Inline Screen Header */
+.screen-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+  position: relative;
+}
+
+.screen-bar::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 104px;
+  height: 1.5px;
+  background: linear-gradient(90deg, var(--accent-blue), var(--accent-gold));
+}
+
+.screen-bar__lead {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.screen-title {
+  font-size: clamp(1.28rem, 1.8vw, 1.62rem);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--celestial-ivory);
+  white-space: nowrap;
+}
+
+.screen-subtitle {
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+}
+
+/* Internal Scroll Zones for Viewport-Fit Desktop Layouts */
+.scroll-pane {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+}
+
+/* Boot Loader */
+.boot-loader {
+  flex: 1;
+  min-height: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+}
+
+.boot-loader__ring {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--accent-blue);
+  border-right-color: var(--accent-gold);
+  animation: spin 0.85s linear infinite;
+}
+
+.boot-loader__text {
+  font-family: var(--font-display);
+  font-size: 0.94rem;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive Fallback for Smaller Windows & Short Viewports */
+@media (max-width: 1060px), (max-height: 640px) {
+  .screen-viewport:not(.is-battle-mode) {
+    height: auto;
+    min-height: calc(100vh - var(--topbar-height));
+    overflow: visible;
+    padding: 14px 16px 24px;
+  }
+
+  .scroll-pane {
+    overflow: visible;
+    padding-right: 0;
+  }
+}
+
+@media (max-width: 1020px) {
+  .top-bar {
+    height: auto;
+    flex-wrap: wrap;
+    padding: 8px 14px;
+    gap: 8px;
+  }
+
+  .primary-nav {
+    order: 3;
+    width: 100%;
+    border-top: 1px solid var(--border-subtle);
+    padding-top: 4px;
+  }
+}
+
+@media (max-width: 640px) {
+  .header-resources {
+    gap: 6px;
+  }
+
+  .screen-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+}

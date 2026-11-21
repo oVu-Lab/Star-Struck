@@ -1,0 +1,1217 @@
+# ASTRAL COMMAND — P1 Full Implementation
+## Complete Battle System Development Task
+
+You are the lead gameplay engineer responsible for implementing the complete P1 battle system for ASTRAL COMMAND.
+
+Your task is to implement ALL P1 functionality in one continuous development task. Do not stop after completing individual subsystems. Do not split the work into separate user approval stages. Inspect the existing P0 project, understand its architecture, implement the complete playable battle loop, integrate every subsystem, and verify the final result.
+
+This is an implementation task, not a planning or documentation-only task.
+
+---
+
+# 0. PROJECT CONTEXT
+
+ASTRAL COMMAND is a browser-based anime sci-fi fantasy card strategy game.
+
+The project has completed P0 framework construction.
+
+The existing project uses:
+
+- Vanilla JavaScript ES Modules
+- HTML5
+- CSS3
+- Canvas 2D
+- Web Audio API
+- localStorage
+- Modular, data-driven architecture
+
+The existing project already contains modules for:
+
+- Game lifecycle and state
+- EventBus and ScreenManager
+- SaveManager and AudioManager
+- BattleManager
+- UnitManager
+- MovementSystem
+- TargetingSystem
+- CombatSystem
+- ProjectileSystem
+- SkillSystem
+- WaveManager
+- CardSystem
+- HeroSystem
+- FormationSystem
+- GachaSystem
+- EconomySystem
+- ProgressionSystem
+- AssetManager
+- BattleRenderer
+- AnimationManager
+- ParticleSystem
+- HomeScreen
+- BattleScreen
+- HeroScreen
+- FormationScreen
+- SummonScreen
+- InventoryScreen
+- SettingsScreen
+
+The project also contains existing JSON data files, tests, and documentation.
+
+The P0 implementation passed its existing build, lint, and test checks.
+
+IMPORTANT:
+
+The P0 report describes the architecture and intended functionality. It does not prove that every subsystem is fully implemented.
+
+Inspect the actual source code before making decisions.
+
+Do not assume that an existing module is complete just because it exists.
+
+Do not replace the project with a new implementation.
+
+Do not rewrite the entire application.
+
+Extend and integrate the existing architecture.
+
+Preserve all working P0 features, including:
+
+- Navigation between all existing screens
+- Save/load functionality
+- Existing summon system
+- Existing hero system
+- Existing formation system
+- Existing inventory
+- Existing settings
+- Existing card slot interface
+- Existing commander system
+- Existing AssetManager and rendering infrastructure
+
+Do not remove working features to simplify P1.
+
+# 1. MAIN OBJECTIVE
+
+Implement a complete, playable, real-time automatic battle system.
+
+The player must be able to:
+
+1. Enter a battle from the existing game interface.
+2. Arrange the initial army before battle.
+3. Start the battle.
+4. Watch friendly and enemy units move independently.
+5. Observe automatic target selection and combat.
+6. Deploy units using tactical cards.
+7. Use skill, tactic, and support cards.
+8. Merge identical adjacent cards.
+9. Manage Command Energy.
+10. Activate the commander's ultimate ability.
+11. Fight multiple enemy waves.
+12. Defeat elite enemies and bosses.
+13. Win or lose the battle.
+14. Receive rewards.
+15. Return to the existing game interface.
+
+Every visible control must perform its advertised action.
+
+No fake buttons, decorative-only mechanics, or placeholder combat outcomes.
+
+# 2. BATTLEFIELD
+
+## 2.1 Camera and map
+
+Use a 2D isometric battlefield.
+
+The battlefield is a finite square arena.
+
+Use a world coordinate system of approximately 100 × 100 units.
+
+The screen projection must create an isometric diagonal view.
+
+Important distinction:
+
+- Movement and combat calculations use world coordinates.
+- Rendering uses isometric screen projection.
+- Do not calculate movement directly in screen coordinates.
+
+Friendly units spawn from the LEFT side.
+
+Enemy units spawn from the RIGHT side.
+
+There are no bases.
+
+There is no base HP.
+
+There are no base attacks.
+
+There are no base destruction victory conditions.
+
+## 2.2 Battlefield regions
+
+Divide the arena logically into:
+
+- Friendly deployment region
+- Central combat region
+- Enemy initial deployment region
+
+Friendly initial deployment and reinforcements must respect the friendly deployment boundary.
+
+Enemy units spawn within their designated region.
+
+Units can move freely throughout all traversable battlefield space.
+
+Do not constrain combat to lanes or fixed paths.
+
+## 2.3 Terrain
+
+Implement a practical terrain system.
+
+Support:
+
+- Walkable ground
+- Obstacles
+- Blocked terrain
+- Optional decorative terrain
+
+Obstacles must affect pathfinding and movement.
+
+Decorative terrain must not block units unless explicitly configured.
+
+Use data-driven terrain configuration.
+
+## 2.4 Rendering
+
+Implement:
+
+- Isometric terrain rendering
+- Unit rendering
+- Shadows
+- Health bars
+- Team identification
+- Selection or target indicators
+- Projectile rendering
+- Skill effects
+- Damage feedback
+- Death animations
+- Commander ultimate effects
+
+Sort units by isometric depth so that foreground units correctly overlap background units.
+
+Use the existing AssetManager.
+
+Missing art assets must use graceful placeholders.
+
+Do not block gameplay because final art assets are unavailable.
+
+# 3. UNIT SYSTEM
+
+## 3.1 Unit limit
+
+Maximum active combat units:
+
+- Friendly: 25
+- Enemy: 25
+- Total: 50
+
+Enforce these limits consistently.
+
+Do not silently create unlimited units.
+
+## 3.2 Core unit classes
+
+Implement the following four fully functional classes.
+
+### Heavy Defender — 重装盾卫
+
+Role: frontline defense.
+
+Characteristics:
+
+- High HP
+- High defense
+- Low movement speed
+- Melee attack
+- Prioritizes nearby enemy frontline units
+- Protects nearby friendly units where practical
+
+### Swift Cavalry — 疾风骑兵
+
+Role: mobile assault.
+
+Characteristics:
+
+- High movement speed
+- High melee damage
+- Lower durability than Heavy Defender
+- Prioritizes enemy ranged units and vulnerable targets
+- Attempts to approach targets from the side when practical
+
+### Arcane Archer — 奥术射手
+
+Role: ranged damage.
+
+Characteristics:
+
+- Ranged attacks
+- Projectile-based damage
+- Maintains a preferred attack distance
+- Prioritizes high-threat enemies
+- Avoids unnecessarily approaching melee enemies
+
+### Field Cleric — 战地圣职
+
+Role: healing support.
+
+Characteristics:
+
+- Searches for injured friendly units
+- Prioritizes valuable or critically injured allies
+- Heals allies within healing range
+- Attacks enemies if no valid healing target exists
+- Must not heal defeated units
+
+## 3.3 Data-driven unit attributes
+
+Each unit must support:
+
+- ID
+- Name
+- Class
+- Level
+- Max HP
+- Current HP
+- Attack
+- Defense
+- Attack speed
+- Movement speed
+- Attack range
+- Detection range
+- Attack type
+- Projectile configuration
+- Healing power
+- Target priority
+- Skills
+- Team
+- Current state
+- Current target
+- Position
+- Status effects
+
+Store balance values in configuration or data files.
+
+Avoid hardcoding individual unit values across multiple modules.
+
+## 3.4 Unit states
+
+Implement a clear state machine.
+
+Suggested states:
+
+- Idle
+- Moving
+- SeekingTarget
+- Attacking
+- Casting
+- Healing
+- Stunned
+- Dead
+
+Prevent contradictory states.
+
+State transitions must be deterministic and testable.
+
+# 4. MOVEMENT, PATHFINDING AND COLLISION
+
+Implement actual free movement.
+
+Units must:
+
+- Move toward targets.
+- Find paths around obstacles.
+- Avoid walking outside battlefield boundaries.
+- Avoid completely overlapping other units.
+- Recalculate paths when necessary.
+- Handle blocked or unreachable targets.
+- Stop at appropriate attack or healing distance.
+
+Use grid-based A* pathfinding combined with continuous world-coordinate movement and local avoidance.
+
+Do not run expensive full pathfinding calculations every frame.
+
+Use sensible recalculation intervals and caching.
+
+Implement collision and separation behavior.
+
+Units should not become permanently stuck when surrounded.
+
+If a target cannot be reached, the unit must choose another valid target or attempt another route.
+
+Keep performance suitable for 50 active units.
+
+# 5. TARGETING SYSTEM
+
+Every unit automatically chooses targets.
+
+Target selection must consider:
+
+- Unit class
+- Distance
+- Target threat
+- Target HP
+- Accessibility
+- Current tactical behavior
+
+Targets can change during battle.
+
+Required behavior:
+
+- Dead target: immediately search for another.
+- Unreachable target: search for another.
+- Target outside valid conditions: reevaluate.
+- Higher-priority target found: allow switching.
+- Do not switch targets continuously without a meaningful reason.
+
+Implement a switching threshold or hysteresis to prevent unstable targeting.
+
+The player does not directly control individual unit movement.
+
+# 6. COMBAT SYSTEM
+
+Implement complete combat calculations.
+
+Support:
+
+- Physical damage
+- Magical damage
+- Defense mitigation
+- Critical hits if configured
+- Healing
+- Death
+- Status effects
+- Temporary buffs
+- Temporary debuffs
+- Attack cooldowns
+
+Combat must be resolved through actual gameplay logic.
+
+Damage and healing must update HP correctly.
+
+A unit reaching zero HP must enter the death process exactly once.
+
+Dead units must not:
+
+- Attack
+- Move
+- Heal
+- Generate ultimate energy
+- Be selected as valid targets
+
+Use a consistent damage calculation pipeline.
+
+Keep damage formulas configurable.
+
+Avoid instant arbitrary damage that bypasses the combat system.
+
+# 7. PROJECTILES AND ANIMATIONS
+
+Implement real projectiles for ranged attacks and applicable skills.
+
+Projectiles must:
+
+- Have a source position
+- Have a target or destination
+- Move over time
+- Resolve hits
+- Disappear after impact or expiration
+
+Support:
+
+- Basic projectile
+- Magical projectile
+- Area-of-effect impact
+- Healing projectile if needed
+
+Implement visual feedback for:
+
+- Attacks
+- Hits
+- Critical hits
+- Healing
+- Death
+- Skill activation
+- Card deployment
+- Ultimate abilities
+
+Reuse AnimationManager and ParticleSystem.
+
+Use pooling where appropriate to avoid unnecessary object creation.
+
+# 8. CARD SYSTEM
+
+The card system is a major part of the gameplay.
+
+It must support FOUR card categories.
+
+## 8.1 Unit Cards
+
+Deploy battlefield units.
+
+Initial unit cards:
+
+- Heavy Defender
+- Swift Cavalry
+- Arcane Archer
+- Field Cleric
+
+The system must also support future special units and summoned units.
+
+## 8.2 Skill Cards
+
+Immediately activate a combat effect.
+
+Examples:
+
+- Area damage
+- Group healing
+- Shield
+- Crowd control
+- Elemental damage
+
+Skill effects must use the actual combat and status-effect systems.
+
+## 8.3 Tactic Cards
+
+Change friendly army behavior.
+
+Examples:
+
+- Full assault
+- Focus fire
+- Emergency defense
+- Formation reinforcement
+- Temporary attack boost
+
+Tactic effects can be temporary or execute a single tactical command.
+
+## 8.4 Support Cards
+
+Provide temporary or persistent support effects.
+
+Examples:
+
+- Attack enhancement
+- Defense enhancement
+- Healing enhancement
+- Energy recovery
+- Temporary shield
+
+Support effects must have clear targets and durations.
+
+## 8.5 Deck and hand
+
+Use a 12-card battle deck.
+
+Display six cards in the existing tactical card area.
+
+When a card is used:
+
+- Remove it from the hand.
+- Apply its effect.
+- Draw the next card from the remaining deck.
+- Respect energy, cooldown, and unit limits.
+
+When the deck is exhausted, no additional cards can be drawn.
+
+Existing hand and deck behavior must be inspected and integrated rather than replaced unnecessarily.
+
+## 8.6 Card merging
+
+Keep six card slots.
+
+Two cards can merge only if:
+
+- They have the same card ID.
+- They have the same card level.
+- They occupy adjacent slots.
+- They are both eligible for merging.
+
+Merge results:
+
+- Two Level I cards → one Level II card.
+- Two Level II cards → one Level III card.
+- Level III is the current maximum.
+
+Different cards cannot merge.
+
+Different card categories cannot merge.
+
+Do not merge cards with different identities just because they share a category.
+
+Each card type must define its upgrade effect.
+
+Examples:
+
+- Unit card: deploy a stronger unit.
+- Skill card: improve power or area.
+- Tactic card: improve effect or duration.
+- Support card: improve buff strength or target coverage.
+
+Merging must not directly spawn a battlefield unit.
+
+The player must be able to understand the merge result through clear UI feedback.
+
+## 8.7 Card deployment
+
+Unit cards spawn units in the friendly deployment region.
+
+Support and tactic cards apply their configured effects.
+
+Skill cards resolve their configured effects.
+
+If deployment is invalid because of unit cap, insufficient energy, or cooldown:
+
+- Do not consume the card.
+- Do not consume energy.
+- Show a clear explanation.
+
+Prevent spawning outside the battlefield.
+
+# 9. COMMAND ENERGY
+
+Command Energy is used to play cards.
+
+Initial configuration:
+
+- Maximum: 100
+- Starting energy: 60
+- Regeneration: 4 per second
+
+Initial card deployment costs:
+
+| Card | Cost |
+|---|---:|
+| Heavy Defender | 20 |
+| Swift Cavalry | 25 |
+| Arcane Archer | 18 |
+| Field Cleric | 20 |
+| Standard Skill Card | 15–25 |
+| Powerful Skill Card | 30–40 |
+| Standard Tactic Card | 15–25 |
+| Powerful Support Card | 25–35 |
+
+These are initial balance values.
+
+Keep them configurable.
+
+Each card can have its own cooldown.
+
+The UI must clearly show:
+
+- Current energy
+- Maximum energy
+- Card cost
+- Cooldown
+- Whether the card is usable
+
+# 10. COMMANDER SYSTEM
+
+The commander is not a battlefield unit.
+
+The commander remains represented in the battle interface.
+
+Preserve ASTRA's existing configuration.
+
+ASTRA:
+
+Passive:
+- Friendly army maximum HP +8%.
+
+Ultimate:
+- Starfall Judgment / 星陨裁决
+- Damages all enemies.
+- Heals all friendly units.
+
+## 10.1 Ultimate Energy
+
+Keep Ultimate Energy separate from Command Energy.
+
+Configuration:
+
+- Maximum: 100
+- Starts according to the existing game design, preferably 0.
+- Gains energy from friendly damage dealt, damage received, and healing.
+- Reaches 100: ultimate becomes available.
+- Activation consumes 100 energy.
+
+Prevent defeated units from generating energy.
+
+Prevent invalid repeated activation.
+
+## 10.2 Ultimate presentation
+
+Implement:
+
+- Commander portrait feedback
+- Energy indicator
+- Available-state visual
+- Activation animation
+- Battlefield visual effect
+- Damage and healing feedback
+- Appropriate audio feedback
+
+Use existing assets and graceful fallbacks.
+
+# 11. ENEMY AI AND WAVES
+
+Implement a complete wave system.
+
+Each stage can define:
+
+- Wave count
+- Enemy composition
+- Spawn timing
+- Enemy levels
+- Elite units
+- Boss configuration
+- Rewards
+
+Enemy units spawn from the right-side region.
+
+Each wave must use actual unit instances and the same combat rules as friendly units.
+
+Do not simulate enemy defeats through UI counters.
+
+Between waves:
+
+- Preserve surviving friendly units.
+- Allow continued card deployment.
+- Continue Command Energy regeneration.
+- Show wave transition feedback.
+
+Do not declare victory while pending waves or active enemies remain.
+
+# 12. ELITE UNITS AND BOSSES
+
+Implement a reusable elite and boss framework.
+
+Bosses must support:
+
+- High HP
+- Configurable attributes
+- Unique visual scale or appearance
+- Special abilities
+- Ability cooldowns
+- Telegraph or warning effects where appropriate
+- Damage feedback
+- Defeat animation
+
+Example abilities:
+
+- Area attack
+- Summon reinforcements
+- Nearby enemy enhancement
+- Temporary defense increase
+
+Boss abilities must use actual gameplay effects.
+
+Do not create a separate fake boss health system disconnected from UnitManager.
+
+Boss HP must be integrated with normal combat and rendering.
+
+# 13. BATTLE LIFECYCLE
+
+Implement a clear battle lifecycle.
+
+Suggested phases:
+
+1. Preparation
+2. Battle Start
+3. Active Combat
+4. Wave Transition
+5. Victory
+6. Defeat
+7. Results
+
+The battle manager must prevent invalid transitions.
+
+Pause and speed controls must affect the simulation correctly.
+
+Required speeds:
+
+- 1×
+- 2×
+- 3×
+
+Pause must stop battle simulation while keeping the UI responsive.
+
+Speed changes must not break cooldowns, movement, animations, or combat timing.
+
+Use a consistent time-step approach.
+
+# 14. VICTORY AND DEFEAT
+
+Victory requires:
+
+- All enemy waves have spawned.
+- All active enemy units are defeated.
+- The final boss is defeated if the stage includes one.
+
+Defeat requires:
+
+- All friendly units have been defeated.
+- No valid reinforcement or recovery method remains.
+
+Deck exhaustion alone does not cause defeat.
+
+There are no base HP or base destruction conditions.
+
+Prevent simultaneous victory and defeat states.
+
+# 15. BATTLE RESULTS AND REWARDS
+
+Implement a real results screen.
+
+Display:
+
+- Victory or defeat
+- Battle duration
+- Enemies defeated
+- Friendly survivors
+- Damage dealt
+- Damage received
+- Healing performed
+- Rewards
+- Stage rating
+
+Rewards should integrate with the existing economy and progression systems.
+
+Possible rewards:
+
+- Currency
+- Hero experience
+- Cards
+- Upgrade materials
+
+Do not award the same battle rewards more than once.
+
+Save progress using the existing SaveManager.
+
+If the player leaves or reloads during a battle, handle the state consistently.
+
+Do not corrupt existing save data.
+
+# 16. BATTLE UI
+
+Complete the existing BattleScreen.
+
+Required layout:
+
+Top:
+- Wave indicator
+- Friendly unit count
+- Enemy unit count
+- Battle timer
+- Pause
+- Speed control
+
+Center:
+- Isometric battlefield
+- Unit health bars
+- Combat effects
+- Target indicators
+
+Bottom:
+- Six card slots
+- Card category indicators
+- Card levels
+- Command Energy
+- Cooldown indicators
+
+Lower-right:
+- Commander portrait
+- Ultimate Energy
+- Ultimate activation button
+
+Required interactions:
+
+- Play cards
+- Merge adjacent cards
+- Pause/resume
+- Change speed
+- Activate ultimate
+- Start battle
+- Return to results or existing screens
+
+All buttons must work.
+
+The UI must adapt to supported screen sizes.
+
+Keep the battlefield visually dominant.
+
+# 17. DATA ARCHITECTURE
+
+Use data-driven configuration.
+
+Review existing JSON files before changing their schemas.
+
+Preserve compatibility where practical.
+
+Add or extend data files for:
+
+- Units
+- Cards
+- Skills
+- Stages
+- Enemy waves
+- Bosses
+- Terrain
+- Balance values
+
+Avoid duplicating configuration across JavaScript modules.
+
+Use stable IDs.
+
+Validate configuration data and handle missing or invalid fields safely.
+
+Do not silently substitute unrelated data.
+
+# 18. SAVE COMPATIBILITY
+
+The existing SaveManager uses versioned save data, validation, recovery, and migration.
+
+Preserve this behavior.
+
+If P1 requires new persistent fields:
+
+- Extend the save schema.
+- Add migration logic.
+- Preserve existing player progress.
+- Provide safe defaults for old saves.
+- Test loading old-format saves.
+
+Never reset user progress just to simplify implementation.
+
+Temporary battle state must be separated from permanent progression state.
+
+# 19. PERFORMANCE
+
+Target:
+
+- 50 active units maximum.
+- 60 FPS target.
+- Stable simulation at 1×, 2×, and 3×.
+- Responsive card interactions.
+- No uncontrolled particle or projectile accumulation.
+
+Use:
+
+- Fixed time-step simulation
+- Delta-time interpolation where appropriate
+- Cached pathfinding
+- Spatial partitioning or another practical nearby-target lookup method
+- Object pooling for frequently created objects
+- Efficient Canvas drawing
+
+Do not over-engineer.
+
+Choose the simplest architecture that meets the requirements.
+
+# 20. TESTING
+
+This is a mandatory part of P1.
+
+Do not finish after the code compiles.
+
+Add or update tests for all critical systems.
+
+Required coverage:
+
+## Unit tests
+
+- Unit creation
+- Unit attributes
+- HP updates
+- Damage
+- Healing
+- Defense
+- Death
+- Status effects
+- Unit cap
+
+## Movement tests
+
+- Normal movement
+- Boundary restrictions
+- Obstacle avoidance
+- Unreachable targets
+- Collision separation
+- Path recalculation
+
+## Targeting tests
+
+- Initial target selection
+- Target death
+- Target switching
+- Priority rules
+- Unreachable targets
+- Target stability
+
+## Combat tests
+
+- Melee attacks
+- Ranged attacks
+- Projectile hits
+- Healing
+- Cooldowns
+- Death handling
+- Ultimate energy generation
+
+## Card tests
+
+- Card draw
+- Card usage
+- Insufficient energy
+- Cooldowns
+- Unit cap restrictions
+- Skill card effects
+- Tactic card effects
+- Support card effects
+- Adjacent merging
+- Invalid merging
+- Level I → II
+- Level II → III
+- Level III merge prevention
+- Deck exhaustion
+
+## Wave tests
+
+- Wave spawning
+- Wave transitions
+- Enemy composition
+- Boss spawning
+- Victory timing
+- Defeat timing
+
+## Save tests
+
+- Battle rewards
+- Duplicate reward prevention
+- Existing save compatibility
+- Migration
+- Reload behavior
+
+## Integration tests
+
+Test a complete battle:
+
+1. Enter preparation.
+2. Arrange units.
+3. Start the battle.
+4. Friendly and enemy units move.
+5. Units attack and receive damage.
+6. Healing works.
+7. Player deploys cards.
+8. Player merges cards.
+9. Energy changes correctly.
+10. Commander ultimate activates.
+11. Multiple waves spawn.
+12. Boss appears.
+13. Battle ends correctly.
+14. Rewards are applied.
+15. Save data remains valid.
+
+Run the existing tests as well.
+
+Do not delete or weaken old tests to make the new suite pass.
+
+# 21. DEBUGGING AND DEVELOPMENT TOOLS
+
+Provide a practical way to inspect battle behavior during development.
+
+Where useful, implement a debug mode that can display:
+
+- Unit world coordinates
+- Current state
+- Current target
+- Pathfinding route
+- HP
+- Attack range
+- Collision radius
+- Current wave
+- Current energy
+
+Debug visuals must be disabled in normal gameplay.
+
+Do not expose debug controls in the normal player interface.
+
+# 22. IMPLEMENTATION RULES
+
+You are authorized to:
+
+- Read the entire project.
+- Inspect all source files.
+- Inspect existing tests and documentation.
+- Modify files throughout the project as needed.
+- Create new modules.
+- Refactor existing modules when necessary.
+- Update JSON configuration.
+- Update CSS and UI.
+- Run npm scripts.
+- Install dependencies only when genuinely necessary.
+- Run builds, lint, and tests.
+- Fix bugs discovered during implementation.
+
+Do not ask for approval for ordinary implementation decisions.
+
+Do not stop to ask the user about minor details.
+
+Make reasonable decisions consistent with this specification.
+
+When a detail is unspecified, choose a practical implementation and document the decision.
+
+Do not introduce unnecessary paid services, backend infrastructure, external APIs, or account requirements.
+
+Do not deploy the project or publish it externally.
+
+Do not overwrite or delete unrelated project data.
+
+# 23. REQUIRED DEVELOPMENT WORKFLOW
+
+Follow this sequence internally, but complete every stage in the same task.
+
+### Stage A — Inspect P0
+
+- Inspect project structure.
+- Read package.json.
+- Inspect all battle-related modules.
+- Inspect card and formation implementations.
+- Inspect existing data schemas.
+- Inspect SaveManager.
+- Inspect BattleScreen and rendering.
+- Run existing tests.
+- Identify incomplete contracts and integration problems.
+
+### Stage B — Implement the combat foundation
+
+- Battlefield world coordinates
+- Isometric projection
+- Terrain
+- Unit lifecycle
+- Movement
+- Pathfinding
+- Collision avoidance
+- Targeting
+- Combat
+- Healing
+- Projectiles
+- Death handling
+
+### Stage C — Implement gameplay systems
+
+- Four unit classes
+- Unit skills
+- Card categories
+- 12-card deck
+- Six-card hand
+- Card merging
+- Energy
+- Cooldowns
+- Reinforcements
+- Commander ultimate
+
+### Stage D — Implement enemy encounters
+
+- Enemy AI
+- Wave configuration
+- Wave spawning
+- Elite units
+- Boss abilities
+- Stage completion logic
+
+### Stage E — Integrate the game
+
+- Battle preparation
+- Formation integration
+- BattleScreen
+- Results screen
+- Rewards
+- Progression
+- Save migration
+- Navigation
+
+### Stage F — Verify
+
+- Run all old tests.
+- Run all new tests.
+- Run lint.
+- Run production build.
+- Fix failures.
+- Check for console errors.
+- Check for missing assets.
+- Verify that all visible controls work.
+- Verify a complete battle from beginning to end.
+
+Do not stop at an intermediate stage.
+
+# 24. DEFINITION OF DONE
+
+P1 is complete only when:
+
+- The player can start a real battle.
+- The battlefield uses isometric projection.
+- Friendly units spawn on the left.
+- Enemy units spawn on the right.
+- Both teams move freely.
+- Obstacles affect movement.
+- All four core unit classes work.
+- Units select and switch targets.
+- Melee and ranged attacks work.
+- Healing works.
+- Units can die.
+- Projectiles work.
+- The player can deploy all supported card categories.
+- The six-slot card system works.
+- Adjacent merging works.
+- Three card levels work.
+- Command Energy works.
+- Cooldowns work.
+- Reinforcements work.
+- Commander ultimate works.
+- Multiple enemy waves work.
+- Elite units and bosses work.
+- Pause and speed controls work.
+- Victory and defeat work.
+- Results and rewards work.
+- Save compatibility works.
+- Existing P0 screens and features still work.
+- Tests pass.
+- Lint passes.
+- Production build passes.
+
+A visually impressive battle screen with incomplete combat logic does not satisfy this task.
+
+A collection of disconnected systems does not satisfy this task.
+
+The entire gameplay loop must work together.
+
+# 25. FINAL REPORT
+
+When finished, provide a concise but informative report containing:
+
+1. What was implemented.
+2. Which existing modules were reused.
+3. Which modules were created or modified.
+4. How the combat loop works.
+5. How the card system works.
+6. How enemy waves and bosses work.
+7. How save compatibility was preserved.
+8. Test results.
+9. Lint results.
+10. Production build results.
+11. Known limitations.
+12. How to run the game locally.
+
+Clearly distinguish completed functionality from any remaining limitations.
+
+Do not claim that a feature works unless it was implemented and verified.
+
+Start by inspecting the existing P0 project. Then implement the entire P1 system without waiting for another user message.

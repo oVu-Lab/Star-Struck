@@ -1,0 +1,6 @@
+{
+  "name": "Astral Command",
+  "description": "Browser-based anime tactical card battler featuring horizontal side-scrolling automatic battlefield combat, six-slot adjacent card merging, and commander heroes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

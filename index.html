@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Astral Command — Tactical Card Battler</title>
+    <meta
+      name="description"
+      content="Browser-based anime tactical card battler featuring 2D isometric battlefield combat, six-slot adjacent card merging, multi-wave bosses, and off-field commander ultimates."
+    />
+    <meta property="og:title" content="Astral Command — Tactical Card Battler" />
+    <meta
+      property="og:description"
+      content="Browser-based anime tactical card battler featuring 2D isometric battlefield combat, six-slot adjacent card merging, multi-wave bosses, and off-field commander ultimates."
+    />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles/main.css" />
+    <link rel="stylesheet" href="/styles/layout.css" />
+    <link rel="stylesheet" href="/styles/components.css" />
+    <link rel="stylesheet" href="/styles/battle.css" />
+  </head>
+  <body>
+    <div id="app" class="app-shell">
+      <header id="top-bar" class="top-bar" role="banner">
+        <button
+          id="brand-home-btn"
+          class="brand-mark"
+          type="button"
+          aria-label="Return to Home"
+        >
+          <span class="brand-emblem" aria-hidden="true"></span>
+          <span class="brand-name">Astral Command</span>
+        </button>
+
+        <nav id="primary-nav" class="primary-nav" aria-label="Main navigation">
+          <button type="button" class="nav-link" data-screen="home">Home</button>
+          <button type="button" class="nav-link" data-screen="battle">Battle</button>
+          <button type="button" class="nav-link" data-screen="heroes">Heroes</button>
+          <button type="button" class="nav-link" data-screen="formation">Formation</button>
+          <button type="button" class="nav-link" data-screen="summon">Summon</button>
+          <button type="button" class="nav-link" data-screen="inventory">Inventory</button>
+          <button type="button" class="nav-link" data-screen="settings">Settings</button>
+        </nav>
+
+        <div id="header-resources" class="header-resources" aria-label="Player resources">
+          <div class="resource-readout" title="Commander Level">
+            <span class="resource-label">Lv</span>
+            <span id="hdr-level" class="resource-value tabular-nums">1</span>
+          </div>
+          <div class="resource-readout" title="Credits">
+            <span class="resource-label">Credits</span>
+            <span id="hdr-credits" class="resource-value tabular-nums">0</span>
+          </div>
+          <div class="resource-readout resource-readout--gold" title="Astrite">
+            <span class="resource-label">Astrite</span>
+            <span id="hdr-astrite" class="resource-value tabular-nums">0</span>
+          </div>
+          <button
+            type="button"
+            id="hdr-mute-btn"
+            class="audio-toggle-btn"
+            aria-label="Mute or unmute game audio"
+            aria-pressed="false"
+            title="Toggle Audio (Mute / Unmute)"
+          >
+            <svg class="audio-toggle-btn__icon" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M3 7.5h3.5L11 3.8v12.4L6.5 12.5H3V7.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+              <path class="audio-wave-1" d="M13.8 7.3a3.6 3.6 0 0 1 0 5.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+              <path class="audio-wave-2" d="M16.1 5a6.8 6.8 0 0 1 0 10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+              <path class="audio-slash" d="M13.6 7.4l4.2 5.2M17.8 7.4l-4.2 5.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <main id="screen-viewport" class="screen-viewport" role="main" aria-live="polite">
+        <div id="boot-loader" class="boot-loader">
+          <div class="boot-loader__ring" aria-hidden="true"></div>
+          <p class="boot-loader__text">Initializing Astral Command...</p>
+        </div>
+      </main>
+
+      <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+      <div id="modal-root" class="modal-root" hidden></div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

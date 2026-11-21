@@ -1,0 +1,313 @@
+{
+  "schemaVersion": 2,
+  "terrains": [
+    {
+      "id": "terrain_outer_bastion",
+      "name": "Outer Bastion Causeway",
+      "theme": "orbital_bastion",
+      "worldWidth": 100,
+      "worldHeight": 100,
+      "regions": {
+        "friendly": { "minX": 4, "maxX": 28, "minY": 8, "maxY": 92 },
+        "combat": { "minX": 28, "maxX": 72, "minY": 6, "maxY": 94 },
+        "enemy": { "minX": 72, "maxX": 96, "minY": 8, "maxY": 92 }
+      },
+      "features": [
+        {
+          "id": "bastion_pillar_n",
+          "type": "obstacle",
+          "shape": "rect",
+          "x": 44,
+          "y": 24,
+          "width": 8,
+          "height": 8,
+          "blocksMovement": true,
+          "label": "Aegis Pylon"
+        },
+        {
+          "id": "bastion_pillar_s",
+          "type": "obstacle",
+          "shape": "rect",
+          "x": 48,
+          "y": 68,
+          "width": 8,
+          "height": 8,
+          "blocksMovement": true,
+          "label": "Aegis Pylon"
+        },
+        {
+          "id": "bastion_conduit_c",
+          "type": "decorative",
+          "shape": "circle",
+          "x": 50,
+          "y": 50,
+          "radius": 6,
+          "blocksMovement": false,
+          "label": "Astral Relay Sigil"
+        }
+      ]
+    },
+    {
+      "id": "terrain_azure_relay",
+      "name": "Azure Relay Terrace",
+      "theme": "azure_relay",
+      "worldWidth": 100,
+      "worldHeight": 100,
+      "regions": {
+        "friendly": { "minX": 4, "maxX": 28, "minY": 8, "maxY": 92 },
+        "combat": { "minX": 28, "maxX": 72, "minY": 6, "maxY": 94 },
+        "enemy": { "minX": 72, "maxX": 96, "minY": 8, "maxY": 92 }
+      },
+      "features": [
+        {
+          "id": "relay_chasm_c",
+          "type": "blocked",
+          "shape": "rect",
+          "x": 46,
+          "y": 44,
+          "width": 8,
+          "height": 12,
+          "blocksMovement": true,
+          "label": "Energy Chasm"
+        },
+        {
+          "id": "relay_node_n",
+          "type": "obstacle",
+          "shape": "rect",
+          "x": 38,
+          "y": 16,
+          "width": 6,
+          "height": 8,
+          "blocksMovement": true,
+          "label": "Relay Conduit"
+        },
+        {
+          "id": "relay_node_s",
+          "type": "obstacle",
+          "shape": "rect",
+          "x": 56,
+          "y": 76,
+          "width": 6,
+          "height": 8,
+          "blocksMovement": true,
+          "label": "Relay Conduit"
+        },
+        {
+          "id": "relay_beacon_l",
+          "type": "decorative",
+          "shape": "circle",
+          "x": 30,
+          "y": 50,
+          "radius": 5,
+          "blocksMovement": false,
+          "label": "Signal Ring"
+        }
+      ]
+    },
+    {
+      "id": "terrain_obsidian_spire",
+      "name": "Obsidian Spire Sanctum",
+      "theme": "obsidian_spire",
+      "worldWidth": 100,
+      "worldHeight": 100,
+      "regions": {
+        "friendly": { "minX": 4, "maxX": 28, "minY": 8, "maxY": 92 },
+        "combat": { "minX": 28, "maxX": 72, "minY": 6, "maxY": 94 },
+        "enemy": { "minX": 72, "maxX": 96, "minY": 8, "maxY": 92 }
+      },
+      "features": [
+        {
+          "id": "spire_obelisk_nw",
+          "type": "obstacle",
+          "shape": "rect",
+          "x": 40,
+          "y": 26,
+          "width": 6,
+          "height": 8,
+          "blocksMovement": true,
+          "label": "Obsidian Obelisk"
+        },
+        {
+          "id": "spire_obelisk_se",
+          "type": "obstacle",
+          "shape": "rect",
+          "x": 54,
+          "y": 66,
+          "width": 6,
+          "height": 8,
+          "blocksMovement": true,
+          "label": "Obsidian Obelisk"
+        },
+        {
+          "id": "spire_rift_n",
+          "type": "blocked",
+          "shape": "rect",
+          "x": 54,
+          "y": 14,
+          "width": 8,
+          "height": 6,
+          "blocksMovement": true,
+          "label": "Void Fissure"
+        },
+        {
+          "id": "spire_rift_s",
+          "type": "blocked",
+          "shape": "rect",
+          "x": 38,
+          "y": 80,
+          "width": 8,
+          "height": 6,
+          "blocksMovement": true,
+          "label": "Void Fissure"
+        },
+        {
+          "id": "spire_sanctum_sigil",
+          "type": "decorative",
+          "shape": "circle",
+          "x": 50,
+          "y": 50,
+          "radius": 8,
+          "blocksMovement": false,
+          "label": "Spire Focus Circle"
+        }
+      ]
+    },
+    {
+      "id": "terrain_cavalry_plains",
+      "name": "Zephyr Flank Runway",
+      "theme": "cavalry_plains",
+      "worldWidth": 100,
+      "worldHeight": 100,
+      "regions": {
+        "friendly": { "minX": 4, "maxX": 28, "minY": 8, "maxY": 92 },
+        "combat": { "minX": 28, "maxX": 72, "minY": 6, "maxY": 94 },
+        "enemy": { "minX": 72, "maxX": 96, "minY": 8, "maxY": 92 }
+      },
+      "features": [
+        {
+          "id": "runway_barricade_c",
+          "type": "obstacle",
+          "shape": "rect",
+          "x": 47,
+          "y": 46,
+          "width": 6,
+          "height": 8,
+          "blocksMovement": true,
+          "label": "Runway Pylon"
+        },
+        {
+          "id": "runway_sigil_n",
+          "type": "decorative",
+          "shape": "circle",
+          "x": 50,
+          "y": 22,
+          "radius": 6,
+          "blocksMovement": false,
+          "label": "North Flank Lane"
+        },
+        {
+          "id": "runway_sigil_s",
+          "type": "decorative",
+          "shape": "circle",
+          "x": 50,
+          "y": 78,
+          "radius": 6,
+          "blocksMovement": false,
+          "label": "South Flank Lane"
+        }
+      ]
+    },
+    {
+      "id": "terrain_chrono_nexus",
+      "name": "Chrono Nexus Courtyard",
+      "theme": "chrono_nexus",
+      "worldWidth": 100,
+      "worldHeight": 100,
+      "regions": {
+        "friendly": { "minX": 4, "maxX": 28, "minY": 8, "maxY": 92 },
+        "combat": { "minX": 28, "maxX": 72, "minY": 6, "maxY": 94 },
+        "enemy": { "minX": 72, "maxX": 96, "minY": 8, "maxY": 92 }
+      },
+      "features": [
+        {
+          "id": "chrono_rift_nw",
+          "type": "blocked",
+          "shape": "rect",
+          "x": 38,
+          "y": 30,
+          "width": 6,
+          "height": 10,
+          "blocksMovement": true,
+          "label": "Temporal Rift"
+        },
+        {
+          "id": "chrono_rift_se",
+          "type": "blocked",
+          "shape": "rect",
+          "x": 56,
+          "y": 60,
+          "width": 6,
+          "height": 10,
+          "blocksMovement": true,
+          "label": "Temporal Rift"
+        },
+        {
+          "id": "chrono_dial_c",
+          "type": "decorative",
+          "shape": "circle",
+          "x": 50,
+          "y": 50,
+          "radius": 9,
+          "blocksMovement": false,
+          "label": "Chrono Sundial"
+        }
+      ]
+    },
+    {
+      "id": "terrain_hyperion_throne",
+      "name": "Hyperion Dreadnought Deck",
+      "theme": "hyperion_throne",
+      "worldWidth": 100,
+      "worldHeight": 100,
+      "regions": {
+        "friendly": { "minX": 4, "maxX": 28, "minY": 8, "maxY": 92 },
+        "combat": { "minX": 28, "maxX": 72, "minY": 6, "maxY": 94 },
+        "enemy": { "minX": 72, "maxX": 96, "minY": 8, "maxY": 92 }
+      },
+      "features": [
+        {
+          "id": "throne_bulwark_n",
+          "type": "obstacle",
+          "shape": "rect",
+          "x": 45,
+          "y": 18,
+          "width": 8,
+          "height": 8,
+          "blocksMovement": true,
+          "label": "Dreadnought Bulkhead"
+        },
+        {
+          "id": "throne_bulwark_s",
+          "type": "obstacle",
+          "shape": "rect",
+          "x": 45,
+          "y": 74,
+          "width": 8,
+          "height": 8,
+          "blocksMovement": true,
+          "label": "Dreadnought Bulkhead"
+        },
+        {
+          "id": "throne_reactor_c",
+          "type": "decorative",
+          "shape": "circle",
+          "x": 50,
+          "y": 50,
+          "radius": 10,
+          "blocksMovement": false,
+          "label": "Astral Reactor Core"
+        }
+      ]
+    }
+  ]
+}

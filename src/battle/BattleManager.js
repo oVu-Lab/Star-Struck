@@ -1,0 +1,1703 @@
+/**
+ * BattleManager — Orchestrates the complete P1 battle lifecycle:
+ * Preparation -> Battle Start -> Active Combat <-> Wave Transition -> Victory/Defeat -> Results.
+ *
+ * Uses fixed time-step simulation (60Hz) for deterministic behavior at 1x, 2x, and 3x speeds,
+ * supports headless stepping for automated integration testing, and never persists transient
+ * battle state to localStorage.
+ */
+
+import { Battlefield } from './Battlefield.js';
+import { Pathfinder } from './Pathfinder.js';
+import { UNIT_STATES } from './UnitManager.js';
+import { CARD_CATEGORIES } from '../systems/CardSystem.js';
+
+export const BATTLE_PHASES = Object.freeze({
+  PREPARATION: 'preparation',
+  BATTLE_START: 'battle_start',
+  ACTIVE_COMBAT: 'active_combat',
+  WAVE_TRANSITION: 'wave_transition',
+  VICTORY: 'victory',
+  DEFEAT: 'defeat',
+  RESULTS: 'results',
+});
+
+const VALID_TRANSITIONS = Object.freeze({
+  [BATTLE_PHASES.PREPARATION]: new Set([BATTLE_PHASES.BATTLE_START]),
+  [BATTLE_PHASES.BATTLE_START]: new Set([BATTLE_PHASES.ACTIVE_COMBAT]),
+  [BATTLE_PHASES.ACTIVE_COMBAT]: new Set([
+    BATTLE_PHASES.WAVE_TRANSITION,
+    BATTLE_PHASES.VICTORY,
+    BATTLE_PHASES.DEFEAT,
+  ]),
+  [BATTLE_PHASES.WAVE_TRANSITION]: new Set([
+    BATTLE_PHASES.ACTIVE_COMBAT,
+    BATTLE_PHASES.VICTORY,
+    BATTLE_PHASES.DEFEAT,
+  ]),
+  [BATTLE_PHASES.VICTORY]: new Set([BATTLE_PHASES.RESULTS]),
+  [BATTLE_PHASES.DEFEAT]: new Set([BATTLE_PHASES.RESULTS]),
+  [BATTLE_PHASES.RESULTS]: new Set([BATTLE_PHASES.PREPARATION]),
+});
+
+const FIXED_DT = 1 / 60;
+const ALLOWED_SPEEDS = [1, 2, 3];
+
+export class BattleManager {
+  constructor({
+    dataRegistry,
+    gameState,
+    eventBus,
+    progressionSystem,
+    economySystem = null,
+    heroSystem = null,
+    cardSystem,
+    unitManager,
+    targetingSystem,
+    movementSystem,
+    combatSystem,
+    projectileSystem,
+    skillSystem,
+    waveManager,
+    battleRenderer,
+    animationManager,
+    particleSystem,
+    audioManager,
+  }) {
+    this._data = dataRegistry;
+    this._state = gameState;
+    this._eventBus = eventBus;
+    this._progression = progressionSystem;
+    this._economy = economySystem;
+    this._heroes = heroSystem;
+    this._cards = cardSystem;
+    this._units = unitManager;
+    this._targeting = targetingSystem;
+    this._movement = movementSystem;
+    this._combat = combatSystem;
+    this._projectiles = projectileSystem;
+    this._skills = skillSystem;
+    this._waves = waveManager;
+    this._renderer = battleRenderer;
+    this._anim = animationManager;
+    this._particles = particleSystem;
+    this._audio = audioManager;
+
+    this.battlefield = new Battlefield({ balance: dataRegistry?.balance });
+    this.pathfinder = new Pathfinder(this.battlefield);
+
+    this._rafId = null;
+    this._lastTimestamp = 0;
+    this._accumulator = 0;
+    this._activeStage = null;
+    this._phase = BATTLE_PHASES.PREPARATION;
+    this._phaseTimer = 0;
+    this._activeTactic = null;
+    this._selectedPrepUnitUid = null;
+    this._initialAllyCount = 0;
+    this._totalAlliesDeployed = 0;
+    this._debugMode = false;
+    this._sessionId = null;
+    this._rewardsApplied = false;
+    this._unsubs = [];
+
+    this._bindCombatFeedback();
+  }
+
+  _spawnWorldParticles(worldX, worldY, color, count, mode = 'burst') {
+    if (!this._renderer || !this._particles || !this.battlefield) return;
+    const { width, height } = this._renderer.getDimensions();
+    const p = this.battlefield.worldToScreen(worldX, worldY, width, height, 3);
+    if (mode === 'rising') {
+      this._particles.spawnRising(p.x, p.y - 12, color, count);
+    } else {
+      this._particles.spawnBurst(p.x, p.y - 10, color, count);
+    }
+  }
+
+  _bindCombatFeedback() {
+    if (!this._eventBus) return;
+    this._unsubs.push(
+      this._eventBus.on('combat:attack', ({ source, target, kind }) => {
+        if (!source || !target) return;
+        if (kind === 'melee') {
+          const angle = Math.atan2(target.y - source.y, target.x - source.x);
+          this._anim?.spawnWorldEffect({
+            kind: 'slash',
+            x: target.x,
+            y: target.y,
+            angle,
+            radius: source.cleaveRadius > 0 ? 7.5 : 4.5,
+            color: source.side === 'ally' ? '#38bdf8' : '#f87171',
+            duration: 0.24,
+          });
+        } else if (kind === 'ranged') {
+          this._audio?.playProjectile?.();
+        }
+      }),
+      this._eventBus.on('combat:damage', ({ target, amount, isCrit, attackType }) => {
+        if (!target) return;
+        this._anim?.spawnFloatingText({
+          x: target.x,
+          y: target.y,
+          text: isCrit ? `-${amount}!` : `-${amount}`,
+          color: isCrit ? '#fbbf24' : target.side === 'enemy' ? '#edf2fa' : '#f87171',
+          isCrit,
+          kind: isCrit ? 'crit' : 'damage',
+        });
+        if (isCrit) {
+          this._spawnWorldParticles(target.x, target.y, '#fbbf24', 7, 'burst');
+        }
+        this._audio?.playHit(isCrit, attackType);
+      }),
+      this._eventBus.on('combat:heal', ({ target, amount }) => {
+        if (!target || amount <= 0) return;
+        this._anim?.spawnFloatingText({
+          x: target.x,
+          y: target.y,
+          text: `+${amount}`,
+          color: '#34d399',
+          isCrit: false,
+          kind: 'heal',
+        });
+        this._spawnWorldParticles(target.x, target.y, '#34d399', 4, 'rising');
+        this._audio?.playHeal();
+      }),
+      this._eventBus.on('combat:shield', ({ target, amount }) => {
+        if (!target || amount <= 0) return;
+        this._anim?.spawnFloatingText({
+          x: target.x,
+          y: target.y,
+          text: `+${Math.round(amount)} SHD`,
+          color: '#38bdf8',
+          isCrit: false,
+          kind: 'shield',
+        });
+        this._spawnWorldParticles(target.x, target.y, '#38bdf8', 4, 'rising');
+        this._audio?.playShield?.();
+      }),
+      this._eventBus.on('projectile:impact', ({ projectile, aoe, radius }) => {
+        if (!projectile) return;
+        if (aoe) {
+          this._anim?.spawnWorldEffect({
+            kind: 'ring',
+            x: projectile.x,
+            y: projectile.y,
+            radius: radius || projectile.splashRadius || 8,
+            color: projectile.color || '#f97316',
+            duration: 0.45,
+          });
+          this._spawnWorldParticles(projectile.x, projectile.y, projectile.color || '#f97316', 8, 'burst');
+        } else if (projectile.kind === 'healing') {
+          this._spawnWorldParticles(projectile.x, projectile.y, '#34d399', 4, 'rising');
+        } else {
+          this._spawnWorldParticles(projectile.x, projectile.y, projectile.color || '#38bdf8', 4, 'burst');
+        }
+      }),
+      this._eventBus.on('battle:unitDefeated', ({ unit }) => {
+        if (!unit) return;
+        const fxColor = unit.isBoss ? (unit.auraColor || '#e2b75b') : unit.side === 'ally' ? '#38bdf8' : '#f87171';
+        this._anim?.spawnWorldEffect({
+          kind: 'death',
+          x: unit.x,
+          y: unit.y,
+          radius: unit.isBoss ? 18 : 7,
+          color: fxColor,
+          duration: unit.isBoss ? 0.85 : 0.55,
+        });
+        this._spawnWorldParticles(unit.x, unit.y, fxColor, unit.isBoss ? 22 : 7, 'burst');
+        this._audio?.playUnitDeath?.(Boolean(unit.isBoss));
+        if (unit.isBoss) {
+          this._anim?.triggerScreenShake(11, 0.55);
+          this._anim?.triggerScreenFlash('#e2b75b', 0.4, 0.24);
+        }
+      }),
+      this._eventBus.on('boss:abilityResolved', ({ unit, ability, x, y }) => {
+        if (!ability) return;
+        this._anim?.spawnWorldEffect({
+          kind: 'ring',
+          x: x ?? unit?.x ?? 50,
+          y: y ?? unit?.y ?? 50,
+          radius: ability.radius || 16,
+          color: ability.color || '#f87171',
+          duration: 0.65,
+        });
+        this._spawnWorldParticles(x ?? unit?.x ?? 50, y ?? unit?.y ?? 50, ability.color || '#f87171', 12, 'burst');
+        if (unit?.isBoss || unit?.isElite) {
+          this._anim?.triggerScreenShake(unit.isBoss ? 6 : 3, 0.28);
+          this._audio?.playSkill();
+        }
+      }),
+      this._eventBus.on('battle:bossSpawned', ({ boss }) => {
+        if (!boss) return;
+        this._anim?.spawnWorldEffect({
+          kind: 'boss_entrance',
+          x: boss.x,
+          y: boss.y,
+          radius: 26,
+          color: boss.auraColor || '#ef4444',
+          secondaryColor: '#e2b75b',
+          duration: 1.15,
+        });
+        this._anim?.triggerScreenShake(8, 0.45);
+        this._anim?.triggerScreenFlash(boss.auraColor || '#ef4444', 0.38, 0.22);
+        this._spawnWorldParticles(boss.x, boss.y, boss.auraColor || '#e2b75b', 18, 'burst');
+        this._audio?.playBossEntrance?.();
+        this._audio?.setBgmMode?.('boss');
+      }),
+    );
+  }
+
+  setDebugMode(enabled) {
+    this._debugMode = Boolean(enabled);
+    if (this._renderer?.setDebugMode) {
+      this._renderer.setDebugMode(this._debugMode);
+    }
+    return this._debugMode;
+  }
+
+  toggleDebugMode() {
+    return this.setDebugMode(!this._debugMode);
+  }
+
+  isDebugMode() {
+    return this._debugMode;
+  }
+
+  getPhase() {
+    return this._phase;
+  }
+
+  getSelectedPrepUnitUid() {
+    return this._selectedPrepUnitUid;
+  }
+
+  /**
+   * Transitions the battle lifecycle phase with validation against invalid jumps.
+   */
+  transitionPhase(nextPhase) {
+    if (this._phase === nextPhase) return true;
+    const allowed = VALID_TRANSITIONS[this._phase];
+    if (!allowed || !allowed.has(nextPhase)) {
+      return false;
+    }
+    const prev = this._phase;
+    this._phase = nextPhase;
+    this._phaseTimer = 0;
+
+    let status = 'running';
+    if (nextPhase === BATTLE_PHASES.PREPARATION) status = 'preparation';
+    else if (nextPhase === BATTLE_PHASES.VICTORY) status = 'victory';
+    else if (nextPhase === BATTLE_PHASES.DEFEAT) status = 'defeat';
+    else if (nextPhase === BATTLE_PHASES.RESULTS) status = 'results';
+
+    this._state.setBattle({ phase: nextPhase, status });
+    this._eventBus?.emit('battle:phaseChanged', { from: prev, to: nextPhase });
+    return true;
+  }
+
+  /**
+   * Initializes a new battle session in Preparation phase.
+   * Works both with a Canvas element (browser) and without one (headless tests).
+   */
+  startSession(canvas = null, { stageId = null, customDeckIds = null } = {}) {
+    this.stopSession();
+
+    const stage =
+      (stageId ? this._data?.stagesById?.get(stageId) : null) ||
+      this._progression?.getSelectedStage() ||
+      this._data?.stages?.[0];
+    this._activeStage = stage;
+    this._sessionId = `battle_${stage?.id || 'stage'}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    this._rewardsApplied = false;
+    this._phase = BATTLE_PHASES.PREPARATION;
+    this._phaseTimer = 0;
+    this._accumulator = 0;
+    this._activeTactic = null;
+    this._selectedPrepUnitUid = null;
+
+    // Load data-driven terrain for this stage
+    const terrainCfg = stage?.terrainId
+      ? this._data?.terrainsById?.get(stage.terrainId)
+      : this._data?.terrains?.[0] || null;
+    this.battlefield = new Battlefield({
+      balance: this._data?.balance,
+      terrainConfig: terrainCfg,
+    });
+    this.pathfinder = new Pathfinder(this.battlefield);
+
+    // Wire subsystems to current battlefield & balance
+    this._units.setBattlefield(this.battlefield);
+    this._units.clear();
+    this._projectiles.clear();
+    this._targeting.configure({ balance: this._data?.balance });
+    this._targeting.reset();
+    this._movement.configure({
+      battlefield: this.battlefield,
+      pathfinder: this.pathfinder,
+      balance: this._data?.balance,
+    });
+    this._combat.setDataRegistry(this._data);
+    this._combat.resetStats();
+    this._anim?.reset();
+    this._waves.configure(stage, this._data?.balance);
+    this._cards.initHand({ customDeckIds });
+
+    const energyCfg = this._data?.balance?.commandEnergy || { max: 100, starting: 60 };
+    const ultCfg = this._data?.balance?.ultimateEnergy || { max: 100, starting: 0 };
+    const caps = this._units.getCaps();
+
+    this._seedInitialFriendlyArmy(stage);
+
+    this._state.setBattle({
+      sessionId: this._sessionId,
+      status: 'preparation',
+      phase: BATTLE_PHASES.PREPARATION,
+      stageId: stage?.id || 'stage_1_1',
+      speedMultiplier: ALLOWED_SPEEDS.includes(this._state.settings.battleSpeed)
+        ? this._state.settings.battleSpeed
+        : 1,
+      elapsedSec: 0,
+      waveIndex: 1,
+      totalWaves: this._waves.getTotalWaves(),
+      waveLabel: stage?.waves?.[0]?.label || 'Wave 1',
+      isBossWave: false,
+      friendlyCount: this._units.getActiveCount('ally'),
+      friendlyCap: caps.maxFriendly,
+      enemyCount: 0,
+      enemyCap: caps.maxEnemy,
+      energy: energyCfg.starting,
+      maxEnergy: energyCfg.max,
+      dp: energyCfg.starting,
+      maxDp: energyCfg.max,
+      ultimateEnergy: ultCfg.starting,
+      ultimateMaxEnergy: ultCfg.max,
+      selectedCardSlot: -1,
+      remainingDeckCount: this._cards.getRemainingDeckCount(),
+      activeTactic: null,
+      bannerText: 'Arrange your starting squad in the friendly zone, then press Start Battle.',
+      bossInfo: null,
+      results: null,
+    });
+
+    if (canvas && this._renderer) {
+      this._renderer.attach(canvas);
+      this._renderer.setBattlefield(this.battlefield);
+      this._renderer.setDebugMode(this._debugMode);
+      this._lastTimestamp = typeof performance !== 'undefined' ? performance.now() : Date.now();
+      this._loop(this._lastTimestamp);
+    }
+
+    return {
+      sessionId: this._sessionId,
+      stage,
+      phase: this._phase,
+    };
+  }
+
+  _getOwnedUnitLevel(unitId) {
+    return this._state.units?.owned?.[unitId]?.level || 1;
+  }
+
+  _seedInitialFriendlyArmy(stage) {
+    const { passive } = this._skills.getActiveCommanderSkills();
+    const formationSlots = this._state.formation?.unitSlots || [
+      'heavy_shield_guard',
+      'wind_cavalry',
+      'arcane_archer',
+      'field_cleric',
+    ];
+    const basePositions = [
+      { x: 23, y: 36 },
+      { x: 21, y: 64 },
+      { x: 12, y: 34 },
+      { x: 12, y: 66 },
+    ];
+
+    const initialSpecs =
+      Array.isArray(stage?.initialAllies) && stage.initialAllies.length > 0
+        ? stage.initialAllies.map((entry, idx) => ({
+            unitId: formationSlots[idx % formationSlots.length] || entry.unitId,
+            x: entry.x,
+            y: entry.y,
+          }))
+        : formationSlots.map((unitId, idx) => ({
+            unitId,
+            x: basePositions[idx]?.x ?? 16,
+            y: basePositions[idx]?.y ?? 25 + idx * 16,
+          }));
+
+    let spawned = 0;
+    for (const spec of initialSpecs) {
+      const unit = this._units.spawnUnit({
+        unitId: spec.unitId,
+        side: 'ally',
+        x: spec.x,
+        y: spec.y,
+        level: this._getOwnedUnitLevel(spec.unitId),
+        tier: 1,
+        commanderPassive: passive,
+        restrictToRegion: true,
+      });
+      if (unit) spawned += 1;
+    }
+
+    this._initialAllyCount = spawned;
+    this._totalAlliesDeployed = spawned;
+  }
+
+  /**
+   * Preparation Phase: selects or moves a friendly unit inside the friendly deployment region.
+   */
+  handleCanvasPointer(screenX, screenY) {
+    if (!this._renderer) return null;
+    const { width, height } = this._renderer.getDimensions();
+    const world = this.battlefield.screenToWorld(screenX, screenY, width, height);
+
+    if (this._phase === BATTLE_PHASES.PREPARATION) {
+      const allies = this._units.getBySide('ally');
+      let clickedUnit = null;
+      let bestDist = 5.5;
+      for (const ally of allies) {
+        const d = Math.hypot(ally.x - world.x, ally.y - world.y);
+        if (d < bestDist) {
+          bestDist = d;
+          clickedUnit = ally;
+        }
+      }
+
+      if (clickedUnit) {
+        this._selectedPrepUnitUid =
+          this._selectedPrepUnitUid === clickedUnit.uid ? null : clickedUnit.uid;
+        this._audio?.playClick();
+        return { action: 'prep_selected', unit: clickedUnit, world };
+      }
+
+      if (this._selectedPrepUnitUid) {
+        const res = this.movePrepUnit(this._selectedPrepUnitUid, world.x, world.y);
+        if (res.ok) {
+          this._audio?.playDeploy();
+        }
+        return { action: 'prep_moved', ...res, world };
+      }
+      return { action: 'none', world };
+    }
+
+    // During active combat, clicking the battlefield deploys a selected card at that world point
+    if (
+      (this._phase === BATTLE_PHASES.ACTIVE_COMBAT ||
+        this._phase === BATTLE_PHASES.WAVE_TRANSITION) &&
+      this._state.battle.selectedCardSlot !== -1
+    ) {
+      const slotIndex = this._state.battle.selectedCardSlot;
+      const res = this.playCardSlot(slotIndex, world);
+      return { action: 'played', ...res, world };
+    }
+
+    return { action: 'none', world };
+  }
+
+  movePrepUnit(unitUid, worldX, worldY) {
+    if (this._phase !== BATTLE_PHASES.PREPARATION) {
+      return { ok: false, reason: 'Units can only be repositioned during Preparation.' };
+    }
+    const unit = this._units.getByUid(unitUid);
+    if (!unit || unit.side !== 'ally') {
+      return { ok: false, reason: 'Friendly unit not found.' };
+    }
+    if (!this.battlefield.isInsideFriendlyRegion(worldX, worldY)) {
+      return { ok: false, reason: 'Units must be positioned inside the left friendly deployment region.' };
+    }
+    const safe = this.battlefield.findNearestWalkable(worldX, worldY, 'friendly');
+    unit.x = safe.x;
+    unit.y = safe.y;
+    this._eventBus?.emit('battle:prepUpdated', { unit });
+    return { ok: true, x: safe.x, y: safe.y };
+  }
+
+  cyclePrepUnitClass(unitUid) {
+    if (this._phase !== BATTLE_PHASES.PREPARATION) {
+      return { ok: false, reason: 'Can only swap unit classes during Preparation.' };
+    }
+    const unit = this._units.getByUid(unitUid);
+    if (!unit || unit.side !== 'ally') return { ok: false };
+    const ownedMap = this._state.units?.owned;
+    const unitList = ownedMap
+      ? this._data.units.filter((u) => Boolean(ownedMap[u.id]))
+      : this._data.units;
+    if (unitList.length === 0) return { ok: false };
+    const curIdx = unitList.findIndex((u) => u.id === unit.unitId);
+    const nextDef = unitList[(curIdx + 1) % unitList.length];
+    if (!nextDef) return { ok: false };
+
+    const { x, y } = unit;
+    // Remove old prep unit and spawn replacement at same coordinates
+    const all = this._units.getAll();
+    const idx = all.findIndex((u) => u.uid === unit.uid);
+    if (idx >= 0) all.splice(idx, 1);
+
+    const { passive } = this._skills.getActiveCommanderSkills();
+    const replacement = this._units.spawnUnit({
+      unitId: nextDef.id,
+      side: 'ally',
+      x,
+      y,
+      level: this._getOwnedUnitLevel(nextDef.id),
+      tier: 1,
+      commanderPassive: passive,
+      restrictToRegion: true,
+    });
+    this._selectedPrepUnitUid = replacement?.uid || null;
+    this._audio?.playClick();
+    this._eventBus?.emit('battle:prepUpdated', { unit: replacement });
+    return { ok: true, unit: replacement };
+  }
+
+  /**
+   * Switches the active off-field Commander during Preparation phase and refreshes
+   * starting friendly units so the newly selected commander's passive takes immediate effect.
+   */
+  setPrepCommander(heroId) {
+    if (this._phase !== BATTLE_PHASES.PREPARATION) {
+      return { ok: false, reason: 'Commander can only be switched during Preparation.' };
+    }
+    if (!this._heroes?.isOwned(heroId)) {
+      return { ok: false, reason: 'Commander is not owned yet.' };
+    }
+    this._state.mutatePersistent('formation', (p) => {
+      p.formation.commanderId = heroId;
+    });
+
+    // Preserve exact unit positions and classes while re-applying new commander passive
+    const snapshot = this._units.getBySide('ally').map((u) => ({
+      unitId: u.unitId,
+      x: u.x,
+      y: u.y,
+    }));
+    this._units.clear();
+    const { passive } = this._skills.getActiveCommanderSkills();
+    for (const spec of snapshot) {
+      this._units.spawnUnit({
+        unitId: spec.unitId,
+        side: 'ally',
+        x: spec.x,
+        y: spec.y,
+        level: this._getOwnedUnitLevel(spec.unitId),
+        tier: 1,
+        commanderPassive: passive,
+        restrictToRegion: true,
+      });
+    }
+    this._selectedPrepUnitUid = null;
+    this._audio?.playClick();
+    this._eventBus?.emit('battle:prepUpdated', { commanderId: heroId });
+    return { ok: true, commanderId: heroId };
+  }
+
+  /**
+   * Starts active combat from Preparation phase.
+   */
+  beginBattle() {
+    if (this._phase !== BATTLE_PHASES.PREPARATION) {
+      return { ok: false, reason: 'Battle has already started.' };
+    }
+    this._selectedPrepUnitUid = null;
+    this.transitionPhase(BATTLE_PHASES.BATTLE_START);
+    this._state.setBattle({
+      bannerText: `Wave 1 · ${this._activeStage?.waves?.[0]?.label || 'Engage!'}`,
+    });
+    this._audio?.playWave();
+    this._audio?.setBgmMode?.('battle');
+    return { ok: true };
+  }
+
+  stopSession() {
+    if (this._rafId !== null && typeof cancelAnimationFrame === 'function') {
+      cancelAnimationFrame(this._rafId);
+      this._rafId = null;
+    }
+    this._renderer?.detach();
+    this._state.setBattle({
+      status: 'idle',
+      selectedCardSlot: -1,
+      bannerText: '',
+    });
+  }
+
+  handleResize() {
+    this._renderer?.resize();
+  }
+
+  togglePause() {
+    if (
+      this._phase !== BATTLE_PHASES.ACTIVE_COMBAT &&
+      this._phase !== BATTLE_PHASES.WAVE_TRANSITION &&
+      this._phase !== BATTLE_PHASES.BATTLE_START
+    ) {
+      return this._state.battle.status;
+    }
+    const next = this._state.battle.status === 'paused' ? 'running' : 'paused';
+    this._state.setBattle({ status: next });
+    this._audio?.playClick();
+    return next;
+  }
+
+  setPaused(paused) {
+    if (
+      this._phase !== BATTLE_PHASES.ACTIVE_COMBAT &&
+      this._phase !== BATTLE_PHASES.WAVE_TRANSITION &&
+      this._phase !== BATTLE_PHASES.BATTLE_START
+    ) {
+      return this._state.battle.status;
+    }
+    const next = paused ? 'paused' : 'running';
+    this._state.setBattle({ status: next });
+    return next;
+  }
+
+  cycleSpeed() {
+    const cur = this._state.battle.speedMultiplier || 1;
+    const idx = ALLOWED_SPEEDS.indexOf(cur);
+    const next = ALLOWED_SPEEDS[(idx + 1) % ALLOWED_SPEEDS.length];
+    this._state.setBattle({ speedMultiplier: next });
+    this._audio?.playClick();
+    return next;
+  }
+
+  toggleSpeed() {
+    return this.cycleSpeed();
+  }
+
+  setSpeed(speed) {
+    if (!ALLOWED_SPEEDS.includes(speed)) return this._state.battle.speedMultiplier;
+    this._state.setBattle({ speedMultiplier: speed });
+    return speed;
+  }
+
+  /**
+   * Handles 6-slot tactical card interactions:
+   * - Clicking an unselected occupied card selects it.
+   * - Clicking an adjacent identical card of same level (< Lv.III) merges them without spawning a unit.
+   * - Clicking the already-selected card plays/deploys it immediately.
+   */
+  interactWithCardSlot(slotIndex) {
+    if (
+      this._phase !== BATTLE_PHASES.ACTIVE_COMBAT &&
+      this._phase !== BATTLE_PHASES.WAVE_TRANSITION
+    ) {
+      return {
+        action: 'blocked',
+        ok: false,
+        reason:
+          this._phase === BATTLE_PHASES.PREPARATION
+            ? 'Press Start Battle before playing tactical cards.'
+            : 'Cards cannot be played after the battle has ended.',
+      };
+    }
+
+    const slots = this._cards.getSlots();
+    const clickedCard = slots[slotIndex];
+    const selected = this._state.battle.selectedCardSlot;
+
+    if (!clickedCard) {
+      this._state.setBattle({ selectedCardSlot: -1 });
+      return { action: 'empty', ok: false, reason: 'Empty card slot.' };
+    }
+
+    if (selected === -1) {
+      this._state.setBattle({ selectedCardSlot: slotIndex });
+      this._audio?.playCardSelect ? this._audio.playCardSelect() : this._audio?.playClick();
+      return { action: 'selected', ok: true, slotIndex };
+    }
+
+    if (selected === slotIndex) {
+      return { action: 'played', ...this.playCardSlot(slotIndex) };
+    }
+
+    if (this._cards.canMerge(selected, slotIndex)) {
+      const mergeRes = this._cards.mergeAdjacent(selected, slotIndex);
+      this._state.setBattle({
+        selectedCardSlot: -1,
+        remainingDeckCount: this._cards.getRemainingDeckCount(),
+      });
+      if (mergeRes.ok) {
+        this._audio?.playMerge(mergeRes.upgradedCard?.tier || 2);
+      }
+      return { action: 'merged', ...mergeRes };
+    }
+
+    // Switch selection to the newly clicked slot
+    this._state.setBattle({ selectedCardSlot: slotIndex });
+    this._audio?.playCardSelect ? this._audio.playCardSelect() : this._audio?.playClick();
+    return { action: 'selected', ok: true, slotIndex };
+  }
+
+  /**
+   * Plays a specific card slot, applying Unit / Skill / Tactic / Support effects.
+   */
+  playCardSlot(slotIndex, targetWorld = null) {
+    if (
+      this._phase !== BATTLE_PHASES.ACTIVE_COMBAT &&
+      this._phase !== BATTLE_PHASES.WAVE_TRANSITION
+    ) {
+      return { ok: false, reason: 'Cards can only be played during active combat.' };
+    }
+
+    const result = this._cards.playCard(slotIndex, { unitManager: this._units });
+    this._state.setBattle({
+      selectedCardSlot: -1,
+      remainingDeckCount: this._cards.getRemainingDeckCount(),
+    });
+
+    if (!result.ok) {
+      this._audio?.playInvalid?.();
+      return result;
+    }
+
+    const card = result.card;
+    const outcome = this._executeCardEffect(card, targetWorld);
+
+    this._syncCountersToState();
+    return { ok: true, card, outcome };
+  }
+
+  _executeCardEffect(card, targetWorld = null) {
+    const tierKey = String(card.tier || 1);
+
+    // 1. UNIT CARD — Spawns unit(s) inside the left friendly deployment region
+    if (card.category === CARD_CATEGORIES.UNIT) {
+      const { passive } = this._skills.getActiveCommanderSkills();
+      const count = card.spawnCount || 1;
+      const region = this.battlefield.regions.friendly;
+      const spawned = [];
+
+      for (let i = 0; i < count; i += 1) {
+        if (!this._units.canSpawn('ally').ok) break;
+        const baseX =
+          targetWorld && this.battlefield.isInsideFriendlyRegion(targetWorld.x, targetWorld.y)
+            ? targetWorld.x
+            : region.minX + 6 + Math.random() * Math.max(4, region.maxX - region.minX - 10);
+        const baseY =
+          targetWorld && this.battlefield.isInsideFriendlyRegion(targetWorld.x, targetWorld.y)
+            ? targetWorld.y + (i - (count - 1) * 0.5) * 6
+            : region.minY + 10 + Math.random() * Math.max(10, region.maxY - region.minY - 20);
+
+        const ownedLevel = this._getOwnedUnitLevel(card.unitId);
+        const unit = this._units.spawnUnit({
+          unitId: card.unitId,
+          side: 'ally',
+          x: baseX,
+          y: baseY,
+          level: ownedLevel + Math.max(0, (card.unitLevel || 1) - 1),
+          tier: card.tier,
+          statMultiplier: card.statMultiplier || 1,
+          commanderPassive: passive,
+          restrictToRegion: true,
+        });
+        if (unit) {
+          spawned.push(unit);
+          this._totalAlliesDeployed += 1;
+          this._anim?.spawnWorldEffect({
+            kind: 'deploy',
+            x: unit.x,
+            y: unit.y,
+            radius: 6 + card.tier * 1.5,
+            color: card.tier > 1 ? '#e2b75b' : '#38bdf8',
+            duration: 0.5,
+          });
+        }
+      }
+
+      this._audio?.playDeploy();
+      return { kind: 'unit_spawn', spawned };
+    }
+
+    const eff = card.effect || {};
+
+    // 2. SKILL CARD — Resolves real combat damage, healing, shields, or crowd control
+    if (card.category === CARD_CATEGORIES.SKILL) {
+      this._audio?.playSkill();
+      if (eff.kind === 'aoe_damage' || eff.kind === 'crowd_control') {
+        const enemies = this._units.getBySide('enemy');
+        const center = this._pickEnemyClusterCenter(enemies, targetWorld);
+        const radius = eff.radiusByTier?.[tierKey] ?? 18;
+        const damage = eff.damageByTier?.[tierKey] ?? 140;
+        const stunSec = eff.stunSecByTier?.[tierKey] ?? 0;
+        let hitCount = 0;
+
+        for (const enemy of enemies) {
+          if (Math.hypot(enemy.x - center.x, enemy.y - center.y) <= radius) {
+            const res = this._combat.applyDamage({
+              source: null,
+              target: enemy,
+              rawAttack: damage,
+              attackType: eff.attackType || 'magical',
+              critChance: 0.1,
+              unitManager: this._units,
+              skillSystem: this._skills,
+            });
+            if (res.applied) hitCount += 1;
+            if (eff.burnDamagePerSec && enemy.hp > 0 && enemy.state !== UNIT_STATES.DEAD) {
+              this._units.applyStatusEffect(enemy, {
+                id: `${card.cardId}_burn`,
+                type: 'burn',
+                value: Math.round(eff.burnDamagePerSec * (1 + (card.tier - 1) * 0.4)),
+                durationSec: eff.burnDurationSec || 3.5,
+              });
+            }
+            if (stunSec > 0 && enemy.hp > 0 && enemy.state !== UNIT_STATES.DEAD) {
+              this._units.applyStatusEffect(enemy, {
+                id: `${card.cardId}_stun`,
+                type: 'stun',
+                value: 1,
+                durationSec: stunSec,
+              });
+            }
+          }
+        }
+
+        this._anim?.spawnWorldEffect({
+          kind: 'ring',
+          x: center.x,
+          y: center.y,
+          radius,
+          color: eff.color || '#38bdf8',
+          duration: 0.7,
+        });
+        this._anim?.triggerScreenShake(5, 0.28);
+        return { kind: eff.kind, center, radius, hitCount };
+      }
+
+      if (eff.kind === 'single_nuke') {
+        const enemies = this._units.getBySide('enemy');
+        const target =
+          enemies.find((e) => e.isBoss) ||
+          enemies.find((e) => e.isElite) ||
+          [...enemies].sort((a, b) => b.maxHp + b.attack * 3 - (a.maxHp + a.attack * 3))[0] ||
+          null;
+        if (target) {
+          const damage = eff.damageByTier?.[tierKey] ?? 280;
+          const res = this._combat.applyDamage({
+            source: null,
+            target,
+            rawAttack: damage,
+            attackType: eff.attackType || 'physical',
+            armorPierce: eff.armorPierce ?? 0.55,
+            critChance: 0.15,
+            unitManager: this._units,
+            skillSystem: this._skills,
+          });
+          const shred = eff.defenseShredByTier?.[tierKey] ?? 0.2;
+          if (shred > 0 && target.hp > 0 && target.state !== UNIT_STATES.DEAD) {
+            this._units.applyStatusEffect(target, {
+              id: `${card.cardId}_shred`,
+              type: 'debuff_defense',
+              value: shred,
+              durationSec: eff.shredDurationSec || 5.0,
+            });
+          }
+          this._anim?.spawnWorldEffect({
+            kind: 'lance',
+            x: target.x,
+            y: target.y,
+            radius: 12,
+            color: eff.color || '#f97316',
+            duration: 0.65,
+          });
+          this._spawnWorldParticles(target.x, target.y, eff.color || '#f97316', 12, 'burst');
+          this._anim?.triggerScreenShake(6, 0.28);
+          return { kind: 'single_nuke', targetUid: target.uid, damage: res.amount };
+        }
+        return { kind: 'single_nuke', targetUid: null, damage: 0 };
+      }
+
+      if (eff.kind === 'aoe_debuff') {
+        const enemies = this._units.getBySide('enemy');
+        const center = this._pickEnemyClusterCenter(enemies, targetWorld);
+        const radius = eff.radiusByTier?.[tierKey] ?? 22;
+        const damage = eff.damageByTier?.[tierKey] ?? 95;
+        const slow = eff.slowByTier?.[tierKey] ?? 0.35;
+        const shred = eff.defenseShredByTier?.[tierKey] ?? 0.22;
+        const durationSec = eff.durationSecByTier?.[tierKey] ?? 5.5;
+        let hitCount = 0;
+
+        for (const enemy of enemies) {
+          if (Math.hypot(enemy.x - center.x, enemy.y - center.y) <= radius) {
+            const res = this._combat.applyDamage({
+              source: null,
+              target: enemy,
+              rawAttack: damage,
+              attackType: eff.attackType || 'magical',
+              critChance: 0.05,
+              unitManager: this._units,
+              skillSystem: this._skills,
+            });
+            if (res.applied) hitCount += 1;
+            if (enemy.hp > 0 && enemy.state !== UNIT_STATES.DEAD) {
+              if (slow > 0) {
+                this._units.applyStatusEffect(enemy, {
+                  id: `${card.cardId}_slow`,
+                  type: 'debuff_slow',
+                  value: slow,
+                  durationSec,
+                });
+              }
+              if (shred > 0) {
+                this._units.applyStatusEffect(enemy, {
+                  id: `${card.cardId}_shred`,
+                  type: 'debuff_defense',
+                  value: shred,
+                  durationSec,
+                });
+              }
+            }
+          }
+        }
+        this._anim?.spawnWorldEffect({
+          kind: 'ring',
+          x: center.x,
+          y: center.y,
+          radius,
+          color: eff.color || '#818cf8',
+          duration: 0.75,
+        });
+        return { kind: 'aoe_debuff', center, radius, hitCount };
+      }
+
+      if (eff.kind === 'chain_damage') {
+        const enemies = this._units.getBySide('enemy');
+        const maxTargets = eff.targetsByTier?.[tierKey] ?? 3;
+        const damage = eff.damageByTier?.[tierKey] ?? 165;
+        const atkDebuff = eff.attackDebuffByTier?.[tierKey] ?? 0.15;
+        const sorted = [...enemies].sort((a, b) => {
+          const scoreA = (a.isBoss ? 500 : a.isElite ? 200 : 0) + a.attack;
+          const scoreB = (b.isBoss ? 500 : b.isElite ? 200 : 0) + b.attack;
+          return scoreB - scoreA;
+        });
+        const targets = sorted.slice(0, maxTargets);
+        let hitCount = 0;
+        for (const enemy of targets) {
+          const res = this._combat.applyDamage({
+            source: null,
+            target: enemy,
+            rawAttack: damage,
+            attackType: eff.attackType || 'magical',
+            critChance: 0.12,
+            unitManager: this._units,
+            skillSystem: this._skills,
+          });
+          if (res.applied) hitCount += 1;
+          if (atkDebuff > 0 && enemy.hp > 0 && enemy.state !== UNIT_STATES.DEAD) {
+            this._units.applyStatusEffect(enemy, {
+              id: `${card.cardId}_atkdebuff`,
+              type: 'debuff_attack',
+              value: atkDebuff,
+              durationSec: eff.durationSec || 4.5,
+            });
+          }
+          this._anim?.spawnWorldEffect({
+            kind: 'ring',
+            x: enemy.x,
+            y: enemy.y,
+            radius: 7,
+            color: eff.color || '#22d3ee',
+            duration: 0.5,
+          });
+          this._spawnWorldParticles(enemy.x, enemy.y, eff.color || '#22d3ee', 6, 'burst');
+        }
+        for (let i = 0; i < targets.length - 1; i += 1) {
+          this._anim?.spawnWorldEffect({
+            kind: 'lightning',
+            x: targets[i].x,
+            y: targets[i].y,
+            x2: targets[i + 1].x,
+            y2: targets[i + 1].y,
+            color: eff.color || '#22d3ee',
+            duration: 0.42,
+          });
+        }
+        return { kind: 'chain_damage', hitCount };
+      }
+
+      if (eff.kind === 'group_heal') {
+        const allies = this._units.getBySide('ally');
+        const healAmt = eff.healByTier?.[tierKey] ?? 135;
+        const shieldAmt = eff.shieldByTier?.[tierKey] ?? 45;
+        let healedCount = 0;
+        for (const ally of allies) {
+          const res = this._combat.applyHeal({
+            source: null,
+            target: ally,
+            rawHeal: healAmt,
+            skillSystem: this._skills,
+          });
+          if (res.applied) healedCount += 1;
+          if (shieldAmt > 0) {
+            this._units.applyStatusEffect(ally, {
+              id: `${card.cardId}_shd`,
+              type: 'shield',
+              value: shieldAmt,
+              durationSec: eff.durationSec || 6,
+            });
+          }
+        }
+        this._anim?.spawnWorldEffect({
+          kind: 'heal_wave',
+          x: 38,
+          y: 50,
+          radius: 38,
+          color: eff.color || '#34d399',
+          duration: 0.75,
+        });
+        return { kind: 'group_heal', healedCount };
+      }
+    }
+
+    // 3. TACTIC CARD — Alters friendly army tactical behavior & applies army buffs
+    if (card.category === CARD_CATEGORIES.TACTIC) {
+      this._audio?.playSkill();
+      const durationSec = eff.durationSecByTier?.[tierKey] ?? 7;
+      const allies = this._units.getBySide('ally');
+      let markedTargetUid = null;
+
+      if (eff.tacticMode === 'full_assault') {
+        const atkBonus = eff.attackBonusByTier?.[tierKey] ?? 0.25;
+        const spdBonus = eff.speedBonusByTier?.[tierKey] ?? 0.22;
+        for (const ally of allies) {
+          this._units.applyStatusEffect(ally, {
+            id: 'tactic_assault_atk',
+            type: 'buff_attack',
+            value: atkBonus,
+            durationSec,
+          });
+          this._units.applyStatusEffect(ally, {
+            id: 'tactic_assault_spd',
+            type: 'buff_speed',
+            value: spdBonus,
+            durationSec,
+          });
+        }
+      } else if (eff.tacticMode === 'focus_fire') {
+        const enemies = this._units.getBySide('enemy');
+        const primary =
+          enemies.find((e) => e.isBoss) ||
+          enemies.find((e) => e.isElite) ||
+          [...enemies].sort((a, b) => b.attack - a.attack)[0] ||
+          null;
+        if (primary) {
+          markedTargetUid = primary.uid;
+          const defRed = eff.defenseReductionByTier?.[tierKey] ?? 0.22;
+          this._units.applyStatusEffect(primary, {
+            id: 'tactic_focus_mark',
+            type: 'mark',
+            value: 1,
+            durationSec,
+          });
+          this._units.applyStatusEffect(primary, {
+            id: 'tactic_focus_shred',
+            type: 'debuff_defense',
+            value: defRed,
+            durationSec,
+          });
+          this._anim?.spawnWorldEffect({
+            kind: 'ring',
+            x: primary.x,
+            y: primary.y,
+            radius: 10,
+            color: '#f87171',
+            duration: 0.65,
+          });
+        }
+        const atkBonus = eff.attackBonusByTier?.[tierKey] ?? 0.15;
+        for (const ally of allies) {
+          this._units.applyStatusEffect(ally, {
+            id: 'tactic_focus_atk',
+            type: 'buff_attack',
+            value: atkBonus,
+            durationSec,
+          });
+        }
+      } else if (eff.tacticMode === 'emergency_defense') {
+        const defBonus = eff.defenseBonusByTier?.[tierKey] ?? 0.35;
+        const shieldAmt = eff.shieldByTier?.[tierKey] ?? 90;
+        for (const ally of allies) {
+          this._units.applyStatusEffect(ally, {
+            id: 'tactic_def_boost',
+            type: 'buff_defense',
+            value: defBonus,
+            durationSec,
+          });
+          this._units.applyStatusEffect(ally, {
+            id: 'tactic_def_shield',
+            type: 'shield',
+            value: shieldAmt,
+            durationSec,
+          });
+        }
+      } else if (eff.tacticMode === 'flank_maneuver') {
+        const spdBonus = eff.speedBonusByTier?.[tierKey] ?? 0.32;
+        const atkBonus = eff.attackBonusByTier?.[tierKey] ?? 0.16;
+        for (const ally of allies) {
+          this._units.applyStatusEffect(ally, {
+            id: 'tactic_flank_spd',
+            type: 'buff_speed',
+            value: spdBonus,
+            durationSec,
+          });
+          this._units.applyStatusEffect(ally, {
+            id: 'tactic_flank_atk',
+            type: 'buff_attack',
+            value: atkBonus,
+            durationSec,
+          });
+        }
+      } else if (eff.tacticMode === 'siege_formation') {
+        const atkBonus = eff.attackBonusByTier?.[tierKey] ?? 0.22;
+        const pierceBonus = eff.armorPierceBonusByTier?.[tierKey] ?? 0.25;
+        for (const ally of allies) {
+          this._units.applyStatusEffect(ally, {
+            id: 'tactic_siege_atk',
+            type: 'buff_attack',
+            value: atkBonus,
+            durationSec,
+          });
+          this._units.applyStatusEffect(ally, {
+            id: 'tactic_siege_pierce',
+            type: 'buff_armor_pierce',
+            value: pierceBonus,
+            durationSec,
+          });
+        }
+      } else if (eff.tacticMode === 'suppressive_volley') {
+        const atkSpdBonus = eff.attackSpeedBonusByTier?.[tierKey] ?? 0.24;
+        const enemySlow = eff.enemySlowByTier?.[tierKey] ?? 0.25;
+        for (const ally of allies) {
+          this._units.applyStatusEffect(ally, {
+            id: 'tactic_suppress_aspd',
+            type: 'buff_attack_speed',
+            value: atkSpdBonus,
+            durationSec,
+          });
+        }
+        const enemies = this._units.getBySide('enemy');
+        for (const enemy of enemies) {
+          this._units.applyStatusEffect(enemy, {
+            id: 'tactic_suppress_slow',
+            type: 'debuff_slow',
+            value: enemySlow,
+            durationSec,
+          });
+        }
+      }
+
+      this._activeTactic = {
+        mode: eff.tacticMode,
+        name: card.name,
+        remaining: durationSec,
+        duration: durationSec,
+        markedTargetUid,
+        color: eff.color || '#f59e0b',
+      };
+      this._anim?.spawnWorldEffect({
+        kind: 'tactic_pulse',
+        x: 34,
+        y: 50,
+        radius: 36,
+        color: eff.color || '#f59e0b',
+        duration: 0.72,
+      });
+      this._state.setBattle({ activeTactic: { ...this._activeTactic } });
+      return { kind: 'tactic', tactic: this._activeTactic };
+    }
+
+    // 4. SUPPORT CARD — Persistent/timed buffs, shields, healing enhancement, cleanse, haste, energy/ultimate recovery
+    if (card.category === CARD_CATEGORIES.SUPPORT) {
+      this._audio?.playHeal();
+      const allies = this._units.getBySide('ally');
+      const durationSec = eff.durationSecByTier?.[tierKey] ?? 9;
+
+      if (eff.kind === 'support_buff') {
+        const defBonus = eff.defenseBonusByTier?.[tierKey] ?? 0.28;
+        const shieldAmt = eff.shieldByTier?.[tierKey] ?? 120;
+        for (const ally of allies) {
+          this._units.applyStatusEffect(ally, {
+            id: `${card.cardId}_def`,
+            type: 'buff_defense',
+            value: defBonus,
+            durationSec,
+          });
+          this._units.applyStatusEffect(ally, {
+            id: `${card.cardId}_shd`,
+            type: 'shield',
+            value: shieldAmt,
+            durationSec,
+          });
+        }
+        return { kind: 'support_buff', affected: allies.length };
+      }
+
+      if (eff.kind === 'energy_and_buff') {
+        const gain = eff.energyGainByTier?.[tierKey] ?? 28;
+        const atkBonus = eff.attackBonusByTier?.[tierKey] ?? 0.14;
+        const nextEnergy = Math.min(
+          this._state.battle.maxEnergy,
+          this._state.battle.energy + gain,
+        );
+        this._state.setBattle({ energy: nextEnergy, dp: nextEnergy });
+        for (const ally of allies) {
+          this._units.applyStatusEffect(ally, {
+            id: `${card.cardId}_atk`,
+            type: 'buff_attack',
+            value: atkBonus,
+            durationSec,
+          });
+        }
+        return { kind: 'energy_and_buff', energyGained: gain, affected: allies.length };
+      }
+
+      if (eff.kind === 'heal_enhancement') {
+        const healBonus = eff.healBonusByTier?.[tierKey] ?? 0.35;
+        const instantHeal = eff.instantHealByTier?.[tierKey] ?? 70;
+        for (const ally of allies) {
+          this._units.applyStatusEffect(ally, {
+            id: `${card.cardId}_heal`,
+            type: 'buff_heal',
+            value: healBonus,
+            durationSec,
+          });
+          this._combat.applyHeal({
+            source: null,
+            target: ally,
+            rawHeal: instantHeal,
+            skillSystem: this._skills,
+          });
+        }
+        return { kind: 'heal_enhancement', affected: allies.length };
+      }
+
+      if (eff.kind === 'ultimate_charge') {
+        const ultGain = eff.ultimateGainByTier?.[tierKey] ?? 26;
+        const atkBonus = eff.attackBonusByTier?.[tierKey] ?? 0.12;
+        this._skills.addUltimateEnergy(ultGain);
+        for (const ally of allies) {
+          this._units.applyStatusEffect(ally, {
+            id: `${card.cardId}_atk`,
+            type: 'buff_attack',
+            value: atkBonus,
+            durationSec,
+          });
+        }
+        return { kind: 'ultimate_charge', ultimateGained: ultGain, affected: allies.length };
+      }
+
+      if (eff.kind === 'cleanse_and_ward') {
+        const instantHeal = eff.instantHealByTier?.[tierKey] ?? 65;
+        const shieldAmt = eff.shieldByTier?.[tierKey] ?? 60;
+        let cleansedTotal = 0;
+        for (const ally of allies) {
+          cleansedTotal += this._units.cleanseDebuffs(ally);
+          this._combat.applyHeal({
+            source: null,
+            target: ally,
+            rawHeal: instantHeal,
+            skillSystem: this._skills,
+          });
+          this._units.applyStatusEffect(ally, {
+            id: `${card.cardId}_shd`,
+            type: 'shield',
+            value: shieldAmt,
+            durationSec,
+          });
+        }
+        this._anim?.spawnWorldEffect({
+          kind: 'heal_wave',
+          x: 38,
+          y: 50,
+          radius: 36,
+          color: eff.color || '#34d399',
+          duration: 0.65,
+        });
+        return { kind: 'cleanse_and_ward', affected: allies.length, cleansedTotal };
+      }
+
+      if (eff.kind === 'haste_buff') {
+        const atkSpdBonus = eff.attackSpeedBonusByTier?.[tierKey] ?? 0.26;
+        const spdBonus = eff.speedBonusByTier?.[tierKey] ?? 0.18;
+        for (const ally of allies) {
+          this._units.applyStatusEffect(ally, {
+            id: `${card.cardId}_aspd`,
+            type: 'buff_attack_speed',
+            value: atkSpdBonus,
+            durationSec,
+          });
+          this._units.applyStatusEffect(ally, {
+            id: `${card.cardId}_spd`,
+            type: 'buff_speed',
+            value: spdBonus,
+            durationSec,
+          });
+        }
+        return { kind: 'haste_buff', affected: allies.length };
+      }
+    }
+
+    return { kind: 'none' };
+  }
+
+  _pickEnemyClusterCenter(enemies, preferredPoint = null) {
+    if (preferredPoint && preferredPoint.x >= 2 && preferredPoint.x <= 98 && preferredPoint.y >= 2 && preferredPoint.y <= 98) {
+      return preferredPoint;
+    }
+    if (!enemies || enemies.length === 0) return { x: 64, y: 50 };
+    // Pick enemy with most nearby neighbors (or boss)
+    let best = enemies[0];
+    let bestNeighbors = -1;
+    for (const candidate of enemies) {
+      let count = candidate.isBoss ? 2 : 0;
+      for (const other of enemies) {
+        if (Math.hypot(other.x - candidate.x, other.y - candidate.y) <= 18) count += 1;
+      }
+      if (count > bestNeighbors) {
+        bestNeighbors = count;
+        best = candidate;
+      }
+    }
+    return { x: best.x, y: best.y };
+  }
+
+  triggerUltimate() {
+    if (
+      this._phase !== BATTLE_PHASES.ACTIVE_COMBAT &&
+      this._phase !== BATTLE_PHASES.WAVE_TRANSITION
+    ) {
+      return { ok: false, reason: 'Ultimate can only be activated during active combat.' };
+    }
+    const res = this._skills.activateUltimate({
+      unitManager: this._units,
+      combatSystem: this._combat,
+    });
+    if (res.ok) {
+      this._combat._stats.ultimatesUsed += 1;
+      const ultColor = res.skill?.effect?.color || '#e2b75b';
+      const cmdId = res.commander?.id || 'astra';
+      const fxKind =
+        cmdId === 'kael'
+          ? 'tempest'
+          : cmdId === 'lyra'
+            ? 'sanctuary'
+            : cmdId === 'seraphina'
+              ? 'volley'
+              : cmdId === 'vanguard_zero'
+                ? 'bastion'
+                : 'starfall';
+
+      this._anim?.triggerScreenShake(9, 0.5);
+      this._anim?.triggerScreenFlash(ultColor, 0.42, 0.25);
+      this._anim?.spawnWorldEffect({
+        kind: fxKind,
+        x: 50,
+        y: 50,
+        radius: 50,
+        color: ultColor,
+        secondaryColor: cmdId === 'astra' ? '#ffffff' : '#edf2fa',
+        duration: 1.25,
+      });
+      if (this._renderer && this._particles) {
+        const { width, height } = this._renderer.getDimensions();
+        this._particles.spawnBurst(width * 0.5, height * 0.45, ultColor, 26, { speedScale: 1.35 });
+      }
+      this._audio?.playUltimate();
+      this._syncCountersToState();
+    }
+    return res;
+  }
+
+  /**
+   * Executes one deterministic fixed simulation step of `dt` seconds.
+   * Exposed publicly so integration tests can advance full battles reliably.
+   */
+  stepSimulation(dt) {
+    if (this._state.battle.status === 'paused') return;
+    if (
+      this._phase === BATTLE_PHASES.PREPARATION ||
+      this._phase === BATTLE_PHASES.VICTORY ||
+      this._phase === BATTLE_PHASES.DEFEAT ||
+      this._phase === BATTLE_PHASES.RESULTS
+    ) {
+      this._anim?.update(dt);
+      return;
+    }
+
+    this._phaseTimer += dt;
+    this._anim?.update(dt);
+    this._targeting.tick(dt);
+
+    // Phase: BATTLE_START brief tactical intro -> spawns Wave 1
+    if (this._phase === BATTLE_PHASES.BATTLE_START) {
+      const startDur = this._data?.balance?.combat?.battleStartDurationSec ?? 0.85;
+      if (this._phaseTimer >= startDur) {
+        this._waves.spawnInitialWave(this._units, this.battlefield);
+        this.transitionPhase(BATTLE_PHASES.ACTIVE_COMBAT);
+        this._state.setBattle({
+          bannerText: '',
+          waveIndex: this._waves.getCurrentWave(),
+          waveLabel: this._waves.getCurrentWaveConfig()?.label || 'Wave 1',
+          isBossWave: Boolean(this._waves.getCurrentWaveConfig()?.boss),
+        });
+        this._syncCountersToState();
+      }
+      return;
+    }
+
+    // Active Combat & Wave Transition simulation
+    const nextElapsed = (this._state.battle.elapsedSec || 0) + dt;
+    this._combat.setElapsedTime(nextElapsed);
+
+    // 1. Command Energy regeneration (continues between waves!)
+    const energyCfg = this._data?.balance?.commandEnergy || { max: 100, regenPerSecond: 4.2 };
+    const regenRate = energyCfg.regenPerSecond * this._skills.getCommandEnergyRegenMultiplier();
+    const curEnergy = this._state.battle.energy ?? 0;
+    const nextEnergy = Math.min(energyCfg.max, curEnergy + regenRate * dt);
+
+    // 2. Card cooldowns
+    this._cards.updateCooldowns(dt);
+
+    // 3. Active tactic timer
+    if (this._activeTactic) {
+      this._activeTactic.remaining -= dt;
+      if (this._activeTactic.remaining <= 0) {
+        this._activeTactic = null;
+      }
+    }
+
+    // 4. Unit status effect timers, Burn DoT & Elite Regenerative Core
+    this._units.updateTimers(
+      dt,
+      (victim, burnEffect) => {
+        this._combat.applyDamage({
+          source: null,
+          target: victim,
+          rawAttack: burnEffect.value,
+          attackType: 'magical',
+          unitManager: this._units,
+          skillSystem: this._skills,
+          bypassMitigation: true,
+        });
+      },
+      (regenUnit, amount) => {
+        this._combat.applyHeal({
+          source: regenUnit,
+          target: regenUnit,
+          rawHeal: amount,
+          skillSystem: null,
+        });
+      },
+    );
+
+    // 5. Wave spawning & wave transitions
+    const waveUpdate = this._waves.update(dt, this._units, this.battlefield);
+    if (waveUpdate.phaseHint === 'wave_transition' && this._phase === BATTLE_PHASES.ACTIVE_COMBAT) {
+      this.transitionPhase(BATTLE_PHASES.WAVE_TRANSITION);
+      const nextWaveCfg = this._waves.getNextWaveConfig();
+      const nextNum = this._waves.getCurrentWave() + 1;
+      const isBossNext = Boolean(nextWaveCfg?.boss || nextWaveCfg?.isBossWave);
+      this._state.setBattle({
+        bannerText: isBossNext
+          ? `WARNING · Wave ${nextNum} Boss Incoming!`
+          : `Wave ${nextNum} Incoming · ${nextWaveCfg?.label || 'Reinforcements'}`,
+      });
+      this._audio?.playWave();
+    } else if (
+      waveUpdate.phaseHint === 'active_combat' &&
+      this._phase === BATTLE_PHASES.WAVE_TRANSITION
+    ) {
+      this.transitionPhase(BATTLE_PHASES.ACTIVE_COMBAT);
+      const curCfg = this._waves.getCurrentWaveConfig();
+      this._state.setBattle({
+        bannerText: curCfg?.boss ? `BOSS ENGAGED · ${curCfg.label}` : '',
+        waveIndex: this._waves.getCurrentWave(),
+        waveLabel: curCfg?.label || `Wave ${this._waves.getCurrentWave()}`,
+        isBossWave: Boolean(curCfg?.boss || curCfg?.isBossWave),
+      });
+    }
+
+    // 6. Movement, Pathfinding, Collision Separation & Targeting
+    this._movement.update(dt, this._units, this._targeting, this._activeTactic);
+
+    // 7. Combat resolution (melee, ranged launches, healing, boss abilities)
+    this._combat.update(dt, {
+      unitManager: this._units,
+      projectileSystem: this._projectiles,
+      skillSystem: this._skills,
+    });
+
+    // 8. Projectiles flight & impact
+    this._projectiles.update(dt, {
+      unitManager: this._units,
+      combatSystem: this._combat,
+      skillSystem: this._skills,
+    });
+
+    // 9. Sync live HUD telemetry
+    this._syncCountersToState({
+      elapsedSec: nextElapsed,
+      energy: nextEnergy,
+      dp: nextEnergy,
+      activeTactic: this._activeTactic ? { ...this._activeTactic } : null,
+    });
+
+    // 10. Mutually exclusive Victory & Defeat evaluation
+    this._evaluateBattleOutcome();
+  }
+
+  _syncCountersToState(extraPatch = {}) {
+    const boss = this._units.getActiveBoss();
+    const bossInfo = boss
+      ? {
+          name: boss.name,
+          displayNameZh: boss.displayNameZh,
+          hp: Math.max(0, Math.round(boss.hp)),
+          maxHp: boss.maxHp,
+          shield: Math.round(boss.shield || 0),
+          castingName: boss.castingAbility?.ability?.name || null,
+        }
+      : null;
+
+    this._state.setBattle({
+      friendlyCount: this._units.getActiveCount('ally'),
+      enemyCount: this._units.getActiveCount('enemy'),
+      waveIndex: this._waves.getCurrentWave(),
+      remainingDeckCount: this._cards.getRemainingDeckCount(),
+      bossInfo,
+      ...extraPatch,
+    });
+  }
+
+  _evaluateBattleOutcome() {
+    if (
+      this._phase !== BATTLE_PHASES.ACTIVE_COMBAT &&
+      this._phase !== BATTLE_PHASES.WAVE_TRANSITION
+    ) {
+      return;
+    }
+
+    const activeAllies = this._units.getActiveCount('ally');
+    const activeEnemies = this._units.getActiveCount('enemy');
+
+    // VICTORY: All waves spawned, no pending spawns, all enemies & boss defeated
+    const allSpawned = this._waves.allWavesSpawned();
+    const bossCleared = !this._waves.stageHasBoss() || (this._waves.isBossSpawned() && !this._units.getActiveBoss());
+    if (allSpawned && activeEnemies === 0 && bossCleared) {
+      this._finalizeBattle(true);
+      return;
+    }
+
+    // DEFEAT: All friendly units defeated AND no valid reinforcement unit card remains in hand or deck
+    // Deck exhaustion alone NEVER causes defeat while friendly units are still fighting!
+    if (activeAllies === 0 && !this._cards.hasRemainingUnitCards()) {
+      this._finalizeBattle(false);
+    }
+  }
+
+  _finalizeBattle(victory) {
+    if (this._rewardsApplied) return;
+    this._rewardsApplied = true;
+
+    this.transitionPhase(victory ? BATTLE_PHASES.VICTORY : BATTLE_PHASES.DEFEAT);
+
+    const stats = this._combat.getStats();
+    const durationSec = Math.max(1, Math.round(this._state.battle.elapsedSec || 0));
+    const survivors = this._units.getActiveCount('ally');
+    const deployedTotal = Math.max(1, this._totalAlliesDeployed);
+    const survivorRatio = survivors / deployedTotal;
+
+    const rating = this._progression.computeStageRating({
+      victory,
+      survivorRatio,
+      durationSec,
+    });
+
+    const outcomeRes = this._progression.recordBattleOutcome({
+      sessionId: this._sessionId,
+      stageId: this._activeStage?.id || 'stage_1_1',
+      victory,
+      rating,
+      enemiesDefeated: stats.enemiesDefeated,
+      economySystem: this._economy,
+      heroSystem: this._heroes,
+    });
+
+    const resultsPayload = {
+      sessionId: this._sessionId,
+      stageId: this._activeStage?.id || 'stage_1_1',
+      stageCode: this._activeStage?.code || '1-1',
+      stageName: this._activeStage?.name || 'Stage',
+      victory,
+      rating,
+      durationSec,
+      enemiesDefeated: stats.enemiesDefeated,
+      friendlySurvivors: survivors,
+      totalAlliesDeployed: deployedTotal,
+      damageDealt: stats.damageDealt,
+      damageReceived: stats.damageReceived,
+      healingPerformed: stats.healingPerformed,
+      criticalHits: stats.criticalHits,
+      ultimatesUsed: stats.ultimatesUsed,
+      rewards: outcomeRes.rewards || {
+        credits: 0,
+        astrite: 0,
+        playerXp: 0,
+        heroXp: 0,
+        unitXp: 0,
+        materials: [],
+        bonusCards: [],
+        bonusUnits: [],
+      },
+      isFirstClear: Boolean(outcomeRes.isFirstClear),
+      nextStageId: victory ? this._progression.getNextStageId(this._activeStage?.id) : null,
+    };
+
+    this._audio?.setBgmMode?.('menu');
+    if (victory) this._audio?.playVictory();
+    else this._audio?.playDefeat();
+
+    this.transitionPhase(BATTLE_PHASES.RESULTS);
+    this._state.setBattle({
+      bannerText: '',
+      results: resultsPayload,
+    });
+    this._eventBus?.emit('battle:completed', resultsPayload);
+  }
+
+  _loop(timestamp) {
+    this._rafId = requestAnimationFrame((ts) => this._loop(ts));
+    const rawDt = Math.min(0.05, Math.max(0, (timestamp - this._lastTimestamp) / 1000));
+    this._lastTimestamp = timestamp;
+
+    const dims = this._renderer?.getDimensions() || { width: 1200, height: 500 };
+
+    if (this._state.battle.status === 'running') {
+      const scaledDt = rawDt * (this._state.battle.speedMultiplier || 1);
+      this._accumulator = Math.min(0.25, this._accumulator + scaledDt);
+      while (this._accumulator >= FIXED_DT) {
+        this.stepSimulation(FIXED_DT);
+        this._accumulator -= FIXED_DT;
+      }
+      this._particles?.update(rawDt, dims.width, dims.height);
+    } else if (this._phase === BATTLE_PHASES.PREPARATION) {
+      this._anim?.update(rawDt);
+      this._particles?.update(rawDt, dims.width, dims.height);
+    }
+
+    this._renderer?.render({
+      stage: this._activeStage,
+      battlefield: this.battlefield,
+      phase: this._phase,
+      units: this._units.getAll(),
+      projectiles: this._projectiles.getAll(),
+      telegraphs: this._combat.getTelegraphs(),
+      selectedPrepUnitUid: this._selectedPrepUnitUid,
+      activeTactic: this._activeTactic,
+    });
+  }
+}

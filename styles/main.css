@@ -1,0 +1,259 @@
+/* ==========================================================================
+   Astral Command — Design Tokens & Base Typography (P4 Structural Redesign)
+   60% Deep Orbital Navy · 30% Structural Slate · 10% Electric Blue & Celestial Gold
+   ========================================================================== */
+
+:root {
+  /* Dominant Canvas (60%) */
+  --bg-canvas: #060b16;
+  --bg-elevated: #0b1325;
+  --bg-deep: #040710;
+
+  /* Structural Surfaces (30%) */
+  --surface-1: #0f1a30;
+  --surface-2: #152340;
+  --surface-3: #1c2e52;
+  --surface-hover: #21365e;
+  --surface-glass: rgba(10, 17, 34, 0.84);
+  --surface-glass-strong: rgba(8, 14, 28, 0.92);
+  --border-subtle: rgba(148, 179, 214, 0.14);
+  --border-strong: rgba(148, 179, 214, 0.3);
+  --border-luminous: rgba(248, 250, 252, 0.22);
+
+  /* Focal Accents (10%) */
+  --accent-blue: #38bdf8;
+  --accent-blue-bright: #7dd3fc;
+  --accent-blue-strong: #0ea5e9;
+  --accent-blue-soft: rgba(56, 189, 248, 0.14);
+
+  /* Celestial Gold & Ivory Identity */
+  --accent-gold: #e6be64;
+  --accent-gold-bright: #f7dc94;
+  --accent-gold-soft: rgba(230, 190, 100, 0.16);
+  --celestial-ivory: #f8fafc;
+  --celestial-rim: rgba(247, 220, 148, 0.5);
+
+  /* Category Accents */
+  --cat-unit: #38bdf8;
+  --cat-skill: #a78bfa;
+  --cat-tactic: #f59e0b;
+  --cat-support: #34d399;
+
+  /* Semantic States */
+  --state-ally: #34d399;
+  --state-enemy: #f87171;
+  --state-warn: #fbbf24;
+  --state-danger: #ef4444;
+
+  /* Rarity Tokens */
+  --rarity-ssr: #e6be64;
+  --rarity-ssr-glow: rgba(230, 190, 100, 0.32);
+  --rarity-sr: #a78bfa;
+  --rarity-sr-glow: rgba(167, 139, 250, 0.26);
+  --rarity-r: #38bdf8;
+  --rarity-r-glow: rgba(56, 189, 248, 0.22);
+
+  /* Default Hero Theme (overridden by .theme-* classes) */
+  --hero-accent: #e6be64;
+  --hero-secondary: #f8fafc;
+  --hero-glow: rgba(230, 190, 100, 0.22);
+
+  /* Typography */
+  --font-display: 'Outfit', system-ui, -apple-system, sans-serif;
+  --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+  --text-primary: #eef4fc;
+  --text-secondary: #a2b4ce;
+  --text-muted: #6f84a2;
+  --text-inverse: #060b16;
+
+  /* Elevation & Shadows */
+  --shadow-panel: 0 10px 28px rgba(2, 6, 16, 0.38);
+  --shadow-elevated: 0 16px 40px rgba(2, 6, 16, 0.58);
+  --shadow-gold: 0 0 24px rgba(230, 190, 100, 0.24);
+  --shadow-blue: 0 0 22px rgba(56, 189, 248, 0.22);
+
+  /* Radii & Spacing */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Motion */
+  --ease-tactical: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-snap: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast: 140ms;
+  --duration-base: 190ms;
+  --duration-reveal: 320ms;
+
+  /* Layout Metrics */
+  --topbar-height: 54px;
+  --content-max-width: 1560px;
+}
+
+/* Individual Commander Theme Overrides */
+.theme-astra {
+  --hero-accent: #e6be64;
+  --hero-secondary: #f8fafc;
+  --hero-glow: rgba(230, 190, 100, 0.24);
+}
+
+.theme-kael {
+  --hero-accent: #38bdf8;
+  --hero-secondary: #a78bfa;
+  --hero-glow: rgba(56, 189, 248, 0.24);
+}
+
+.theme-lyra {
+  --hero-accent: #34d399;
+  --hero-secondary: #d1fae5;
+  --hero-glow: rgba(52, 211, 153, 0.22);
+}
+
+.theme-seraphina {
+  --hero-accent: #a78bfa;
+  --hero-secondary: #e6be64;
+  --hero-glow: rgba(167, 139, 250, 0.24);
+}
+
+.theme-vanguard_zero {
+  --hero-accent: #60a5fa;
+  --hero-secondary: #fbbf24;
+  --hero-glow: rgba(96, 165, 250, 0.24);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 14.5px;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-image:
+    radial-gradient(ellipse 70% 42% at 50% -10%, rgba(56, 189, 248, 0.12), transparent 62%),
+    radial-gradient(ellipse 48% 36% at 88% 10%, rgba(230, 190, 100, 0.08), transparent 60%),
+    linear-gradient(180deg, #060b16 0%, #091124 52%, #060b17 100%);
+  background-attachment: fixed;
+  overflow-x: hidden;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.18;
+  text-wrap: balance;
+}
+
+p {
+  margin: 0;
+}
+
+button,
+input,
+select {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.44;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent-blue);
+  outline-offset: 2px;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+.tabular-nums {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Refined Thin Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(6, 11, 22, 0.45);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 179, 214, 0.24);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 179, 214, 0.42);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,0 +1,920 @@
+{
+  "schemaVersion": 3,
+  "stages": [
+    {
+      "id": "stage_1_1",
+      "code": "1-1",
+      "name": "Outer Bastion",
+      "chapter": 1,
+      "chapterName": "Outer Orbital Ring",
+      "difficulty": "Normal",
+      "encounterType": "Vanguard Reconnaissance",
+      "recommendedLevel": 1,
+      "unlockAfter": null,
+      "terrainId": "terrain_outer_bastion",
+      "backgroundAssetId": "bg_battle_orbital_ridge",
+      "initialAllies": [
+        { "unitId": "heavy_shield_guard", "x": 22, "y": 38 },
+        { "unitId": "heavy_shield_guard", "x": 22, "y": 62 },
+        { "unitId": "arcane_archer", "x": 12, "y": 34 },
+        { "unitId": "field_cleric", "x": 12, "y": 66 }
+      ],
+      "waves": [
+        {
+          "wave": 1,
+          "label": "Forward Scouts",
+          "delaySec": 0.5,
+          "enemyLevel": 1,
+          "units": [
+            { "unitId": "heavy_shield_guard", "count": 2 },
+            { "unitId": "arcane_archer", "count": 2 }
+          ]
+        },
+        {
+          "wave": 2,
+          "label": "Flank Raiders",
+          "delaySec": 1.5,
+          "enemyLevel": 1,
+          "units": [
+            { "unitId": "heavy_shield_guard", "count": 1 },
+            { "unitId": "wind_cavalry", "count": 2 },
+            { "unitId": "field_cleric", "count": 1 }
+          ],
+          "elites": [
+            { "eliteId": "elite_iron_bulwark", "count": 1 }
+          ]
+        },
+        {
+          "wave": 3,
+          "label": "Warden Assault",
+          "delaySec": 1.8,
+          "enemyLevel": 2,
+          "isBossWave": true,
+          "units": [
+            { "unitId": "arcane_archer", "count": 2 },
+            { "unitId": "field_cleric", "count": 1 }
+          ],
+          "boss": { "bossId": "boss_bastion_warden" }
+        }
+      ],
+      "rewards": {
+        "credits": 500,
+        "astrite": 120,
+        "playerXp": 80,
+        "heroXp": 60,
+        "unitXp": 50,
+        "materials": [
+          { "id": "item_xp_chip", "name": "Tactical XP Chip", "category": "materials", "quantity": 2 }
+        ],
+        "bonusCards": ["card_skill_astral_nova"],
+        "bonusUnits": []
+      },
+      "description": "Secure the Outer Bastion causeway against reconnaissance waves and defeat Bastion Warden Vex."
+    },
+    {
+      "id": "stage_1_2",
+      "code": "1-2",
+      "name": "Azure Relay",
+      "chapter": 1,
+      "chapterName": "Outer Orbital Ring",
+      "difficulty": "Normal",
+      "encounterType": "Mixed Relay Siege",
+      "recommendedLevel": 3,
+      "unlockAfter": "stage_1_1",
+      "terrainId": "terrain_azure_relay",
+      "backgroundAssetId": "bg_battle_orbital_ridge",
+      "initialAllies": [
+        { "unitId": "heavy_shield_guard", "x": 22, "y": 40 },
+        { "unitId": "wind_cavalry", "x": 20, "y": 62 },
+        { "unitId": "arcane_archer", "x": 12, "y": 32 },
+        { "unitId": "field_cleric", "x": 12, "y": 64 }
+      ],
+      "waves": [
+        {
+          "wave": 1,
+          "label": "Vanguard Line",
+          "delaySec": 0.5,
+          "enemyLevel": 2,
+          "units": [
+            { "unitId": "enemy_void_vanguard", "count": 2 },
+            { "unitId": "enemy_rift_stalker", "count": 2 },
+            { "unitId": "enemy_obsidian_marksman", "count": 1 }
+          ]
+        },
+        {
+          "wave": 2,
+          "label": "Relay Defenders",
+          "delaySec": 1.5,
+          "enemyLevel": 2,
+          "units": [
+            { "unitId": "enemy_void_vanguard", "count": 2 },
+            { "unitId": "enemy_obsidian_marksman", "count": 2 },
+            { "unitId": "enemy_corrupted_acolyte", "count": 1 }
+          ],
+          "elites": [
+            { "eliteId": "elite_storm_lancer", "count": 1 }
+          ]
+        },
+        {
+          "wave": 3,
+          "label": "Archon Command",
+          "delaySec": 1.8,
+          "enemyLevel": 3,
+          "isBossWave": true,
+          "units": [
+            { "unitId": "enemy_void_vanguard", "count": 2 },
+            { "unitId": "enemy_corrupted_acolyte", "count": 1 }
+          ],
+          "elites": [
+            { "eliteId": "elite_astral_sniper", "count": 1 }
+          ],
+          "boss": { "bossId": "boss_relay_archon" }
+        }
+      ],
+      "rewards": {
+        "credits": 750,
+        "astrite": 160,
+        "playerXp": 120,
+        "heroXp": 95,
+        "unitXp": 75,
+        "materials": [
+          { "id": "item_xp_chip", "name": "Tactical XP Chip", "category": "materials", "quantity": 3 },
+          { "id": "item_aegis_core", "name": "Aegis Tactical Core", "category": "materials", "quantity": 1 }
+        ],
+        "bonusCards": ["card_skill_stasis_pulse"],
+        "bonusUnits": []
+      },
+      "description": "Navigate the fractured Azure Relay terrace and neutralize Azure Archon Kaelis."
+    },
+    {
+      "id": "stage_1_3",
+      "code": "1-3",
+      "name": "Obsidian Spire",
+      "chapter": 1,
+      "chapterName": "Outer Orbital Ring",
+      "difficulty": "Boss",
+      "encounterType": "Boss Fortress",
+      "recommendedLevel": 4,
+      "unlockAfter": "stage_1_2",
+      "terrainId": "terrain_obsidian_spire",
+      "backgroundAssetId": "bg_battle_orbital_ridge",
+      "initialAllies": [
+        { "unitId": "heavy_shield_guard", "x": 23, "y": 35 },
+        { "unitId": "vanguard_breaker", "x": 23, "y": 65 },
+        { "unitId": "wind_cavalry", "x": 18, "y": 50 },
+        { "unitId": "arcane_archer", "x": 11, "y": 36 },
+        { "unitId": "field_cleric", "x": 11, "y": 64 }
+      ],
+      "waves": [
+        {
+          "wave": 1,
+          "label": "Spire Sentinels",
+          "delaySec": 0.5,
+          "enemyLevel": 3,
+          "units": [
+            { "unitId": "enemy_void_vanguard", "count": 2 },
+            { "unitId": "enemy_rift_stalker", "count": 2 },
+            { "unitId": "enemy_obsidian_marksman", "count": 2 }
+          ]
+        },
+        {
+          "wave": 2,
+          "label": "Sanctum Guard",
+          "delaySec": 1.6,
+          "enemyLevel": 3,
+          "units": [
+            { "unitId": "enemy_obsidian_marksman", "count": 2 },
+            { "unitId": "enemy_corrupted_acolyte", "count": 2 }
+          ],
+          "elites": [
+            { "eliteId": "elite_iron_bulwark", "count": 1 },
+            { "eliteId": "elite_storm_lancer", "count": 1 }
+          ]
+        },
+        {
+          "wave": 3,
+          "label": "Sovereign Reckoning",
+          "delaySec": 2.0,
+          "enemyLevel": 4,
+          "isBossWave": true,
+          "units": [
+            { "unitId": "enemy_void_vanguard", "count": 2 },
+            { "unitId": "enemy_obsidian_marksman", "count": 2 },
+            { "unitId": "enemy_corrupted_acolyte", "count": 1 }
+          ],
+          "boss": { "bossId": "boss_obsidian_sovereign" }
+        }
+      ],
+      "rewards": {
+        "credits": 1100,
+        "astrite": 220,
+        "playerXp": 180,
+        "heroXp": 135,
+        "unitXp": 110,
+        "materials": [
+          { "id": "item_xp_chip", "name": "Tactical XP Chip", "category": "materials", "quantity": 4 },
+          { "id": "item_aegis_core", "name": "Aegis Tactical Core", "category": "materials", "quantity": 2 }
+        ],
+        "bonusCards": ["card_support_mending_aura"],
+        "bonusUnits": []
+      },
+      "description": "Assault the Obsidian Spire sanctum and defeat Obsidian Sovereign Malakor."
+    },
+    {
+      "id": "stage_1_4",
+      "code": "1-4",
+      "name": "Zephyr Runway",
+      "chapter": 1,
+      "chapterName": "Outer Orbital Ring",
+      "difficulty": "Elite",
+      "encounterType": "Fast Cavalry Pressure",
+      "recommendedLevel": 5,
+      "unlockAfter": "stage_1_3",
+      "terrainId": "terrain_cavalry_plains",
+      "backgroundAssetId": "bg_battle_orbital_ridge",
+      "initialAllies": [
+        { "unitId": "heavy_shield_guard", "x": 22, "y": 38 },
+        { "unitId": "heavy_shield_guard", "x": 22, "y": 62 },
+        { "unitId": "pulse_skirmisher", "x": 13, "y": 34 },
+        { "unitId": "field_cleric", "x": 13, "y": 66 }
+      ],
+      "waves": [
+        {
+          "wave": 1,
+          "label": "Outrider Sweep",
+          "delaySec": 0.5,
+          "enemyLevel": 3,
+          "units": [
+            { "unitId": "enemy_rift_stalker", "count": 4 },
+            { "unitId": "enemy_dread_bannerman", "count": 1 }
+          ]
+        },
+        {
+          "wave": 2,
+          "label": "Flank Stampede",
+          "delaySec": 1.6,
+          "enemyLevel": 4,
+          "units": [
+            { "unitId": "enemy_rift_stalker", "count": 3 },
+            { "unitId": "enemy_abyssal_ravager", "count": 2 }
+          ],
+          "elites": [
+            { "eliteId": "elite_storm_lancer", "count": 1 }
+          ]
+        },
+        {
+          "wave": 3,
+          "label": "Tempest Warband",
+          "delaySec": 1.8,
+          "enemyLevel": 4,
+          "units": [
+            { "unitId": "enemy_rift_stalker", "count": 3 },
+            { "unitId": "enemy_dread_bannerman", "count": 1 },
+            { "unitId": "enemy_corrupted_acolyte", "count": 1 }
+          ],
+          "elites": [
+            { "eliteId": "elite_storm_lancer", "count": 1 },
+            { "eliteId": "elite_abyssal_executioner", "count": 1 }
+          ]
+        }
+      ],
+      "rewards": {
+        "credits": 1250,
+        "astrite": 200,
+        "playerXp": 210,
+        "heroXp": 150,
+        "unitXp": 130,
+        "materials": [
+          { "id": "item_xp_chip", "name": "Tactical XP Chip", "category": "materials", "quantity": 4 },
+          { "id": "item_aegis_core", "name": "Aegis Tactical Core", "category": "materials", "quantity": 2 }
+        ],
+        "bonusCards": ["card_solar_pyromancer"],
+        "bonusUnits": ["solar_pyromancer"]
+      },
+      "description": "Withstand relentless Rift Stalker raids across open lanes. Unlocks the Solar Pyromancer AoE Caster."
+    },
+    {
+      "id": "stage_2_1",
+      "code": "2-1",
+      "name": "Iron Bulwark Wall",
+      "chapter": 2,
+      "chapterName": "Fractured Conduits",
+      "difficulty": "Normal",
+      "encounterType": "Heavy Frontline Defense",
+      "recommendedLevel": 6,
+      "unlockAfter": "stage_1_4",
+      "terrainId": "terrain_outer_bastion",
+      "backgroundAssetId": "bg_battle_orbital_ridge",
+      "initialAllies": [
+        { "unitId": "vanguard_breaker", "x": 22, "y": 38 },
+        { "unitId": "heavy_shield_guard", "x": 22, "y": 62 },
+        { "unitId": "arcane_archer", "x": 12, "y": 35 },
+        { "unitId": "field_cleric", "x": 12, "y": 65 }
+      ],
+      "waves": [
+        {
+          "wave": 1,
+          "label": "Armored Phalanx",
+          "delaySec": 0.5,
+          "enemyLevel": 4,
+          "units": [
+            { "unitId": "enemy_void_vanguard", "count": 3 },
+            { "unitId": "enemy_siege_juggernaut", "count": 1 },
+            { "unitId": "enemy_corrupted_acolyte", "count": 1 }
+          ]
+        },
+        {
+          "wave": 2,
+          "label": "Bastion Reinforced",
+          "delaySec": 1.6,
+          "enemyLevel": 4,
+          "units": [
+            { "unitId": "enemy_void_vanguard", "count": 2 },
+            { "unitId": "enemy_cryo_warden", "count": 2 },
+            { "unitId": "enemy_corrupted_acolyte", "count": 1 }
+          ],
+          "elites": [
+            { "eliteId": "elite_iron_bulwark", "count": 1 }
+          ]
+        },
+        {
+          "wave": 3,
+          "label": "Siege Wall",
+          "delaySec": 1.8,
+          "enemyLevel": 5,
+          "units": [
+            { "unitId": "enemy_siege_juggernaut", "count": 2 },
+            { "unitId": "enemy_corrupted_acolyte", "count": 2 }
+          ],
+          "elites": [
+            { "eliteId": "elite_siege_colossus", "count": 1 }
+          ]
+        }
+      ],
+      "rewards": {
+        "credits": 1400,
+        "astrite": 220,
+        "playerXp": 240,
+        "heroXp": 170,
+        "unitXp": 150,
+        "materials": [
+          { "id": "item_xp_chip", "name": "Tactical XP Chip", "category": "materials", "quantity": 5 },
+          { "id": "item_aegis_core", "name": "Aegis Tactical Core", "category": "materials", "quantity": 2 }
+        ],
+        "bonusCards": ["card_skill_orbital_lance"],
+        "bonusUnits": []
+      },
+      "description": "Shatter dense armored phalanxes backed by Corrupted Acolytes. Armor Breakers and magic damage excel here."
+    },
+    {
+      "id": "stage_2_2",
+      "code": "2-2",
+      "name": "Crossfire Terrace",
+      "chapter": 2,
+      "chapterName": "Fractured Conduits",
+      "difficulty": "Hard",
+      "encounterType": "Ranged Artillery Formation",
+      "recommendedLevel": 7,
+      "unlockAfter": "stage_2_1",
+      "terrainId": "terrain_azure_relay",
+      "backgroundAssetId": "bg_battle_orbital_ridge",
+      "initialAllies": [
+        { "unitId": "heavy_shield_guard", "x": 22, "y": 40 },
+        { "unitId": "wind_cavalry", "x": 20, "y": 64 },
+        { "unitId": "pulse_skirmisher", "x": 12, "y": 32 },
+        { "unitId": "field_cleric", "x": 12, "y": 64 }
+      ],
+      "waves": [
+        {
+          "wave": 1,
+          "label": "Sniper Overlook",
+          "delaySec": 0.5,
+          "enemyLevel": 5,
+          "units": [
+            { "unitId": "enemy_void_vanguard", "count": 2 },
+            { "unitId": "enemy_obsidian_marksman", "count": 3 },
+            { "unitId": "enemy_inferno_bombardier", "count": 1 }
+          ]
+        },
+        {
+          "wave": 2,
+          "label": "Incendiary Barrage",
+          "delaySec": 1.6,
+          "enemyLevel": 5,
+          "units": [
+            { "unitId": "enemy_cryo_warden", "count": 2 },
+            { "unitId": "enemy_inferno_bombardier", "count": 2 },
+            { "unitId": "enemy_obsidian_marksman", "count": 2 }
+          ],
+          "elites": [
+            { "eliteId": "elite_astral_sniper", "count": 1 }
+          ]
+        },
+        {
+          "wave": 3,
+          "label": "Artillery Command",
+          "delaySec": 1.8,
+          "enemyLevel": 6,
+          "units": [
+            { "unitId": "enemy_void_vanguard", "count": 2 },
+            { "unitId": "enemy_obsidian_marksman", "count": 2 },
+            { "unitId": "enemy_inferno_bombardier", "count": 2 }
+          ],
+          "elites": [
+            { "eliteId": "elite_inferno_captain", "count": 1 }
+          ]
+        }
+      ],
+      "rewards": {
+        "credits": 1550,
+        "astrite": 240,
+        "playerXp": 270,
+        "heroXp": 190,
+        "unitXp": 170,
+        "materials": [
+          { "id": "item_xp_chip", "name": "Tactical XP Chip", "category": "materials", "quantity": 5 },
+          { "id": "item_aegis_core", "name": "Aegis Tactical Core", "category": "materials", "quantity": 3 }
+        ],
+        "bonusCards": ["card_aegis_sentinel"],
+        "bonusUnits": ["aegis_sentinel"]
+      },
+      "description": "Close the gap against entrenched Obsidian Marksmen and Inferno Bombardiers. Unlocks Aegis Sentinel."
+    },
+    {
+      "id": "stage_2_3",
+      "code": "2-3",
+      "name": "Temporal Crucible",
+      "chapter": 2,
+      "chapterName": "Fractured Conduits",
+      "difficulty": "Elite",
+      "encounterType": "Crowd-Control Ambush",
+      "recommendedLevel": 8,
+      "unlockAfter": "stage_2_2",
+      "terrainId": "terrain_chrono_nexus",
+      "backgroundAssetId": "bg_battle_orbital_ridge",
+      "initialAllies": [
+        { "unitId": "heavy_shield_guard", "x": 22, "y": 38 },
+        { "unitId": "vanguard_breaker", "x": 22, "y": 62 },
+        { "unitId": "arcane_archer", "x": 12, "y": 34 },
+        { "unitId": "field_cleric", "x": 12, "y": 66 }
+      ],
+      "waves": [
+        {
+          "wave": 1,
+          "label": "Stasis Skirmishers",
+          "delaySec": 0.5,
+          "enemyLevel": 5,
+          "units": [
+            { "unitId": "enemy_cryo_warden", "count": 2 },
+            { "unitId": "enemy_stasis_weaver", "count": 3 }
+          ]
+        },
+        {
+          "wave": 2,
+          "label": "Frozen Lockdown",
+          "delaySec": 1.6,
+          "enemyLevel": 6,
+          "units": [
+            { "unitId": "enemy_void_vanguard", "count": 2 },
+            { "unitId": "enemy_stasis_weaver", "count": 2 },
+            { "unitId": "enemy_rift_stalker", "count": 2 }
+          ],
+          "elites": [
+            { "eliteId": "elite_chrono_enforcer", "count": 1 }
+          ]
+        },
+        {
+          "wave": 3,
+          "label": "Epoch Wardens",
+          "delaySec": 1.8,
+          "enemyLevel": 6,
+          "units": [
+            { "unitId": "enemy_stasis_weaver", "count": 2 },
+            { "unitId": "enemy_cryo_warden", "count": 2 },
+            { "unitId": "enemy_corrupted_acolyte", "count": 1 }
+          ],
+          "elites": [
+            { "eliteId": "elite_chrono_enforcer", "count": 1 },
+            { "eliteId": "elite_cryo_archwarden", "count": 1 }
+          ]
+        }
+      ],
+      "rewards": {
+        "credits": 1700,
+        "astrite": 260,
+        "playerXp": 300,
+        "heroXp": 210,
+        "unitXp": 190,
+        "materials": [
+          { "id": "item_xp_chip", "name": "Tactical XP Chip", "category": "materials", "quantity": 6 },
+          { "id": "item_aegis_core", "name": "Aegis Tactical Core", "category": "materials", "quantity": 3 }
+        ],
+        "bonusCards": ["card_chrono_weaver"],
+        "bonusUnits": ["chrono_weaver"]
+      },
+      "description": "Endure heavy slowing and stun fields from Stasis Weavers and Cryo Wardens. Unlocks Chrono Weaver."
+    },
+    {
+      "id": "stage_2_4",
+      "code": "2-4",
+      "name": "Chrono Nexus",
+      "chapter": 2,
+      "chapterName": "Fractured Conduits",
+      "difficulty": "Boss",
+      "encounterType": "Temporal Boss Showdown",
+      "recommendedLevel": 9,
+      "unlockAfter": "stage_2_3",
+      "terrainId": "terrain_chrono_nexus",
+      "backgroundAssetId": "bg_battle_orbital_ridge",
+      "initialAllies": [
+        { "unitId": "heavy_shield_guard", "x": 23, "y": 35 },
+        { "unitId": "vanguard_breaker", "x": 23, "y": 65 },
+        { "unitId": "wind_cavalry", "x": 18, "y": 50 },
+        { "unitId": "arcane_archer", "x": 11, "y": 36 },
+        { "unitId": "field_cleric", "x": 11, "y": 64 }
+      ],
+      "waves": [
+        {
+          "wave": 1,
+          "label": "Nexus Guardians",
+          "delaySec": 0.5,
+          "enemyLevel": 6,
+          "units": [
+            { "unitId": "enemy_void_vanguard", "count": 2 },
+            { "unitId": "enemy_stasis_weaver", "count": 2 },
+            { "unitId": "enemy_obsidian_marksman", "count": 2 }
+          ]
+        },
+        {
+          "wave": 2,
+          "label": "Time-Fold Guard",
+          "delaySec": 1.6,
+          "enemyLevel": 6,
+          "units": [
+            { "unitId": "enemy_cryo_warden", "count": 2 },
+            { "unitId": "enemy_rift_stalker", "count": 2 },
+            { "unitId": "enemy_corrupted_acolyte", "count": 1 }
+          ],
+          "elites": [
+            { "eliteId": "elite_chrono_enforcer", "count": 1 }
+          ]
+        },
+        {
+          "wave": 3,
+          "label": "Arbiter of Time",
+          "delaySec": 2.0,
+          "enemyLevel": 7,
+          "isBossWave": true,
+          "units": [
+            { "unitId": "enemy_void_vanguard", "count": 2 },
+            { "unitId": "enemy_stasis_weaver", "count": 2 },
+            { "unitId": "enemy_corrupted_acolyte", "count": 1 }
+          ],
+          "boss": { "bossId": "boss_chrono_arbiter" }
+        }
+      ],
+      "rewards": {
+        "credits": 2000,
+        "astrite": 320,
+        "playerXp": 360,
+        "heroXp": 250,
+        "unitXp": 230,
+        "materials": [
+          { "id": "item_xp_chip", "name": "Tactical XP Chip", "category": "materials", "quantity": 7 },
+          { "id": "item_aegis_core", "name": "Aegis Tactical Core", "category": "materials", "quantity": 4 }
+        ],
+        "bonusCards": ["card_skill_gravity_vortex", "card_support_starlight_catalyst"],
+        "bonusUnits": []
+      },
+      "description": "Confront Chrono Arbiter Vael inside the fractured Nexus courtyard and break the temporal lockdown."
+    },
+    {
+      "id": "stage_3_1",
+      "code": "3-1",
+      "name": "Abyssal Vanguard",
+      "chapter": 3,
+      "chapterName": "Obsidian Citadel",
+      "difficulty": "Hard",
+      "encounterType": "Armor-Shred Rush",
+      "recommendedLevel": 10,
+      "unlockAfter": "stage_2_4",
+      "terrainId": "terrain_cavalry_plains",
+      "backgroundAssetId": "bg_battle_orbital_ridge",
+      "initialAllies": [
+        { "unitId": "heavy_shield_guard", "x": 23, "y": 35 },
+        { "unitId": "vanguard_breaker", "x": 23, "y": 65 },
+        { "unitId": "pulse_skirmisher", "x": 14, "y": 34 },
+        { "unitId": "arcane_archer", "x": 14, "y": 50 },
+        { "unitId": "field_cleric", "x": 12, "y": 66 }
+      ],
+      "waves": [
+        {
+          "wave": 1,
+          "label": "Ravager Charge",
+          "delaySec": 0.5,
+          "enemyLevel": 7,
+          "units": [
+            { "unitId": "enemy_abyssal_ravager", "count": 3 },
+            { "unitId": "enemy_rift_stalker", "count": 2 },
+            { "unitId": "enemy_dread_bannerman", "count": 1 }
+          ]
+        },
+        {
+          "wave": 2,
+          "label": "Crimson Surge",
+          "delaySec": 1.6,
+          "enemyLevel": 7,
+          "units": [
+            { "unitId": "enemy_abyssal_ravager", "count": 3 },
+            { "unitId": "enemy_dread_bannerman", "count": 2 },
+            { "unitId": "enemy_corrupted_acolyte", "count": 1 }
+          ],
+          "elites": [
+            { "eliteId": "elite_abyssal_executioner", "count": 1 }
+          ]
+        },
+        {
+          "wave": 3,
+          "label": "Execution Squad",
+          "delaySec": 1.8,
+          "enemyLevel": 8,
+          "units": [
+            { "unitId": "enemy_abyssal_ravager", "count": 3 },
+            { "unitId": "enemy_obsidian_marksman", "count": 2 },
+            { "unitId": "enemy_dread_bannerman", "count": 1 }
+          ],
+          "elites": [
+            { "eliteId": "elite_abyssal_executioner", "count": 1 },
+            { "eliteId": "elite_storm_lancer", "count": 1 }
+          ]
+        }
+      ],
+      "rewards": {
+        "credits": 2200,
+        "astrite": 280,
+        "playerXp": 400,
+        "heroXp": 280,
+        "unitXp": 250,
+        "materials": [
+          { "id": "item_xp_chip", "name": "Tactical XP Chip", "category": "materials", "quantity": 7 },
+          { "id": "item_aegis_core", "name": "Aegis Tactical Core", "category": "materials", "quantity": 4 }
+        ],
+        "bonusCards": ["card_tactic_siege_formation", "card_tactic_suppressive_volley"],
+        "bonusUnits": []
+      },
+      "description": "Repel aggressive Abyssal Ravagers empowered by Dread Bannermen at the Citadel gates."
+    },
+    {
+      "id": "stage_3_2",
+      "code": "3-2",
+      "name": "Sanctum Battery",
+      "chapter": 3,
+      "chapterName": "Obsidian Citadel",
+      "difficulty": "Hard",
+      "encounterType": "Combined Arms Siege",
+      "recommendedLevel": 11,
+      "unlockAfter": "stage_3_1",
+      "terrainId": "terrain_obsidian_spire",
+      "backgroundAssetId": "bg_battle_orbital_ridge",
+      "initialAllies": [
+        { "unitId": "heavy_shield_guard", "x": 23, "y": 35 },
+        { "unitId": "vanguard_breaker", "x": 23, "y": 65 },
+        { "unitId": "wind_cavalry", "x": 18, "y": 50 },
+        { "unitId": "arcane_archer", "x": 11, "y": 36 },
+        { "unitId": "field_cleric", "x": 11, "y": 64 }
+      ],
+      "waves": [
+        {
+          "wave": 1,
+          "label": "Siege Line",
+          "delaySec": 0.5,
+          "enemyLevel": 8,
+          "units": [
+            { "unitId": "enemy_siege_juggernaut", "count": 2 },
+            { "unitId": "enemy_inferno_bombardier", "count": 2 },
+            { "unitId": "enemy_corrupted_acolyte", "count": 2 }
+          ]
+        },
+        {
+          "wave": 2,
+          "label": "Cryo-Fire Crossfire",
+          "delaySec": 1.6,
+          "enemyLevel": 8,
+          "units": [
+            { "unitId": "enemy_cryo_warden", "count": 2 },
+            { "unitId": "enemy_inferno_bombardier", "count": 2 },
+            { "unitId": "enemy_stasis_weaver", "count": 2 }
+          ],
+          "elites": [
+            { "eliteId": "elite_siege_colossus", "count": 1 }
+          ]
+        },
+        {
+          "wave": 3,
+          "label": "Citadel Battery",
+          "delaySec": 1.8,
+          "enemyLevel": 9,
+          "units": [
+            { "unitId": "enemy_siege_juggernaut", "count": 2 },
+            { "unitId": "enemy_corrupted_acolyte", "count": 2 }
+          ],
+          "elites": [
+            { "eliteId": "elite_inferno_captain", "count": 1 },
+            { "eliteId": "elite_cryo_archwarden", "count": 1 }
+          ]
+        }
+      ],
+      "rewards": {
+        "credits": 2450,
+        "astrite": 320,
+        "playerXp": 440,
+        "heroXp": 310,
+        "unitXp": 280,
+        "materials": [
+          { "id": "item_xp_chip", "name": "Tactical XP Chip", "category": "materials", "quantity": 8 },
+          { "id": "item_aegis_core", "name": "Aegis Tactical Core", "category": "materials", "quantity": 5 }
+        ],
+        "bonusCards": ["card_astral_construct"],
+        "bonusUnits": ["astral_construct"]
+      },
+      "description": "Overcome fortified Siege Juggernauts and Inferno Batteries. Unlocks the SSR Astral Automaton."
+    },
+    {
+      "id": "stage_3_3",
+      "code": "3-3",
+      "name": "Sovereign Gauntlet",
+      "chapter": 3,
+      "chapterName": "Obsidian Citadel",
+      "difficulty": "Elite",
+      "encounterType": "Four-Wave Elite Gauntlet",
+      "recommendedLevel": 12,
+      "unlockAfter": "stage_3_2",
+      "terrainId": "terrain_hyperion_throne",
+      "backgroundAssetId": "bg_battle_orbital_ridge",
+      "initialAllies": [
+        { "unitId": "heavy_shield_guard", "x": 23, "y": 35 },
+        { "unitId": "vanguard_breaker", "x": 23, "y": 65 },
+        { "unitId": "wind_cavalry", "x": 18, "y": 50 },
+        { "unitId": "arcane_archer", "x": 11, "y": 36 },
+        { "unitId": "field_cleric", "x": 11, "y": 64 }
+      ],
+      "waves": [
+        {
+          "wave": 1,
+          "label": "Iron & Storm",
+          "delaySec": 0.5,
+          "enemyLevel": 8,
+          "units": [
+            { "unitId": "enemy_void_vanguard", "count": 2 },
+            { "unitId": "enemy_obsidian_marksman", "count": 2 }
+          ],
+          "elites": [
+            { "eliteId": "elite_iron_bulwark", "count": 1 }
+          ]
+        },
+        {
+          "wave": 2,
+          "label": "Temporal & Flame",
+          "delaySec": 1.6,
+          "enemyLevel": 9,
+          "units": [
+            { "unitId": "enemy_stasis_weaver", "count": 2 },
+            { "unitId": "enemy_inferno_bombardier", "count": 2 }
+          ],
+          "elites": [
+            { "eliteId": "elite_chrono_enforcer", "count": 1 },
+            { "eliteId": "elite_inferno_captain", "count": 1 }
+          ]
+        },
+        {
+          "wave": 3,
+          "label": "Abyssal Vanguard",
+          "delaySec": 1.8,
+          "enemyLevel": 9,
+          "units": [
+            { "unitId": "enemy_abyssal_ravager", "count": 2 },
+            { "unitId": "enemy_corrupted_acolyte", "count": 2 }
+          ],
+          "elites": [
+            { "eliteId": "elite_abyssal_executioner", "count": 1 },
+            { "eliteId": "elite_siege_colossus", "count": 1 }
+          ]
+        },
+        {
+          "wave": 4,
+          "label": "Sovereign Vanguard",
+          "delaySec": 2.0,
+          "enemyLevel": 10,
+          "isBossWave": true,
+          "units": [
+            { "unitId": "enemy_cryo_warden", "count": 2 },
+            { "unitId": "enemy_corrupted_acolyte", "count": 1 }
+          ],
+          "boss": { "bossId": "boss_obsidian_sovereign" }
+        }
+      ],
+      "rewards": {
+        "credits": 2800,
+        "astrite": 360,
+        "playerXp": 520,
+        "heroXp": 360,
+        "unitXp": 320,
+        "materials": [
+          { "id": "item_xp_chip", "name": "Tactical XP Chip", "category": "materials", "quantity": 9 },
+          { "id": "item_aegis_core", "name": "Aegis Tactical Core", "category": "materials", "quantity": 5 }
+        ],
+        "bonusCards": ["card_skill_chain_lightning", "card_support_haste_relay"],
+        "bonusUnits": []
+      },
+      "description": "Four-wave elite endurance trial featuring every elite modifier archetype before the final throne."
+    },
+    {
+      "id": "stage_3_4",
+      "code": "3-4",
+      "name": "Throne of Hyperion",
+      "chapter": 3,
+      "chapterName": "Obsidian Citadel",
+      "difficulty": "Boss",
+      "encounterType": "Apex Dreadnought Finale",
+      "recommendedLevel": 14,
+      "unlockAfter": "stage_3_3",
+      "terrainId": "terrain_hyperion_throne",
+      "backgroundAssetId": "bg_battle_orbital_ridge",
+      "initialAllies": [
+        { "unitId": "heavy_shield_guard", "x": 23, "y": 35 },
+        { "unitId": "vanguard_breaker", "x": 23, "y": 65 },
+        { "unitId": "wind_cavalry", "x": 18, "y": 50 },
+        { "unitId": "arcane_archer", "x": 11, "y": 36 },
+        { "unitId": "field_cleric", "x": 11, "y": 64 }
+      ],
+      "waves": [
+        {
+          "wave": 1,
+          "label": "Outer Reactor Guard",
+          "delaySec": 0.5,
+          "enemyLevel": 9,
+          "units": [
+            { "unitId": "enemy_void_vanguard", "count": 2 },
+            { "unitId": "enemy_abyssal_ravager", "count": 2 },
+            { "unitId": "enemy_obsidian_marksman", "count": 2 }
+          ]
+        },
+        {
+          "wave": 2,
+          "label": "Dreadnought Escort",
+          "delaySec": 1.6,
+          "enemyLevel": 10,
+          "units": [
+            { "unitId": "enemy_inferno_bombardier", "count": 2 },
+            { "unitId": "enemy_stasis_weaver", "count": 2 },
+            { "unitId": "enemy_corrupted_acolyte", "count": 1 }
+          ],
+          "elites": [
+            { "eliteId": "elite_cryo_archwarden", "count": 1 },
+            { "eliteId": "elite_abyssal_executioner", "count": 1 }
+          ]
+        },
+        {
+          "wave": 3,
+          "label": "Citadel Last Line",
+          "delaySec": 1.8,
+          "enemyLevel": 10,
+          "units": [
+            { "unitId": "enemy_siege_juggernaut", "count": 2 },
+            { "unitId": "enemy_dread_bannerman", "count": 2 }
+          ],
+          "elites": [
+            { "eliteId": "elite_siege_colossus", "count": 1 }
+          ]
+        },
+        {
+          "wave": 4,
+          "label": "Hyperion Unleashed",
+          "delaySec": 2.2,
+          "enemyLevel": 11,
+          "isBossWave": true,
+          "units": [
+            { "unitId": "enemy_cryo_warden", "count": 2 },
+            { "unitId": "enemy_corrupted_acolyte", "count": 2 },
+            { "unitId": "enemy_obsidian_marksman", "count": 2 }
+          ],
+          "boss": { "bossId": "boss_astral_leviathan" }
+        }
+      ],
+      "rewards": {
+        "credits": 3600,
+        "astrite": 500,
+        "playerXp": 700,
+        "heroXp": 500,
+        "unitXp": 420,
+        "materials": [
+          { "id": "item_xp_chip", "name": "Tactical XP Chip", "category": "materials", "quantity": 12 },
+          { "id": "item_aegis_core", "name": "Aegis Tactical Core", "category": "materials", "quantity": 8 }
+        ],
+        "bonusCards": ["card_astral_construct", "card_skill_chain_lightning"],
+        "bonusUnits": ["astral_construct"]
+      },
+      "description": "Face Astral Dreadnought Hyperion atop the Obsidian Citadel reactor core in the climactic four-wave battle."
+    }
+  ]
+}
