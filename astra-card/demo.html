@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Star Struck — AstraCard Static Integration Demo</title>
+  <link rel="stylesheet" href="./AstraCard.css">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070914;
+      --panel: #101426;
+      --panel-border: rgba(201, 162, 74, 0.26);
+      --gold: #f0d78c;
+      --gold-dim: #9e8648;
+      --text: #d7ddf2;
+      --muted: #8b95b5;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at 20% 0%, #141a38 0%, var(--bg) 55%);
+      color: var(--text);
+      font: 14px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      padding: 24px;
+    }
+    header {
+      max-width: 1220px;
+      margin: 0 auto 20px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      border-bottom: 1px solid var(--panel-border);
+      padding-bottom: 14px;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: var(--gold);
+    }
+    header p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .protocol-warning {
+      display: none;
+      max-width: 1220px;
+      margin: 0 auto 18px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 174, 112, 0.45);
+      background: rgba(120, 48, 22, 0.35);
+      color: #ffd9be;
+      font-size: 13px;
+    }
+    .protocol-warning code {
+      background: rgba(0, 0, 0, 0.35);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #fff0c4;
+    }
+    main {
+      max-width: 1220px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+      gap: 24px;
+      align-items: start;
+    }
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; }
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 14px;
+      padding: 18px;
+    }
+    .panel h2 {
+      margin: 0 0 12px;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--gold);
+    }
+    .hero-slot {
+      width: 100%;
+      height: 540px;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #04060f;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .controls {
+      margin-top: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    button {
+      background: #1a2140;
+      color: var(--gold);
+      border: 1px solid rgba(201, 162, 74, 0.45);
+      border-radius: 8px;
+      padding: 7px 12px;
+      font: 500 12px/1 system-ui, sans-serif;
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    button:hover {
+      background: #252f59;
+      border-color: var(--gold);
+    }
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    button.danger {
+      color: #ffb8a8;
+      border-color: rgba(255, 130, 110, 0.45);
+    }
+    input[type="text"] {
+      flex: 1 1 140px;
+      min-width: 0;
+      background: #0b0f21;
+      color: var(--text);
+      border: 1px solid rgba(201, 162, 74, 0.35);
+      border-radius: 8px;
+      padding: 7px 10px;
+      font: 13px system-ui, sans-serif;
+    }
+    .right-col {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .grid-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: flex-start;
+    }
+    .card-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: center;
+    }
+    .card-item .caption {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .thumb-slot {
+      width: 160px;
+      height: 240px;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #060814;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    /* Deliberately NO height: verifies automatic .astra-card--aspect 2:3 fallback */
+    .auto-aspect-slot {
+      width: 180px;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #060814;
+      border: 1px dashed rgba(201, 162, 74, 0.35);
+    }
+    .log-box {
+      height: 210px;
+      overflow-y: auto;
+      background: #060814;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      color: #b7c4eb;
+    }
+    .log-box .entry {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      padding: 2px 0;
+    }
+    .log-box .ts { color: var(--gold-dim); margin-right: 8px; }
+    .log-box .ev { color: var(--gold); margin-right: 6px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Star Struck — AstraCard Static Integration Demo</h1>
+      <p>Recommended game-UI setup using <code>ASTRA_CARD_STATIC_OPTIONS</code> · 0° stationary card body + live sparkles, flowing dust, star flares &amp; sweep</p>
+    </div>
+    <p id="status-summary">Initializing static AstraCard instances…</p>
+  </header>
+
+  <div id="protocol-warning" class="protocol-warning">
+    <strong>Local HTTP server required:</strong> ES Modules and WebGL canvas textures cannot load over <code>file://</code>.
+    Run <code>python3 -m http.server 8000</code> inside this folder and open <code>http://localhost:8000/demo.html</code>.
+  </div>
+
+  <main>
+    <!-- Primary Static Commander Card -->
+    <section class="panel">
+      <h2>1. Primary Commander Card (Static Mode)</h2>
+      <div id="hero-slot" class="hero-slot"></div>
+
+      <div class="controls">
+        <div class="row">
+          <input id="name-input" type="text" value="ASTRA" aria-label="Card display name" placeholder="Commander name…">
+          <button id="btn-update-name" type="button">Update Name</button>
+          <button id="btn-reset-name" type="button">Reset</button>
+        </div>
+
+        <div class="row">
+          <button id="btn-select" type="button">Toggle Selected</button>
+          <button id="btn-studio" type="button">Toggle Studio BG</button>
+          <button id="btn-pause" type="button">Pause Effects</button>
+        </div>
+
+        <div class="row">
+          <button id="btn-destroy" class="danger" type="button">Destroy Instance</button>
+          <button id="btn-recreate" type="button" disabled>Recreate Instance</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="right-col">
+      <!-- Multi-Instance Collection / Formation / Aspect-Ratio Strip (Static Mode) -->
+      <section class="panel">
+        <h2>2. Static Collection &amp; Formation Slots</h2>
+        <div class="grid-strip">
+          <div class="card-item">
+            <div id="roster-1" class="thumb-slot"></div>
+            <span class="caption">Collection Slot (160×240)</span>
+          </div>
+          <div class="card-item">
+            <div id="roster-2" class="thumb-slot"></div>
+            <span class="caption">Formation Slot (160×240)</span>
+          </div>
+          <div class="card-item">
+            <div id="roster-3" class="auto-aspect-slot"></div>
+            <span class="caption">Auto 2:3 Aspect (no height)</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Event & Callback Inspector -->
+      <section class="panel">
+        <div class="row" style="justify-content: space-between; margin-bottom: 10px;">
+          <h2 style="margin: 0;">3. Live Callback &amp; DOM Event Log</h2>
+          <button id="btn-clear-log" type="button">Clear Log</button>
+        </div>
+        <div id="event-log" class="log-box" role="log" aria-live="polite"></div>
+      </section>
+    </div>
+  </main>
+
+  <script type="module">
+    import { AstraCard, ASTRA_CARD_STATIC_OPTIONS } from './AstraCard.js';
+
+    if (location.protocol === 'file:') {
+      document.getElementById('protocol-warning').style.display = 'block';
+    }
+
+    const logEl = document.getElementById('event-log');
+    const summaryEl = document.getElementById('status-summary');
+    const log = (eventName, msg) => {
+      const row = document.createElement('div');
+      row.className = 'entry';
+      const now = new Date().toTimeString().slice(0, 8);
+      row.innerHTML = `<span class="ts">[${now}]</span><span class="ev">${eventName}</span><span>${msg}</span>`;
+      logEl.prepend(row);
+    };
+
+    document.getElementById('btn-clear-log').addEventListener('click', () => {
+      logEl.textContent = '';
+    });
+
+    // ---- Primary static card state
+    const heroSlot = document.getElementById('hero-slot');
+    const nameInput = document.getElementById('name-input');
+    const btnPause = document.getElementById('btn-pause');
+    const btnDestroy = document.getElementById('btn-destroy');
+    const btnRecreate = document.getElementById('btn-recreate');
+
+    const heroState = {
+      studio: true,
+      selected: false
+    };
+
+    let hero = null;
+    function mountHero() {
+      hero = new AstraCard(heroSlot, {
+        ...ASTRA_CARD_STATIC_OPTIONS,
+        studio: heroState.studio,
+        selected: heroState.selected,
+        data: {
+          id: 'astra-hero',
+          name: nameInput.value || 'ASTRA',
+          rarity: 'SSR',
+          level: 80,
+          stars: 5
+        },
+        onReady: d => {
+          log('onReady', `${d.id} ("${d.name}") ready (static mode)`);
+          summaryEl.textContent = 'Static AstraCard instances ready (ASTRA_CARD_STATIC_OPTIONS).';
+        },
+        onClick: d => log('onClick', `${d.id} clicked`),
+        onSelect: (d, card) => {
+          heroState.selected = !card.isSelected();
+          card.setSelected(heroState.selected);
+          log('onSelect', `${d.id} -> selected=${heroState.selected}`);
+        },
+        onHoverStart: d => log('onHoverStart', `${d.id} (stationary)`),
+        onHoverEnd: d => log('onHoverEnd', `${d.id}`),
+        onError: err => log('onError', err.message)
+      });
+      btnDestroy.disabled = false;
+      btnRecreate.disabled = true;
+      btnPause.textContent = 'Pause Effects';
+    }
+
+    mountHero();
+
+    // Demonstrate bubbling DOM CustomEvent support on the host container
+    heroSlot.addEventListener('astra:select', e => {
+      log('DOM astra:select', `bubbled from ${e.detail.data.id}`);
+    });
+
+    document.getElementById('btn-update-name').addEventListener('click', () => {
+      if (!hero || hero.destroyed) return;
+      hero.update({ name: nameInput.value });
+      log('update()', `name -> "${nameInput.value}"`);
+    });
+
+    document.getElementById('btn-reset-name').addEventListener('click', () => {
+      nameInput.value = 'ASTRA';
+      if (!hero || hero.destroyed) return;
+      hero.update({ name: 'ASTRA' });
+      log('update()', 'name -> "ASTRA"');
+    });
+
+    document.getElementById('btn-select').addEventListener('click', () => {
+      if (!hero || hero.destroyed) return;
+      heroState.selected = !hero.isSelected();
+      hero.setSelected(heroState.selected);
+      log('setSelected()', `selected=${heroState.selected}`);
+    });
+
+    document.getElementById('btn-studio').addEventListener('click', () => {
+      if (!hero || hero.destroyed) return;
+      heroState.studio = !heroState.studio;
+      hero.setOptions({ studio: heroState.studio });
+      log('setOptions()', `studio=${heroState.studio}`);
+    });
+
+    btnPause.addEventListener('click', () => {
+      if (!hero || hero.destroyed) return;
+      if (hero.paused) {
+        hero.resume();
+        btnPause.textContent = 'Pause Effects';
+        log('resume()', 'hero sparkle/lighting effects resumed (card still 0°)');
+      } else {
+        hero.pause();
+        btnPause.textContent = 'Resume Effects';
+        log('pause()', 'hero effects paused');
+      }
+    });
+
+    btnDestroy.addEventListener('click', () => {
+      if (!hero || hero.destroyed) return;
+      hero.destroy();
+      btnDestroy.disabled = true;
+      btnRecreate.disabled = false;
+      log('destroy()', 'hero WebGL context, listeners & DOM cleaned up');
+    });
+
+    btnRecreate.addEventListener('click', () => {
+      mountHero();
+      log('new AstraCard()', 'hero recreated cleanly from shared asset cache');
+    });
+
+    // ---- Multi-instance static roster cards with single-select radio behavior
+    const rosterConfigs = [
+      { slot: 'roster-1', id: 'astra-collection', name: 'ASTRA', selected: true },
+      { slot: 'roster-2', id: 'astra-formation', name: 'ASTRA', selected: false },
+      { slot: 'roster-3', id: 'astra-aspect', name: 'ASTRA', selected: false }
+    ];
+
+    const rosterCards = [];
+    for (const cfg of rosterConfigs) {
+      const card = new AstraCard(document.getElementById(cfg.slot), {
+        ...ASTRA_CARD_STATIC_OPTIONS,
+        selected: cfg.selected,
+        studio: true,
+        data: { id: cfg.id, name: cfg.name },
+        onClick: d => log('roster click', `${d.id}`),
+        onSelect: (d, clickedCard) => {
+          for (const c of rosterCards) c.setSelected(c === clickedCard);
+          log('roster select', `active slot -> ${d.id}`);
+        },
+        onError: err => log('roster error', `${cfg.id}: ${err.message}`)
+      });
+      rosterCards.push(card);
+    }
+  </script>
+</body>
+</html>
