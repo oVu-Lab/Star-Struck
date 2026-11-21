@@ -9,13 +9,13 @@ Reusable, framework-free Vanilla ES Module WebGL component preserving the origin
 ## Directory Structure
 
 ```text
-astra-card/
+astra-cardtemplate/
 ├── AstraCard.js       # Reusable ES Module component (Three.js r128 WebGL)
 ├── AstraCard.css      # Scoped component styles (.astra-card*)
 ├── demo.html          # Standalone static-mode verification page
 ├── README.md          # Usage instructions & component API
 ├── INTEGRATION.md     # Standardized integration guide for AI coding agents
-└── assets/
+└── assets-astra/
     ├── bg.jpeg        # 1152×1744 celestial astrolabe background (RGB)
     ├── character.png  # 1152×1744 Astra character art (RGBA with alpha)
     ├── frame.jpeg     # 1152×1744 ornate gold frame (RGB, auto-keyed)
@@ -29,7 +29,7 @@ astra-card/
 ES Modules and WebGL image textures require serving over HTTP (browsers block module imports and cross-origin canvas reads under `file://`).
 
 ```bash
-cd astra-card
+cd astra-cardtemplate
 python3 -m http.server 8000
 ```
 
@@ -73,10 +73,10 @@ const card = new AstraCard(container, {
   studio: false,
   // Optional: override default asset paths if assets live elsewhere in your app
   assets: {
-    bg: './assets/bg.jpeg',
-    character: './assets/character.png',
-    frame: './assets/frame.jpeg',
-    depth: './assets/depth.jpeg'
+    bg: './assets-astra/bg.jpeg',
+    character: './assets-astra/character.png',
+    frame: './assets-astra/frame.jpeg',
+    depth: './assets-astra/depth.jpeg'
   },
   // Pass your game's Commander data object (arbitrary fields are preserved)
   data: {
@@ -146,7 +146,7 @@ new AstraCard(container, options?)
 | Option | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
 | `data` | `object` | `{ name: 'ASTRA' }` | Commander/card data payload (see **Data Fields** below). |
-| `assets` | `object` | `./assets/*` | Default asset URL overrides (`{ bg, character, frame, depth }`). |
+| `assets` | `object` | `./assets-astra/*` | Default asset URL overrides (`{ bg, character, frame, depth }`). |
 | `frame` | `object` | Astra default | `{ crop: [x, y, w, h], clear: [[x0, y0, x1, y1], ...] }` frame mask/crop config. |
 | `tilt` | `number` | `1` | Tilt angle multiplier (`0` in `ASTRA_CARD_STATIC_OPTIONS`). |
 | `autoplay` | `boolean` | `true` | Continuous 3D figure-8 card sway and floating bob (`false` in `ASTRA_CARD_STATIC_OPTIONS`). Respects `prefers-reduced-motion`. |
@@ -242,6 +242,6 @@ Scoped state classes managed by the component:
 3. **WebGL Context Budget on Large Grids:**
    Each live `AstraCard` owns one WebGL context; browsers typically allow **8–16 simultaneous active WebGL contexts** per tab. Offscreen cards automatically pause via `IntersectionObserver` and tab-hidden checks, but keeping too many mounted instances in the DOM will still hit the browser context limit—virtualize large grids and always call `destroy()` when screens close.
 4. **Asset Fidelity:**
-   `assets/character.png` must remain an **RGBA PNG with transparency** (1152×1744) to preserve Astra's soft wing/hair edges and dark interior armor. All four assets in `assets/` are full-resolution 1152×1744 originals extracted losslessly from the source card.
+   `assets-astra/character.png` must remain an **RGBA PNG with transparency** (1152×1744) to preserve Astra's soft wing/hair edges and dark interior armor. All four assets in `assets-astra/` are full-resolution 1152×1744 originals extracted losslessly from the source card.
 5. **Reusing for Future Commanders:**
    Pass another Commander's `{ bg, character, frame, depth }` in `data.assets` and their name in `data.name` (plus optional `frame: { crop, clear }` if a different frame template is used). Identical asset sets automatically share pre-processed canvases via the module cache.

@@ -1068,7 +1068,7 @@
   background:
     radial-gradient(ellipse 85% 65% at 50% 24%, rgba(214, 168, 72, 0.25), transparent 70%),
     linear-gradient(180deg, rgba(16, 21, 44, 0.38) 0%, rgba(7, 9, 20, 0.72) 100%),
-    url('/astra-card/assets/bg.jpeg') center 18% / cover no-repeat,
+    url('/astra-cardtemplate/assets-astra/bg.jpeg') center 18% / cover no-repeat,
     #0b1024;
 }
 
@@ -1480,7 +1480,7 @@
 .ultimate-cutin.theme-astra .ultimate-cutin__portrait {
   background:
     linear-gradient(180deg, rgba(16, 21, 44, 0.35) 0%, rgba(7, 9, 20, 0.68) 100%),
-    url('/astra-card/assets/bg.jpeg') center 18% / cover no-repeat,
+    url('/astra-cardtemplate/assets-astra/bg.jpeg') center 18% / cover no-repeat,
     #0b1024;
 }
 
@@ -1658,7 +1658,7 @@
 .results-modal.theme-astra .results-visual-col {
   background:
     linear-gradient(180deg, rgba(16, 21, 44, 0.45) 0%, rgba(7, 9, 20, 0.78) 100%),
-    url('/astra-card/assets/bg.jpeg') center 18% / cover no-repeat,
+    url('/astra-cardtemplate/assets-astra/bg.jpeg') center 18% / cover no-repeat,
     #0b1024;
 }
 

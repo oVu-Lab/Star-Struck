@@ -328,7 +328,7 @@ function createMockAssets() {
 }
 
 test('AstraCard module uses local Three.js r128 (no CDN) and exports static-card preset', async () => {
-  const source = await fs.readFile(path.join(ROOT, 'astra-card/AstraCard.js'), 'utf8');
+  const source = await fs.readFile(path.join(ROOT, 'astra-cardtemplate/AstraCard.js'), 'utf8');
   assert.doesNotMatch(source, /cdn\.jsdelivr\.net/i, 'AstraCard.js must not import Three.js from external CDN');
   assert.match(source, /import\s+\*\s+as\s+THREE\s+from\s+['"]three['"]/, 'AstraCard.js must import local three package');
 
@@ -340,18 +340,18 @@ test('AstraCard module uses local Three.js r128 (no CDN) and exports static-card
   });
 
   for (const rel of [
-    'astra-card/AstraCard.css',
-    'astra-card/assets/bg.jpeg',
-    'astra-card/assets/character.png',
-    'astra-card/assets/frame.jpeg',
-    'astra-card/assets/depth.jpeg',
+    'astra-cardtemplate/AstraCard.css',
+    'astra-cardtemplate/assets-astra/bg.jpeg',
+    'astra-cardtemplate/assets-astra/character.png',
+    'astra-cardtemplate/assets-astra/frame.jpeg',
+    'astra-cardtemplate/assets-astra/depth.jpeg',
   ]) {
     const stat = await fs.stat(path.join(ROOT, rel));
     assert.ok(stat.size > 0, `Expected non-empty asset ${rel}`);
   }
 
   const indexHtml = await fs.readFile(path.join(ROOT, 'index.html'), 'utf8');
-  assert.match(indexHtml, /href="\/astra-card\/AstraCard\.css"/, 'index.html must link AstraCard.css');
+  assert.match(indexHtml, /href="\/astra-cardtemplate\/AstraCard\.css"/, 'index.html must link AstraCard.css');
 
   // Verify stationary camera framing fills slot cleanly (tilt === 0 uses tighter frustum)
   assert.match(
@@ -361,14 +361,14 @@ test('AstraCard module uses local Three.js r128 (no CDN) and exports static-card
   );
 
   // Verify canvas layers above floor shadow in AstraCard.css
-  const cardCss = await fs.readFile(path.join(ROOT, 'astra-card/AstraCard.css'), 'utf8');
+  const cardCss = await fs.readFile(path.join(ROOT, 'astra-cardtemplate/AstraCard.css'), 'utf8');
   assert.match(cardCss, /\.astra-card__canvas\s*\{[^}]*z-index:\s*1;/, 'Canvas must stack above floor shadow');
 
   // Verify AssetManager maps hero_portrait_astra to real 1152x1744 standalone character PNG (not SVG placeholder)
-  assert.equal(ASSETS_CONFIG.hero_portrait_astra.src, './astra-card/assets/character.png');
+  assert.equal(ASSETS_CONFIG.hero_portrait_astra.src, './astra-cardtemplate/assets-astra/character.png');
   assert.equal(ASSETS_CONFIG.hero_portrait_astra.format, 'png');
   assert.deepEqual(ASSETS_CONFIG.hero_portrait_astra.canvasSize, PORTRAIT_CANVAS);
-  assert.equal(ASSETS_CONFIG.hero_bg_astra.src, './astra-card/assets/bg.jpeg');
+  assert.equal(ASSETS_CONFIG.hero_bg_astra.src, './astra-cardtemplate/assets-astra/bg.jpeg');
 });
 
 test('AstraCardRegistry enforces static options, preserves game data, caps WebGL contexts, and cleans up', async () => {

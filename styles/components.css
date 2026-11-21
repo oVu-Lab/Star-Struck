@@ -761,7 +761,7 @@
   background:
     radial-gradient(ellipse 85% 60% at 50% 24%, rgba(214, 168, 72, 0.26), transparent 68%),
     linear-gradient(180deg, rgba(16, 21, 44, 0.42) 0%, rgba(7, 9, 20, 0.72) 100%),
-    url('/astra-card/assets/bg.jpeg') center 18% / cover no-repeat,
+    url('/astra-cardtemplate/assets-astra/bg.jpeg') center 18% / cover no-repeat,
     #0b1024;
 }
 

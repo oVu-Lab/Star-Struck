@@ -23,7 +23,7 @@ export default defineConfig(() => {
     plugins: [
       copyStaticDirectory('data', 'data'),
       copyStaticDirectory('assets', 'assets'),
-      copyStaticDirectory('astra-card', 'astra-card'),
+      copyStaticDirectory('astra-cardtemplate', 'astra-cardtemplate'),
     ],
     resolve: {
       alias: {

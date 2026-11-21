@@ -9,16 +9,16 @@ This document is the authoritative integration specification for AI coding agent
 
 ## 1. Component Files & Folder Structure
 
-Keep the component directory intact so relative URLs (`./AstraCard.css` and `./assets/*`, resolved via `import.meta.url`) work without extra configuration:
+Keep the component directory intact so relative URLs (`./AstraCard.css` and `./assets-astra/*`, resolved via `import.meta.url`) work without extra configuration:
 
 ```text
-astra-card/
+astra-cardtemplate/
 ├── AstraCard.js       # Vanilla ES Module component (exports AstraCard, ASTRA_CARD_STATIC_OPTIONS, ASTRA_CARD_DEFAULTS)
 ├── AstraCard.css      # Scoped component styles (all rules under .astra-card)
 ├── demo.html          # Standalone verification page (static mode)
 ├── README.md          # Full API reference
 ├── INTEGRATION.md     # This AI integration specification
-└── assets/
+└── assets-astra/
     ├── bg.jpeg        # 1152×1744 celestial astrolabe background (RGB JPEG)
     ├── character.png  # 1152×1744 Astra character art (RGBA PNG — MUST keep alpha channel)
     ├── frame.jpeg     # 1152×1744 ornate gold border frame (RGB JPEG, auto-keyed)
@@ -29,14 +29,14 @@ astra-card/
 
 ## 2. Required Assets & Paths
 
-`AstraCard.js` resolves default assets relative to itself using `new URL('./assets/<file>', import.meta.url).href`:
+`AstraCard.js` resolves default assets relative to itself using `new URL('./assets-astra/<file>', import.meta.url).href`:
 
 | Key | Default File | Resolution | Format & Requirement |
 | :--- | :--- | :--- | :--- |
-| `bg` | `./assets/bg.jpeg` | `1152×1744` | RGB JPEG background texture |
-| `character` | `./assets/character.png` | `1152×1744` | **RGBA PNG with alpha transparency** (do not convert to JPEG) |
-| `frame` | `./assets/frame.jpeg` | `1152×1744` | RGB JPEG frame (checkerboard background keyed automatically) |
-| `depth` | `./assets/depth.jpeg` | `1152×1744` | Grayscale depth map used for relief ray-marching & lighting normals |
+| `bg` | `./assets-astra/bg.jpeg` | `1152×1744` | RGB JPEG background texture |
+| `character` | `./assets-astra/character.png` | `1152×1744` | **RGBA PNG with alpha transparency** (do not convert to JPEG) |
+| `frame` | `./assets-astra/frame.jpeg` | `1152×1744` | RGB JPEG frame (checkerboard background keyed automatically) |
+| `depth` | `./assets-astra/depth.jpeg` | `1152×1744` | Grayscale depth map used for relief ray-marching & lighting normals |
 
 - **Custom asset locations:** If Star Struck stores assets in a different directory, pass explicit URLs in `options.assets` or `data.assets` (`data.assets` takes precedence over `options.assets`, which takes precedence over defaults).
 - **Shared caching:** Identical `[assets, frame]` sets are pre-processed once in a module-level cache and shared across all `AstraCard` instances.
@@ -82,7 +82,7 @@ Provide a dedicated empty DOM container (`<div>`) for each card instance:
 Always import `ASTRA_CARD_STATIC_OPTIONS` alongside `AstraCard` and spread it into the options object:
 
 ```js
-import { AstraCard, ASTRA_CARD_STATIC_OPTIONS } from './path/to/astra-card/AstraCard.js';
+import { AstraCard, ASTRA_CARD_STATIC_OPTIONS } from './path/to/astra-cardtemplate/AstraCard.js';
 
 const card = new AstraCard(slotElement, {
   ...ASTRA_CARD_STATIC_OPTIONS,
@@ -221,7 +221,7 @@ Browsers enforce a hard limit of roughly **8 to 16 active WebGL contexts per tab
 Do **not**:
 - Modify or simplify the 6 GLSL shaders (`VS`, `COM`, `FS`, `SFS`, `PVS`, `PFS`) in `AstraCard.js`.
 - Remove the 8-slice metallic edge stack, relief ray-marching, foil speculars, star flares, or `mkTitle()` lettering.
-- Replace `assets/character.png` with a JPEG or flatten its alpha channel.
+- Replace `assets-astra/character.png` with a JPEG or flatten its alpha channel.
 - Add global CSS rules that target `canvas`, `.astra-card__canvas`, `.astra-card__glow`, or `.astra-card__shadow` in ways that clip or distort the card.
 - Stretch the container far away from the `2:3` aspect ratio.
 

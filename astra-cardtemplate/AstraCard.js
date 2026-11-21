@@ -106,10 +106,10 @@ const PFS = `precision highp float;varying float vA;void main(){float d=length(g
 
 // ---------------------------------------------------------------- module config
 const DEFAULT_ASSETS = Object.freeze({
-  bg: new URL('./assets/bg.jpeg', import.meta.url).href,
-  character: new URL('./assets/character.png', import.meta.url).href,
-  frame: new URL('./assets/frame.jpeg', import.meta.url).href,
-  depth: new URL('./assets/depth.jpeg', import.meta.url).href
+  bg: new URL('./assets-astra/bg.jpeg', import.meta.url).href,
+  character: new URL('./assets-astra/character.png', import.meta.url).href,
+  frame: new URL('./assets-astra/frame.jpeg', import.meta.url).href,
+  depth: new URL('./assets-astra/depth.jpeg', import.meta.url).href
 });
 const DEFAULT_FRAME = Object.freeze({
   crop: [30, 38, 1095, 1674], // outermost gold line of frame.jpeg -> card edge

@@ -13,7 +13,7 @@
 import {
   AstraCard,
   ASTRA_CARD_STATIC_OPTIONS,
-} from '../../astra-card/AstraCard.js';
+} from '../../astra-cardtemplate/AstraCard.js';
 
 export const ASTRA_HERO_ID = 'astra';
 export const MAX_SIMULTANEOUS_ASTRA_CARDS = 6;
