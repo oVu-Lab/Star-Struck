@@ -6,10 +6,10 @@
 import { formatNumber } from '../utils/MathUtils.js';
 
 const MISSION_CATEGORIES = [
-  { id: 'daily', label: 'Daily' },
-  { id: 'weekly', label: 'Weekly' },
-  { id: 'seasonal', label: 'Seasonal' },
-  { id: 'main', label: 'Main Mission' },
+  { id: 'daily', label: 'Daily', kicker: '00:00 UTC Reset' },
+  { id: 'weekly', label: 'Weekly', kicker: 'Mon 00:00 UTC' },
+  { id: 'seasonal', label: 'Seasonal', kicker: 'Limited Events' },
+  { id: 'main', label: 'Main Mission', kicker: 'Campaign Stages' },
 ];
 
 const VALID_CATEGORY_IDS = new Set(MISSION_CATEGORIES.map((c) => c.id));
@@ -21,20 +21,128 @@ const CHAPTER_STATUS_LABELS = {
   locked: 'Locked',
 };
 
-function formatRewardParts(rewards) {
+/**
+ * Explicit data-driven mapping from mission metric to an existing destination screen.
+ * Unknown or unsupported metrics resolve to null rather than falling back to Home.
+ */
+export const MISSION_DESTINATION_MAP = {
+  battles_played: { screenId: 'battle', label: 'Go to Battle' },
+  battles_won: { screenId: 'battle', label: 'Go to Battle' },
+  enemies_defeated: { screenId: 'battle', label: 'Go to Battle' },
+  cards_merged: { screenId: 'battle', label: 'Go to Battle' },
+  cards_played: { screenId: 'battle', label: 'Go to Battle' },
+  ultimates_used: { screenId: 'battle', label: 'Go to Battle' },
+  units_upgraded: { screenId: 'formation', label: 'Go to Formation', formationTab: 'squad' },
+  summons_performed: { screenId: 'summon', label: 'Go to Summon' },
+};
+
+export function resolveMissionDestination(mission, ctx = {}) {
+  const metric = mission?.metric;
+  if (!metric || !Object.prototype.hasOwnProperty.call(MISSION_DESTINATION_MAP, metric)) {
+    return null;
+  }
+  const mapping = MISSION_DESTINATION_MAP[metric];
+  const screenManager = ctx?.screenManager;
+  if (screenManager && typeof screenManager.has === 'function' && !screenManager.has(mapping.screenId)) {
+    return null;
+  }
+  return {
+    screenId: mapping.screenId,
+    label: mapping.label,
+    formationTab: mapping.formationTab || null,
+    metric,
+  };
+}
+
+function renderRewardIconSvg(kind) {
+  switch (kind) {
+    case 'astrite':
+      return `<svg class="mission-reward-icon" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 1.5L12.7 7.3L18.5 10L12.7 12.7L10 18.5L7.3 12.7L1.5 10L7.3 7.3Z" fill="currentColor" fill-opacity="0.22" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
+    case 'credits':
+      return `<svg class="mission-reward-icon" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><polygon points="10,2 17,6 17,14 10,18 3,14 3,6" fill="currentColor" fill-opacity="0.18" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><circle cx="10" cy="10" r="3" fill="currentColor" fill-opacity="0.55"/></svg>`;
+    case 'playerXp':
+      return `<svg class="mission-reward-icon" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M4 13L10 7L16 13M4 8.5L10 2.5L16 8.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 17H15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
+    case 'item_xp_chip':
+      return `<svg class="mission-reward-icon" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><rect x="4.5" y="4.5" width="11" height="11" rx="1.5" fill="currentColor" fill-opacity="0.16" stroke="currentColor" stroke-width="1.4"/><path d="M7.5 1.8V4.5M12.5 1.8V4.5M7.5 15.5V18.2M12.5 15.5V18.2M1.8 7.5H4.5M1.8 12.5H4.5M15.5 7.5H18.2M15.5 12.5H18.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>`;
+    case 'item_aegis_core':
+      return `<svg class="mission-reward-icon" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 2L16.5 4.5V9.8C16.5 13.7 13.7 16.8 10 18C6.3 16.8 3.5 13.7 3.5 9.8V4.5L10 2Z" fill="currentColor" fill-opacity="0.18" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><circle cx="10" cy="9.5" r="2.2" fill="currentColor"/></svg>`;
+    case 'item_stamina_cell':
+      return `<svg class="mission-reward-icon" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M11.2 2L5.5 10.6H10L8.8 18L14.5 9.4H10L11.2 2Z" fill="currentColor" fill-opacity="0.24" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
+    default:
+      return `<svg class="mission-reward-icon" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M10 2.5L16.5 6.2V13.8L10 17.5L3.5 13.8V6.2L10 2.5Z" fill="currentColor" fill-opacity="0.16" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M3.5 6.2L10 10L16.5 6.2M10 10V17.5" stroke="currentColor" stroke-width="1.2"/></svg>`;
+  }
+}
+
+function buildRewardItems(rewards) {
   if (!rewards) return [];
-  const parts = [];
-  if (rewards.astrite > 0) parts.push({ label: `+${formatNumber(rewards.astrite)} Astrite`, gold: true });
-  if (rewards.credits > 0) parts.push({ label: `+${formatNumber(rewards.credits)} Credits`, gold: false });
-  if (rewards.playerXp > 0) parts.push({ label: `+${formatNumber(rewards.playerXp)} Cmdr XP`, gold: false });
+  const items = [];
+  if (rewards.astrite > 0) {
+    items.push({
+      kind: 'astrite',
+      name: 'Astrite',
+      qtyText: `+${formatNumber(rewards.astrite)}`,
+      label: `+${formatNumber(rewards.astrite)} Astrite`,
+      tone: 'gold',
+    });
+  }
+  if (rewards.credits > 0) {
+    items.push({
+      kind: 'credits',
+      name: 'Credits',
+      qtyText: `+${formatNumber(rewards.credits)}`,
+      label: `+${formatNumber(rewards.credits)} Credits`,
+      tone: 'bronze',
+    });
+  }
+  if (rewards.playerXp > 0) {
+    items.push({
+      kind: 'playerXp',
+      name: 'Commander XP',
+      qtyText: `+${formatNumber(rewards.playerXp)}`,
+      label: `+${formatNumber(rewards.playerXp)} Commander XP`,
+      tone: 'blue',
+    });
+  }
   if (Array.isArray(rewards.materials)) {
     for (const mat of rewards.materials) {
       if (mat && mat.quantity > 0) {
-        parts.push({ label: `${mat.name || mat.id} ×${mat.quantity}`, gold: false });
+        const name = mat.name || mat.id;
+        items.push({
+          kind: mat.id || 'material',
+          name,
+          qtyText: `×${formatNumber(mat.quantity)}`,
+          label: `${name} ×${mat.quantity}`,
+          tone: 'slate',
+        });
       }
     }
   }
-  return parts;
+  return items;
+}
+
+function formatRewardParts(rewards) {
+  return buildRewardItems(rewards).map((item) => ({
+    ...item,
+    gold: item.tone === 'gold',
+  }));
+}
+
+function renderRewardChips(rewards) {
+  const items = buildRewardItems(rewards);
+  if (items.length === 0) {
+    return `<span class="meta-line">None</span>`;
+  }
+  return items
+    .map(
+      (item) => `
+        <span class="mission-reward-item is-${item.tone} ${item.tone === 'gold' ? 'is-gold' : ''}" data-reward-kind="${item.kind}">
+          <span class="mission-reward-item__icon">${renderRewardIconSvg(item.kind)}</span>
+          <span class="mission-reward-item__name">${item.name}</span>
+          <span class="mission-reward-item__qty tabular-nums">${item.qtyText}</span>
+        </span>
+      `,
+    )
+    .join('');
 }
 
 function formatIsoDateShort(iso) {
@@ -55,13 +163,23 @@ export class MissionsScreen {
     this._countdownTimer = null;
     this._shouldScrollTimeline = false;
     this._timelineScrollTop = 0;
+    this._missionListScrollTop = 0;
+    this._returnCategory = null;
   }
 
   mount(container, params = {}) {
     this._container = container;
     this._ctx.missionSystem?.ensureResets?.();
 
-    const requested = params && VALID_CATEGORY_IDS.has(params.category) ? params.category : 'daily';
+    let requested = 'daily';
+    if (params && VALID_CATEGORY_IDS.has(params.category)) {
+      requested = params.category;
+      this._returnCategory = null;
+    } else if (this._returnCategory && VALID_CATEGORY_IDS.has(this._returnCategory)) {
+      requested = this._returnCategory;
+      this._returnCategory = null;
+    }
+
     if (requested === 'main') {
       this._syncToCurrentProgression({ missionsCategory: 'main' });
     } else {
@@ -123,6 +241,8 @@ export class MissionsScreen {
 
   _selectCategory(categoryId) {
     if (!VALID_CATEGORY_IDS.has(categoryId)) return;
+    this._missionListScrollTop = 0;
+    this._returnCategory = null;
     if (categoryId === 'main') {
       this._syncToCurrentProgression({ missionsCategory: 'main' });
     } else {
@@ -147,67 +267,160 @@ export class MissionsScreen {
     return chapterObj.stages[0].id;
   }
 
+  _navigateToMissionDestination(mission, category) {
+    const dest = resolveMissionDestination(mission, this._ctx);
+    if (!dest) {
+      this._ctx.notify?.('No direct destination is available for this mission type.', 'warn');
+      return false;
+    }
+
+    const { progressionSystem, gameState, screenManager, audioManager } = this._ctx;
+
+    if (dest.screenId === 'battle') {
+      const selected = progressionSystem?.getSelectedStage?.();
+      if (!selected || !progressionSystem?.isStageUnlocked?.(selected.id)) {
+        const fallback = progressionSystem?.getCurrentProgressionStage?.();
+        if (fallback && progressionSystem?.isStageUnlocked?.(fallback.id)) {
+          progressionSystem.selectStage(fallback.id);
+        }
+      }
+    } else if (dest.screenId === 'formation' && dest.formationTab) {
+      gameState?.setUI?.({ formationTab: dest.formationTab });
+    }
+
+    this._returnCategory = VALID_CATEGORY_IDS.has(category) ? category : null;
+    audioManager?.playClick?.();
+    const navigated = screenManager?.navigate?.(dest.screenId);
+    if (navigated === false) {
+      this._returnCategory = null;
+      this._ctx.notify?.('Destination screen is currently unavailable.', 'warn');
+      return false;
+    }
+    return true;
+  }
+
+  _getCategoryMeta(catId, summaries, currentProgStage, allStages) {
+    if (catId === 'main') {
+      const totalCleared = allStages.filter((s) => s.cleared).length;
+      return {
+        badgeText: `${totalCleared}/${allStages.length}`,
+        badgeTone: 'neutral',
+        subtext: currentProgStage ? `Stage ${currentProgStage.code}` : 'Campaign',
+      };
+    }
+
+    const summary = summaries[catId];
+    if (!summary) {
+      return { badgeText: '—', badgeTone: 'neutral', subtext: 'Unavailable' };
+    }
+
+    if (catId === 'seasonal' && !summary.event) {
+      return {
+        badgeText: 'None',
+        badgeTone: 'muted',
+        subtext: summary.upcomingEvent ? 'Scheduled' : 'No Active Event',
+      };
+    }
+
+    if (summary.claimableCount > 0) {
+      return {
+        badgeText: `${summary.claimableCount} Ready`,
+        badgeTone: 'gold',
+        subtext: `${summary.completedCount}/${summary.totalCount} Complete`,
+      };
+    }
+
+    return {
+      badgeText: `${summary.completedCount}/${summary.totalCount}`,
+      badgeTone: summary.totalCount > 0 && summary.completedCount === summary.totalCount ? 'ally' : 'neutral',
+      subtext: summary.totalCount > 0 && summary.completedCount === summary.totalCount ? 'Completed' : 'In Progress',
+    };
+  }
+
   render() {
     if (!this._container) return;
 
-    const prevScrollEl = this._container.querySelector('.chapter-timeline-scroll');
-    if (prevScrollEl && typeof prevScrollEl.scrollTop === 'number') {
-      this._timelineScrollTop = prevScrollEl.scrollTop;
+    const prevTimelineScroll = this._container.querySelector('.chapter-timeline-scroll');
+    if (prevTimelineScroll && typeof prevTimelineScroll.scrollTop === 'number') {
+      this._timelineScrollTop = prevTimelineScroll.scrollTop;
+    }
+    const prevListScroll = this._container.querySelector('.missions-list-scroll');
+    if (prevListScroll && typeof prevListScroll.scrollTop === 'number') {
+      this._missionListScrollTop = prevListScroll.scrollTop;
     }
 
     const activeCategory = this._getActiveCategory();
     const { missionSystem, progressionSystem, audioManager } = this._ctx;
-    const claimableCounts = {
-      daily: missionSystem?.getClaimableCount?.('daily') || 0,
-      weekly: missionSystem?.getClaimableCount?.('weekly') || 0,
-      seasonal: missionSystem?.getClaimableCount?.('seasonal') || 0,
-      main: 0,
+    const summaries = {
+      daily: missionSystem?.getCategorySummary?.('daily') || null,
+      weekly: missionSystem?.getCategorySummary?.('weekly') || null,
+      seasonal: missionSystem?.getCategorySummary?.('seasonal') || null,
     };
-    const totalClaimable = claimableCounts.daily + claimableCounts.weekly + claimableCounts.seasonal;
+    const totalClaimable =
+      (summaries.daily?.claimableCount || 0) +
+      (summaries.weekly?.claimableCount || 0) +
+      (summaries.seasonal?.claimableCount || 0);
     const currentProgStage = progressionSystem.getCurrentProgressionStage();
+    const allStages = progressionSystem.getStages();
 
     this._container.innerHTML = `
       <section class="screen-frame" aria-label="Missions Center">
         <div class="screen-bar">
-          <div class="screen-bar__left">
-            <h1 class="screen-bar__title">Missions Center</h1>
-            <span class="meta-sep" aria-hidden="true">·</span>
+          <div class="screen-bar__lead">
+            <h1 class="screen-title">Missions Center</h1>
             <span class="meta-line tabular-nums">
-              ${
+              <span>${
                 activeCategory === 'main' && currentProgStage
-                  ? `Current Progression: Ch.${currentProgStage.chapter} · Stage ${currentProgStage.code}`
-                  : totalClaimable > 0
-                    ? `${totalClaimable} Claimable Reward${totalClaimable > 1 ? 's' : ''}`
-                    : 'Directives & Main Campaign'
-              }
+                  ? `Main Campaign · Ch.${currentProgStage.chapter} Stage ${currentProgStage.code}`
+                  : 'Tactical Directives & Campaign Operations'
+              }</span>
             </span>
           </div>
 
-          <div class="segmented-bar missions-tabs" role="tablist" aria-label="Mission Categories">
-            ${MISSION_CATEGORIES.map((cat) => {
-              const count = claimableCounts[cat.id] || 0;
-              const isActive = activeCategory === cat.id;
-              return `
-                <button
-                  type="button"
-                  role="tab"
-                  class="segmented-btn ${isActive ? 'is-active' : ''}"
-                  data-mission-tab="${cat.id}"
-                  aria-selected="${isActive ? 'true' : 'false'}"
-                >
-                  <span>${cat.label}</span>
-                  ${
-                    count > 0
-                      ? `<span class="missions-tab-count tabular-nums" aria-label="${count} claimable">${count}</span>`
-                      : ''
-                  }
-                </button>
-              `;
-            }).join('')}
+          <div class="meta-line tabular-nums">
+            <span>${
+              totalClaimable > 0
+                ? `${totalClaimable} Claimable Reward${totalClaimable > 1 ? 's' : ''}`
+                : 'All Completed Rewards Claimed'
+            }</span>
           </div>
         </div>
 
-        <div id="missions-body" class="missions-body"></div>
+        <div class="missions-center">
+          <aside class="surface missions-category-pane" aria-label="Mission Categories">
+            <div class="missions-category-pane__head">
+              <div class="section-kicker section-kicker--gold">Categories</div>
+              <h2 class="section-heading">Mission Board</h2>
+            </div>
+
+            <div class="missions-category-list" role="tablist" aria-orientation="vertical" aria-label="Mission Categories">
+              ${MISSION_CATEGORIES.map((cat) => {
+                const isActive = activeCategory === cat.id;
+                const meta = this._getCategoryMeta(cat.id, summaries, currentProgStage, allStages);
+                const claimableCount = summaries[cat.id]?.claimableCount || 0;
+                return `
+                  <button
+                    type="button"
+                    role="tab"
+                    class="missions-category-btn ${isActive ? 'is-active' : ''}"
+                    data-mission-tab="${cat.id}"
+                    aria-selected="${isActive ? 'true' : 'false'}"
+                  >
+                    <span class="missions-category-btn__top">
+                      <span class="missions-category-btn__title">${cat.label}</span>
+                      <span class="missions-category-btn__badge is-${meta.badgeTone} tabular-nums" ${
+                        claimableCount > 0 ? `aria-label="${claimableCount} claimable"` : ''
+                      }>${meta.badgeText}</span>
+                    </span>
+                    <span class="missions-category-btn__sub">${cat.kicker} · ${meta.subtext}</span>
+                  </button>
+                `;
+              }).join('')}
+            </div>
+          </aside>
+
+          <div id="missions-body" class="missions-detail-pane"></div>
+        </div>
       </section>
     `;
 
@@ -224,13 +437,13 @@ export class MissionsScreen {
     if (activeCategory === 'main') {
       this._renderMainMissionView(bodyEl);
     } else {
-      this._renderMissionListView(bodyEl, activeCategory);
+      this._renderMissionListView(bodyEl, activeCategory, summaries[activeCategory]);
     }
   }
 
-  _renderMissionListView(bodyEl, category) {
+  _renderMissionListView(bodyEl, category, precomputedSummary = null) {
     const { missionSystem, audioManager, notify } = this._ctx;
-    const summary = missionSystem?.getCategorySummary?.(category);
+    const summary = precomputedSummary || missionSystem?.getCategorySummary?.(category);
 
     if (!summary) {
       bodyEl.innerHTML = `
@@ -358,57 +571,102 @@ export class MissionsScreen {
               `
               : sortedMissions
                   .map((m) => {
-                    const rewardParts = formatRewardParts(m.rewards);
+                    const hasProgressBar = Number.isFinite(Number(m.target)) && Number(m.target) > 0;
+                    const statusLabel = m.claimable
+                      ? 'Ready to Claim'
+                      : m.claimed
+                        ? 'Claimed'
+                        : 'In Progress';
                     const stateClass = m.claimable
                       ? 'is-claimable'
                       : m.claimed
                         ? 'is-claimed'
-                        : '';
+                        : 'is-progress';
+                    const dest = !m.completed ? resolveMissionDestination(m, this._ctx) : null;
+
+                    let actionMarkup = '';
+                    if (m.claimable) {
+                      actionMarkup = `
+                        <button
+                          type="button"
+                          class="btn btn-gold btn-sm"
+                          data-claim-mission="${m.id}"
+                        >
+                          Claim
+                        </button>
+                      `;
+                    } else if (m.claimed) {
+                      actionMarkup = `
+                        <button
+                          type="button"
+                          class="btn btn-ghost btn-sm mission-claimed-btn"
+                          data-mission-claimed="${m.id}"
+                          disabled
+                          aria-disabled="true"
+                        >
+                          Claimed
+                        </button>
+                      `;
+                    } else if (dest) {
+                      actionMarkup = `
+                        <button
+                          type="button"
+                          class="btn btn-secondary btn-sm"
+                          data-mission-go="${m.id}"
+                          data-go-screen="${dest.screenId}"
+                        >
+                          ${dest.label}
+                        </button>
+                      `;
+                    } else {
+                      actionMarkup = `
+                        <button
+                          type="button"
+                          class="btn btn-ghost btn-sm"
+                          data-mission-unavailable="${m.id}"
+                          disabled
+                          aria-disabled="true"
+                          title="No direct navigation destination available for this mission"
+                        >
+                          No Destination
+                        </button>
+                      `;
+                    }
+
                     return `
                       <article class="mission-row-card ${stateClass}" data-mission-id="${m.id}">
                         <div class="mission-row-card__main">
                           <div class="mission-row-card__head">
-                            <h3 class="mission-row-card__title">${m.title}</h3>
+                            <div class="mission-row-card__title-group">
+                              <h3 class="mission-row-card__title">${m.title}</h3>
+                              <span class="mission-state-tag ${stateClass}">${statusLabel}</span>
+                            </div>
                             <span class="mission-row-card__counter tabular-nums">${m.progress} / ${m.target}</span>
                           </div>
                           <p class="mission-row-card__desc">${m.description}</p>
-                          <div class="progress-track" aria-label="${m.title} progress">
-                            <div
-                              class="progress-fill ${m.completed ? 'progress-fill--gold' : ''}"
-                              style="width: ${m.pct}%;"
-                            ></div>
-                          </div>
+                          ${
+                            hasProgressBar
+                              ? `
+                                <div class="progress-track" aria-label="${m.title} progress">
+                                  <div
+                                    class="progress-fill ${m.completed ? 'progress-fill--gold' : ''}"
+                                    style="width: ${m.pct}%;"
+                                  ></div>
+                                </div>
+                              `
+                              : ''
+                          }
                         </div>
 
                         <div class="mission-row-card__rewards" aria-label="Mission rewards">
                           <span class="home-metric__label">Rewards</span>
                           <div class="mission-reward-list tabular-nums">
-                            ${rewardParts
-                              .map(
-                                (r) => `
-                                  <span class="mission-reward-item ${r.gold ? 'is-gold' : ''}">${r.label}</span>
-                                `,
-                              )
-                              .join('')}
+                            ${renderRewardChips(m.rewards)}
                           </div>
                         </div>
 
                         <div class="mission-row-card__action">
-                          ${
-                            m.claimable
-                              ? `
-                                <button
-                                  type="button"
-                                  class="btn btn-gold btn-sm"
-                                  data-claim-mission="${m.id}"
-                                >
-                                  Claim
-                                </button>
-                              `
-                              : m.claimed
-                                ? `<span class="mission-state-tag is-claimed">Claimed</span>`
-                                : `<span class="mission-state-tag is-progress">In Progress</span>`
-                          }
+                          ${actionMarkup}
                         </div>
                       </article>
                     `;
@@ -418,6 +676,11 @@ export class MissionsScreen {
         </div>
       </div>
     `;
+
+    const listScrollEl = bodyEl.querySelector('.missions-list-scroll');
+    if (listScrollEl && typeof this._missionListScrollTop === 'number') {
+      listScrollEl.scrollTop = this._missionListScrollTop;
+    }
 
     bodyEl.querySelector('[data-action="claim-all"]')?.addEventListener('click', () => {
       const res = missionSystem.claimAllClaimable(category);
@@ -443,6 +706,15 @@ export class MissionsScreen {
         } else if (res.reason) {
           notify?.(res.reason, 'warn');
         }
+      });
+    }
+
+    for (const btn of bodyEl.querySelectorAll('[data-mission-go]')) {
+      btn.addEventListener('click', () => {
+        const missionId = btn.getAttribute('data-mission-go');
+        const mission = sortedMissions.find((item) => item.id === missionId);
+        if (!mission) return;
+        this._navigateToMissionDestination(mission, category);
       });
     }
   }
@@ -491,7 +763,6 @@ export class MissionsScreen {
         ? dataRegistry.stagesById?.get(selectedStage.unlockAfter)
         : null;
 
-    const rewardParts = selectedStage ? formatRewardParts(selectedStage.rewards) : [];
     const bonusUnitNames = (selectedStage?.rewards?.bonusUnits || [])
       .map((uid) => dataRegistry.unitsById?.get(uid)?.name || uid);
     const bonusCardNames = (selectedStage?.rewards?.bonusCards || [])
@@ -702,11 +973,7 @@ export class MissionsScreen {
                             <div class="stage-briefing-cell stage-briefing-cell--wide">
                               <span class="home-metric__label">${selectedStage.cleared ? 'Repeat & Base Rewards' : 'First-Clear Rewards'}</span>
                               <div class="mission-reward-list tabular-nums">
-                                ${rewardParts
-                                  .map(
-                                    (r) => `<span class="mission-reward-item ${r.gold ? 'is-gold' : ''}">${r.label}</span>`,
-                                  )
-                                  .join('')}
+                                ${renderRewardChips(selectedStage.rewards)}
                                 ${
                                   !selectedStage.cleared && firstClearUnlocks.length > 0
                                     ? `<span class="mission-reward-item is-gold">Unlocks: ${firstClearUnlocks.join(', ')}</span>`

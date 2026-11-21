@@ -19,7 +19,7 @@ import {
   getWeeklyPeriodKey,
 } from '../src/systems/MissionSystem.js';
 import { HomeScreen } from '../src/ui/HomeScreen.js';
-import { MissionsScreen } from '../src/ui/MissionsScreen.js';
+import { MissionsScreen, resolveMissionDestination } from '../src/ui/MissionsScreen.js';
 
 function readFullBundle() {
   const dataDir = path.resolve(process.cwd(), 'data');
@@ -590,3 +590,202 @@ test('MissionsScreen enforces 4 categories, reveals Main Mission stage selection
 
   screen.unmount();
 });
+
+test('MissionsScreen two-column Mission Center renders left category rail, reward icons/names/quantities, context-sensitive Go-To navigation, Claim persistence, and unmapped fallback', () => {
+  const storage = createMemoryStorage();
+  const harness = createHarness({ now: '2026-05-13T12:00:00Z', storage });
+  const { gameState, eventBus, progressionSystem } = harness;
+
+  const navigated = [];
+  const notifications = [];
+  const registeredScreens = new Set([
+    'home',
+    'missions',
+    'battle',
+    'heroes',
+    'formation',
+    'summon',
+    'inventory',
+    'settings',
+  ]);
+  const ctx = {
+    ...harness,
+    assetManager: { bindImageElement() {} },
+    audioManager: { playClick() {}, playReward() {} },
+    notify(msg, level) {
+      notifications.push({ msg, level });
+    },
+    screenManager: {
+      has(id) {
+        return registeredScreens.has(id);
+      },
+      navigate(dest, params) {
+        navigated.push({ dest, params });
+        return true;
+      },
+    },
+  };
+
+  const container = createMockContainer();
+  const screen = new MissionsScreen(ctx);
+  screen.mount(container);
+
+  // Two-column layout shell present with Left category rail + Right detail pane + scrollable list
+  assert.ok(container.querySelector('.missions-center'));
+  assert.ok(container.querySelector('.missions-category-pane'));
+  assert.ok(container.querySelector('#missions-body.missions-detail-pane'));
+  assert.ok(container.querySelector('.missions-list-scroll'));
+
+  // Active category has clear selected state
+  const dailyTab = container.querySelector('[data-mission-tab="daily"]');
+  assert.equal(dailyTab.getAttribute('aria-selected'), 'true');
+  assert.ok(dailyTab.getAttribute('class').includes('is-active'));
+
+  // Incomplete daily missions must NEVER render Claim, and must show Go to Battle
+  assert.equal(
+    container.querySelectorAll('[data-claim-mission]').length,
+    0,
+    'Incomplete missions must never show Claim',
+  );
+  const dailyGoBtn = container.querySelector('[data-mission-go="daily_battle_1"]');
+  assert.ok(dailyGoBtn, 'Incomplete daily battle mission should render Go to Battle button');
+  assert.equal(dailyGoBtn.getAttribute('data-go-screen'), 'battle');
+  assert.ok(container.innerHTML.includes('Go to Battle'));
+
+  // Rewards must include icons (<svg>), names, and quantities
+  assert.ok(container.innerHTML.includes('class="mission-reward-icon"'));
+  assert.ok(container.innerHTML.includes('Astrite'));
+  assert.ok(container.innerHTML.includes('Credits'));
+  assert.ok(container.innerHTML.includes('Commander XP'));
+  assert.ok(container.innerHTML.includes('Tactical XP Chip'));
+
+  // Switch to Weekly -> inspect Formation & Summon action buttons and material icons
+  container.querySelector('[data-mission-tab="weekly"]').click();
+  assert.equal(container.querySelector('[data-mission-tab="weekly"]').getAttribute('aria-selected'), 'true');
+  assert.equal(container.querySelector('[data-mission-tab="daily"]').getAttribute('aria-selected'), 'false');
+  assert.ok(container.innerHTML.includes('Aegis Tactical Core'));
+  assert.ok(container.innerHTML.includes('Field Energy Cell'));
+
+  const upgradeGoBtn = container.querySelector('[data-mission-go="weekly_upgrade_2"]');
+  assert.ok(upgradeGoBtn);
+  assert.equal(upgradeGoBtn.getAttribute('data-go-screen'), 'formation');
+  assert.ok(container.innerHTML.includes('Go to Formation'));
+
+  const summonGoBtn = container.querySelector('[data-mission-go="weekly_summon_3"]');
+  assert.ok(summonGoBtn);
+  assert.equal(summonGoBtn.getAttribute('data-go-screen'), 'summon');
+  assert.ok(container.innerHTML.includes('Go to Summon'));
+
+  // Clicking Go to Formation sets formationTab='squad' and navigates to 'formation'
+  gameState.setUI({ formationTab: 'deck' });
+  upgradeGoBtn.click();
+  assert.equal(navigated.length, 1);
+  assert.equal(navigated[0].dest, 'formation');
+  assert.equal(gameState.ui.formationTab, 'squad');
+
+  // Simulate returning from Formation after upgrading 2 units
+  screen.unmount();
+  eventBus.emit('formation:unitUpgraded', { unitId: 'heavy_shield_guard' });
+  eventBus.emit('formation:unitUpgraded', { unitId: 'wind_cavalry' });
+  screen.mount(container);
+
+  // Returning restores Weekly category and updates progress + flips button to Claim
+  assert.equal(gameState.ui.missionsCategory, 'weekly');
+  const upgradeClaimBtn = container.querySelector('[data-claim-mission="weekly_upgrade_2"]');
+  assert.ok(upgradeClaimBtn, 'Completed mission after returning must display Claim button');
+  assert.equal(container.querySelector('[data-mission-go="weekly_upgrade_2"]'), null);
+
+  // Clicking Go to Summon navigates directly to 'summon'
+  container.querySelector('[data-mission-go="weekly_summon_3"]').click();
+  assert.equal(navigated[1].dest, 'summon');
+
+  // Return to Weekly, switch across categories and back -> progress & claimable state preserved
+  screen.unmount();
+  screen.mount(container);
+  container.querySelector('[data-mission-tab="seasonal"]').click();
+  assert.ok(container.innerHTML.includes('No Active Seasonal Event'));
+  container.querySelector('[data-mission-tab="weekly"]').click();
+  assert.ok(container.querySelector('[data-claim-mission="weekly_upgrade_2"]'));
+
+  // Claim completed mission -> grants rewards once and switches to disabled Claimed button
+  const creditsBefore = gameState.resources.credits;
+  const astriteBefore = gameState.resources.astrite;
+  container.querySelector('[data-claim-mission="weekly_upgrade_2"]').click();
+  assert.equal(gameState.resources.credits, creditsBefore + 800);
+  assert.equal(gameState.resources.astrite, astriteBefore + 120);
+
+  const claimedBtn = container.querySelector('[data-mission-claimed="weekly_upgrade_2"]');
+  assert.ok(claimedBtn, 'Claimed mission must render Claimed state button');
+  assert.equal(claimedBtn.hasAttribute('disabled'), true, 'Claimed button must be disabled');
+  assert.equal(container.querySelector('[data-claim-mission="weekly_upgrade_2"]'), null);
+  // Attempting to click disabled Claimed button does not duplicate rewards
+  claimedBtn.click();
+  assert.equal(gameState.resources.credits, creditsBefore + 800);
+  assert.equal(gameState.resources.astrite, astriteBefore + 120);
+
+  // Simulate page reload from persistent storage -> Claimed state persists on Weekly
+  screen.unmount();
+  const reloaded = createHarness({ now: '2026-05-13T18:00:00Z', storage });
+  const reloadedScreen = new MissionsScreen({
+    ...reloaded,
+    assetManager: { bindImageElement() {} },
+    audioManager: { playClick() {}, playReward() {} },
+    notify() {},
+    screenManager: ctx.screenManager,
+  });
+  reloadedScreen.mount(container, { category: 'weekly' });
+  const claimedAfterReload = container.querySelector('[data-mission-claimed="weekly_upgrade_2"]');
+  assert.ok(claimedAfterReload);
+  assert.equal(claimedAfterReload.hasAttribute('disabled'), true);
+
+  // Daily battle Go-To ensures an unlocked stage is selected before navigating to 'battle'
+  reloaded.gameState.mutatePersistent('progression', (draft) => {
+    draft.progression.selectedStageId = 'stage_3_1'; // locked stage
+  });
+  reloadedScreen._selectCategory('daily');
+  container.querySelector('[data-mission-go="daily_battle_1"]').click();
+  assert.equal(navigated[2].dest, 'battle');
+  assert.equal(reloaded.progressionSystem.isStageUnlocked(reloaded.progressionSystem.getSelectedStage().id), true);
+  assert.equal(progressionSystem.isStageUnlocked('stage_3_1'), false);
+  reloadedScreen.unmount();
+
+  // Unknown / unmapped mission metric handles gracefully without navigating to 'home'
+  assert.equal(resolveMissionDestination({ metric: 'unsupported_metric' }, ctx), null);
+  const customMissions = {
+    ...harness.bundle.missions,
+    daily: [
+      {
+        id: 'daily_unknown_metric',
+        title: 'Unmapped Directive',
+        description: 'Requires an unsupported metric.',
+        metric: 'unsupported_metric',
+        target: 2,
+        rewards: { credits: 100, astrite: 10, playerXp: 10, materials: [] },
+      },
+    ],
+  };
+  const unmappedHarness = createHarness({ now: '2026-05-13T12:00:00Z', customMissions });
+  const unmappedNav = [];
+  const unmappedScreen = new MissionsScreen({
+    ...unmappedHarness,
+    assetManager: { bindImageElement() {} },
+    audioManager: { playClick() {}, playReward() {} },
+    notify() {},
+    screenManager: {
+      has: (id) => registeredScreens.has(id),
+      navigate: (dest) => {
+        unmappedNav.push(dest);
+        return true;
+      },
+    },
+  });
+  unmappedScreen.mount(container);
+  const unavailableBtn = container.querySelector('[data-mission-unavailable="daily_unknown_metric"]');
+  assert.ok(unavailableBtn, 'Unmapped mission metric should render disabled unavailable button');
+  assert.equal(unavailableBtn.hasAttribute('disabled'), true);
+  assert.equal(container.querySelector('[data-mission-go="daily_unknown_metric"]'), null);
+  unavailableBtn.click();
+  assert.equal(unmappedNav.length, 0, 'Unmapped mission must never navigate to Home');
+  unmappedScreen.unmount();
+});
+
