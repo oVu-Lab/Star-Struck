@@ -1,5 +1,28 @@
 {
   "schemaVersion": 3,
+  "chapters": [
+    {
+      "chapter": 1,
+      "title": "Outer Orbital Ring",
+      "realm": "Celestial Citadel",
+      "description": "Secure the gilded perimeter bastions and fractured relay causeways against vanguard incursions and defeat Obsidian Sovereign Malakor.",
+      "artworkAssetId": "bg_battle_orbital_ridge"
+    },
+    {
+      "chapter": 2,
+      "title": "Fractured Conduits",
+      "realm": "Astral Sundial & Azure Leylines",
+      "description": "Breach armored phalanxes, artillery overlooks, and temporal stasis fields to confront Chrono Arbiter Vael inside the Nexus.",
+      "artworkAssetId": "bg_battle_orbital_ridge"
+    },
+    {
+      "chapter": 3,
+      "title": "Obsidian Citadel",
+      "realm": "Obsidian Sanctum & Molten Dreadnought",
+      "description": "Assault the fortified inner citadel gates, survive the four-wave Sovereign Gauntlet, and face Astral Dreadnought Hyperion.",
+      "artworkAssetId": "bg_battle_orbital_ridge"
+    }
+  ],
   "stages": [
     {
       "id": "stage_1_1",

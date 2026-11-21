@@ -5,7 +5,7 @@
 
 import { deepClone, resolveStorage, safeJsonParse } from '../utils/StorageUtils.js';
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 export const DEFAULT_SAVE_KEY = 'astral_command_save_v1';
 
 const VALID_GRAPHICS = new Set(['low', 'medium', 'high']);
@@ -132,6 +132,19 @@ export function createDefaultSave() {
         },
       ],
     },
+    missions: {
+      daily: {
+        periodKey: '',
+        progress: {},
+        claimed: [],
+      },
+      weekly: {
+        periodKey: '',
+        progress: {},
+        claimed: [],
+      },
+      seasonal: {},
+    },
     settings: {
       musicVolume: 0.45,
       sfxVolume: 0.65,
@@ -212,6 +225,28 @@ export class SaveManager {
           : [],
       };
 
+      return next;
+    });
+
+    // Built-in migration from v3 -> v4: preserves all existing campaign, hero, unit,
+    // deck, and inventory progress while introducing persistent Daily/Weekly/Seasonal missions.
+    this.registerMigration(3, (v3) => {
+      const defaults = createDefaultSave();
+      const next = deepClone(v3);
+      next.missions = {
+        daily: {
+          ...defaults.missions.daily,
+          ...(next.missions?.daily || {}),
+        },
+        weekly: {
+          ...defaults.missions.weekly,
+          ...(next.missions?.weekly || {}),
+        },
+        seasonal:
+          next.missions?.seasonal && typeof next.missions.seasonal === 'object'
+            ? deepClone(next.missions.seasonal)
+            : {},
+      };
       return next;
     });
   }
@@ -456,6 +491,64 @@ export class SaveManager {
           quantity: Math.floor(safeNumber(item.quantity, 0, 0)),
           description: typeof item.description === 'string' ? item.description : '',
         }));
+    }
+
+    // Missions (v4)
+    if (migrated.missions && typeof migrated.missions === 'object') {
+      const sanitizeProgressMap = (rawMap) => {
+        const out = {};
+        if (rawMap && typeof rawMap === 'object' && !Array.isArray(rawMap)) {
+          for (const [metric, val] of Object.entries(rawMap)) {
+            if (typeof metric === 'string' && metric.length > 0) {
+              out[metric] = Math.floor(safeNumber(val, 0, 0));
+            }
+          }
+        }
+        return out;
+      };
+      const sanitizeClaimedList = (rawList) =>
+        Array.isArray(rawList)
+          ? Array.from(new Set(rawList.filter((id) => typeof id === 'string' && id.length > 0)))
+          : [];
+
+      if (migrated.missions.daily && typeof migrated.missions.daily === 'object') {
+        result.missions.daily = {
+          periodKey:
+            typeof migrated.missions.daily.periodKey === 'string'
+              ? migrated.missions.daily.periodKey.slice(0, 32)
+              : '',
+          progress: sanitizeProgressMap(migrated.missions.daily.progress),
+          claimed: sanitizeClaimedList(migrated.missions.daily.claimed),
+        };
+      }
+
+      if (migrated.missions.weekly && typeof migrated.missions.weekly === 'object') {
+        result.missions.weekly = {
+          periodKey:
+            typeof migrated.missions.weekly.periodKey === 'string'
+              ? migrated.missions.weekly.periodKey.slice(0, 32)
+              : '',
+          progress: sanitizeProgressMap(migrated.missions.weekly.progress),
+          claimed: sanitizeClaimedList(migrated.missions.weekly.claimed),
+        };
+      }
+
+      if (
+        migrated.missions.seasonal &&
+        typeof migrated.missions.seasonal === 'object' &&
+        !Array.isArray(migrated.missions.seasonal)
+      ) {
+        const seasonalOut = {};
+        for (const [eventId, entry] of Object.entries(migrated.missions.seasonal)) {
+          if (typeof eventId === 'string' && eventId.length > 0 && entry && typeof entry === 'object') {
+            seasonalOut[eventId] = {
+              progress: sanitizeProgressMap(entry.progress),
+              claimed: sanitizeClaimedList(entry.claimed),
+            };
+          }
+        }
+        result.missions.seasonal = seasonalOut;
+      }
     }
 
     // Settings

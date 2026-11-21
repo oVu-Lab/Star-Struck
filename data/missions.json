@@ -1,0 +1,200 @@
+{
+  "schemaVersion": 1,
+  "daily": [
+    {
+      "id": "daily_battle_1",
+      "title": "Field Deployment",
+      "description": "Complete 1 campaign battle attempt in any unlocked stage.",
+      "metric": "battles_played",
+      "target": 1,
+      "rewards": {
+        "credits": 250,
+        "astrite": 40,
+        "playerXp": 25,
+        "materials": []
+      }
+    },
+    {
+      "id": "daily_victory_1",
+      "title": "Tactical Victory",
+      "description": "Achieve 1 victory in any Main Mission battle.",
+      "metric": "battles_won",
+      "target": 1,
+      "rewards": {
+        "credits": 350,
+        "astrite": 60,
+        "playerXp": 35,
+        "materials": [
+          {
+            "id": "item_xp_chip",
+            "name": "Tactical XP Chip",
+            "category": "materials",
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "daily_merge_3",
+      "title": "Instruction Synthesis",
+      "description": "Merge adjacent identical tactical cards 3 times during combat.",
+      "metric": "cards_merged",
+      "target": 3,
+      "rewards": {
+        "credits": 300,
+        "astrite": 50,
+        "playerXp": 30,
+        "materials": []
+      }
+    },
+    {
+      "id": "daily_ultimate_1",
+      "title": "Commander's Decree",
+      "description": "Activate a Commander Ultimate ability once in combat.",
+      "metric": "ultimates_used",
+      "target": 1,
+      "rewards": {
+        "credits": 300,
+        "astrite": 50,
+        "playerXp": 30,
+        "materials": [
+          {
+            "id": "item_xp_chip",
+            "name": "Tactical XP Chip",
+            "category": "materials",
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "daily_enemies_15",
+      "title": "Vanguard Sweep",
+      "description": "Defeat 15 enemy units across campaign battles.",
+      "metric": "enemies_defeated",
+      "target": 15,
+      "rewards": {
+        "credits": 400,
+        "astrite": 60,
+        "playerXp": 40,
+        "materials": []
+      }
+    }
+  ],
+  "weekly": [
+    {
+      "id": "weekly_victories_5",
+      "title": "Campaign Campaigner",
+      "description": "Secure 5 victories across Main Mission stages this week.",
+      "metric": "battles_won",
+      "target": 5,
+      "rewards": {
+        "credits": 1200,
+        "astrite": 180,
+        "playerXp": 120,
+        "materials": [
+          {
+            "id": "item_xp_chip",
+            "name": "Tactical XP Chip",
+            "category": "materials",
+            "quantity": 4
+          }
+        ]
+      }
+    },
+    {
+      "id": "weekly_merges_12",
+      "title": "Master Tactician",
+      "description": "Perform 12 adjacent card merges in battle this week.",
+      "metric": "cards_merged",
+      "target": 12,
+      "rewards": {
+        "credits": 900,
+        "astrite": 150,
+        "playerXp": 100,
+        "materials": [
+          {
+            "id": "item_aegis_core",
+            "name": "Aegis Tactical Core",
+            "category": "materials",
+            "quantity": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "weekly_enemies_60",
+      "title": "Frontline Breaker",
+      "description": "Defeat 60 hostile units across campaign battles this week.",
+      "metric": "enemies_defeated",
+      "target": 60,
+      "rewards": {
+        "credits": 1100,
+        "astrite": 160,
+        "playerXp": 110,
+        "materials": [
+          {
+            "id": "item_xp_chip",
+            "name": "Tactical XP Chip",
+            "category": "materials",
+            "quantity": 3
+          }
+        ]
+      }
+    },
+    {
+      "id": "weekly_ultimates_5",
+      "title": "Sovereign Command",
+      "description": "Unleash Commander Ultimates 5 times in battle this week.",
+      "metric": "ultimates_used",
+      "target": 5,
+      "rewards": {
+        "credits": 1000,
+        "astrite": 150,
+        "playerXp": 100,
+        "materials": [
+          {
+            "id": "item_aegis_core",
+            "name": "Aegis Tactical Core",
+            "category": "materials",
+            "quantity": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "weekly_upgrade_2",
+      "title": "Armory Refinement",
+      "description": "Upgrade any unlocked unit in Formation 2 times this week.",
+      "metric": "units_upgraded",
+      "target": 2,
+      "rewards": {
+        "credits": 800,
+        "astrite": 120,
+        "playerXp": 80,
+        "materials": [
+          {
+            "id": "item_stamina_cell",
+            "name": "Field Energy Cell",
+            "category": "consumables",
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "weekly_summon_3",
+      "title": "Starlight Requisition",
+      "description": "Perform 3 recruitments on any Summon banner this week.",
+      "metric": "summons_performed",
+      "target": 3,
+      "rewards": {
+        "credits": 900,
+        "astrite": 160,
+        "playerXp": 90,
+        "materials": []
+      }
+    }
+  ],
+  "seasonalEvents": []
+}

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Astral Command — Application Shell, Top Chrome & Viewport-First Grids (P4)
+   Star Struck — Application Shell, Warm Ivory Architectural Top Bar & Grids
    ========================================================================== */
 
 .app-shell {
@@ -8,7 +8,7 @@
   flex-direction: column;
 }
 
-/* Full-Viewport Battle Mode hides the global menu top bar so the battlefield owns 100% of the screen */
+/* Full-Viewport Battle Mode hides global menu chrome so the arena owns 100% of screen */
 .app-shell.is-battle-mode {
   height: 100vh;
   overflow: hidden;
@@ -18,7 +18,7 @@
   display: none;
 }
 
-/* Slim Global Top Navigation Bar (54px) */
+/* Architectural Warm White Top Bar (56px) with Engraved Antique Gold Rule */
 .top-bar {
   position: sticky;
   top: 0;
@@ -28,10 +28,10 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-5);
-  padding: 0 var(--space-5);
-  background: rgba(8, 14, 28, 0.94);
-  backdrop-filter: blur(14px);
+  padding: 0 var(--space-6);
+  background: linear-gradient(180deg, #fefcf8 0%, #f5efe3 100%);
   border-bottom: 1px solid var(--border-subtle);
+  box-shadow: 0 4px 16px rgba(46, 36, 24, 0.07);
   flex-shrink: 0;
 }
 
@@ -45,8 +45,9 @@
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(56, 189, 248, 0.32) 30%,
-    rgba(230, 190, 100, 0.28) 70%,
+    rgba(166, 124, 46, 0.38) 20%,
+    rgba(196, 152, 68, 0.72) 50%,
+    rgba(166, 124, 46, 0.38) 80%,
     transparent 100%
   );
   pointer-events: none;
@@ -55,32 +56,33 @@
 .brand-mark {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
   white-space: nowrap;
   flex-shrink: 0;
   min-height: 40px;
-  padding-right: 4px;
+  padding-right: 6px;
   transition: opacity var(--duration-fast) var(--ease-tactical);
 }
 
 .brand-mark:hover {
-  opacity: 0.9;
+  opacity: 0.86;
 }
 
+/* Four-Pointed Astral Star Emblem */
 .brand-emblem {
   width: 20px;
   height: 20px;
-  border: 1.5px solid var(--accent-blue);
-  background: rgba(56, 189, 248, 0.08);
+  border: 1.5px solid var(--accent-gold);
+  background: #fcfaf5;
   transform: rotate(45deg);
   position: relative;
   flex-shrink: 0;
-  box-shadow: 0 0 10px rgba(56, 189, 248, 0.26);
+  box-shadow: 0 2px 8px rgba(166, 124, 46, 0.2);
   transition: transform var(--duration-base) var(--ease-tactical), border-color var(--duration-fast);
 }
 
 .brand-mark:hover .brand-emblem {
-  border-color: var(--accent-gold);
+  border-color: var(--accent-gold-deep);
   transform: rotate(135deg);
 }
 
@@ -88,25 +90,22 @@
   content: '';
   position: absolute;
   inset: 4px;
-  background: linear-gradient(135deg, var(--celestial-ivory) 0%, var(--accent-gold) 100%);
+  background: linear-gradient(135deg, #d8b263 0%, #8f6517 100%);
 }
 
 .brand-name {
   font-family: var(--font-display);
-  font-size: 0.98rem;
+  font-size: 1.04rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  background: linear-gradient(90deg, var(--celestial-ivory) 0%, #c8dcf5 72%, var(--accent-gold-bright) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--text-primary);
 }
 
 .primary-nav {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 4px;
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -117,78 +116,92 @@
 
 .nav-link {
   position: relative;
-  padding: 8px 13px;
-  min-height: 40px;
-  font-family: var(--font-display);
-  font-size: 0.88rem;
-  font-weight: 500;
-  letter-spacing: 0.02em;
+  padding: 8px 14px;
+  min-height: 42px;
+  font-family: var(--font-ui);
+  font-size: 0.84rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   color: var(--text-secondary);
   white-space: nowrap;
   flex-shrink: 0;
-  border-radius: var(--radius-sm);
-  transition:
-    color var(--duration-fast) var(--ease-tactical),
-    background-color var(--duration-fast) var(--ease-tactical);
+  transition: color var(--duration-fast) var(--ease-tactical);
 }
 
 .nav-link:hover {
   color: var(--text-primary);
-  background: rgba(56, 189, 248, 0.06);
 }
 
 .nav-link.is-active {
-  color: var(--celestial-ivory);
-  background: rgba(56, 189, 248, 0.1);
+  color: var(--accent-gold-bright);
+  font-weight: 700;
 }
 
+/* Architectural Antique-Gold Underline + Center Diamond Pip */
 .nav-link.is-active::after {
   content: '';
   position: absolute;
   left: 10px;
   right: 10px;
-  bottom: 2px;
+  bottom: 0;
   height: 2px;
-  background: linear-gradient(90deg, var(--accent-blue), var(--accent-gold-bright));
-  box-shadow: 0 0 8px rgba(56, 189, 248, 0.5);
+  background: linear-gradient(90deg, transparent, var(--accent-gold), transparent);
+}
+
+.nav-link.is-active::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -2px;
+  width: 6px;
+  height: 6px;
+  transform: translateX(-50%) rotate(45deg);
+  background: var(--accent-gold);
+  box-shadow: 0 0 6px rgba(166, 124, 46, 0.45);
 }
 
 .header-resources {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   flex-shrink: 0;
 }
 
 .resource-readout {
   display: flex;
   align-items: baseline;
-  gap: 5px;
+  gap: 6px;
   white-space: nowrap;
-  padding: 3px 6px;
-  border-radius: var(--radius-sm);
-  transition: background-color 240ms var(--ease-tactical), transform 200ms var(--ease-tactical);
+  padding: 2px 6px;
+  border-bottom: 1px solid rgba(138, 114, 78, 0.24);
+  transition: background-color 220ms var(--ease-tactical), transform 180ms var(--ease-tactical);
 }
 
 .resource-readout.is-gained {
-  background: rgba(56, 189, 248, 0.22);
-  transform: scale(1.06);
+  background: rgba(166, 124, 46, 0.16);
+  transform: scale(1.05);
+}
+
+.resource-readout--gold {
+  border-bottom-color: rgba(166, 124, 46, 0.52);
 }
 
 .resource-readout--gold.is-gained {
-  background: rgba(230, 190, 100, 0.24);
+  background: rgba(207, 160, 66, 0.24);
 }
 
 .resource-label {
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--text-muted);
 }
 
 .resource-value {
   font-size: 0.88rem;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
 }
 
@@ -196,28 +209,46 @@
   color: var(--accent-gold-bright);
 }
 
-/* Header Quick-Mute Audio Toggle */
+/* Faceted Octagonal Header Utility Buttons (Guide & Audio) */
 .audio-toggle-btn {
+  position: relative;
+  isolation: isolate;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 34px;
   height: 34px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-subtle);
-  background: rgba(17, 27, 49, 0.72);
+  background: rgba(162, 126, 66, 0.55);
+  clip-path: polygon(6px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px), 0 6px);
   color: var(--text-secondary);
   flex-shrink: 0;
   transition:
     color var(--duration-fast) var(--ease-tactical),
-    border-color var(--duration-fast) var(--ease-tactical),
-    background-color var(--duration-fast) var(--ease-tactical);
+    background-color var(--duration-fast) var(--ease-tactical),
+    transform var(--duration-fast) var(--ease-tactical);
+}
+
+.audio-toggle-btn::before {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  z-index: -1;
+  background: #fcfaf5;
+  clip-path: polygon(5px 0, calc(100% - 5px) 0, 100% 5px, 100% calc(100% - 5px), calc(100% - 5px) 100%, 5px 100%, 0 calc(100% - 5px), 0 5px);
+  transition: background-color var(--duration-fast) var(--ease-tactical);
 }
 
 .audio-toggle-btn:hover {
-  color: var(--accent-blue);
-  border-color: var(--border-strong);
-  background: var(--surface-2);
+  color: var(--accent-gold-bright);
+  background: var(--accent-gold);
+}
+
+.audio-toggle-btn:hover::before {
+  background: #ffffff;
+}
+
+.audio-toggle-btn:active {
+  transform: scale(0.95);
 }
 
 .audio-toggle-btn__icon {
@@ -231,8 +262,11 @@
 
 .audio-toggle-btn.is-muted {
   color: var(--state-enemy);
-  border-color: rgba(248, 113, 113, 0.42);
-  background: rgba(239, 68, 68, 0.12);
+  background: rgba(184, 50, 62, 0.65);
+}
+
+.audio-toggle-btn.is-muted::before {
+  background: #fdf2f3;
 }
 
 .audio-toggle-btn.is-muted .audio-wave-1,
@@ -287,7 +321,7 @@
   }
 }
 
-/* Compact Inline Screen Header */
+/* Compact Inline Screen Header with Antique Gold Accent Rule */
 .screen-bar {
   display: flex;
   align-items: center;
@@ -304,9 +338,9 @@
   position: absolute;
   left: 0;
   bottom: -1px;
-  width: 104px;
-  height: 1.5px;
-  background: linear-gradient(90deg, var(--accent-blue), var(--accent-gold));
+  width: 124px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent-gold) 0%, #d4ac5a 65%, transparent 100%);
 }
 
 .screen-bar__lead {
@@ -318,15 +352,16 @@
 }
 
 .screen-title {
-  font-size: clamp(1.28rem, 1.8vw, 1.62rem);
+  font-family: var(--font-display);
+  font-size: clamp(1.24rem, 1.75vw, 1.56rem);
   font-weight: 700;
-  letter-spacing: -0.015em;
-  color: var(--celestial-ivory);
+  letter-spacing: 0.04em;
+  color: var(--text-primary);
   white-space: nowrap;
 }
 
 .screen-subtitle {
-  font-size: 0.86rem;
+  font-size: 0.85rem;
   color: var(--text-secondary);
 }
 
@@ -353,16 +388,17 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  border: 2px solid var(--border-strong);
-  border-top-color: var(--accent-blue);
-  border-right-color: var(--accent-gold);
+  border: 2px solid var(--border-subtle);
+  border-top-color: var(--accent-gold);
+  border-right-color: var(--text-primary);
   animation: spin 0.85s linear infinite;
 }
 
 .boot-loader__text {
   font-family: var(--font-display);
   font-size: 0.94rem;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   color: var(--text-secondary);
 }
 
@@ -405,7 +441,7 @@
 
 @media (max-width: 640px) {
   .header-resources {
-    gap: 6px;
+    gap: 8px;
   }
 
   .screen-bar {

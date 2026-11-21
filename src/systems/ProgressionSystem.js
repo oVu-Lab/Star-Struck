@@ -43,6 +43,120 @@ export class ProgressionSystem {
     return this._data.stagesById.get(stageId) || this._data.stages[0] || null;
   }
 
+  /**
+   * Resolves the player's actual current campaign progression stage without mutating saved state.
+   * Priority:
+   * 1. Saved selectedStageId if unlocked and not yet cleared.
+   * 2. Earliest unlocked, uncleared campaign stage (campaign frontier).
+   * 3. Saved selectedStageId if unlocked (e.g. after clearing all stages).
+   * 4. Last unlocked stage or first stage fallback.
+   */
+  getCurrentProgressionStage() {
+    const stages = this.getStages();
+    if (stages.length === 0) return null;
+
+    const savedId = this._state.progression?.selectedStageId;
+    const savedStage = stages.find((s) => s.id === savedId) || null;
+    if (savedStage && savedStage.unlocked && !savedStage.cleared) {
+      return savedStage;
+    }
+
+    const frontier = stages.find((s) => s.unlocked && !s.cleared) || null;
+    if (frontier) {
+      return frontier;
+    }
+
+    if (savedStage && savedStage.unlocked) {
+      return savedStage;
+    }
+
+    const unlocked = stages.filter((s) => s.unlocked);
+    return unlocked[unlocked.length - 1] || stages[0];
+  }
+
+  getCurrentProgressionChapter() {
+    const current = this.getCurrentProgressionStage();
+    return current?.chapter || 1;
+  }
+
+  /**
+   * Returns chronologically ordered campaign chapters with derived status
+   * ('completed' | 'current' | 'available' | 'locked') and chapter metadata.
+   */
+  getChapters() {
+    const stages = this.getStages();
+    const currentStage = this.getCurrentProgressionStage();
+    const currentChapterNum = currentStage?.chapter || 1;
+    const grouped = new Map();
+
+    for (const stage of stages) {
+      const chNum = Number(stage.chapter || 1);
+      if (!grouped.has(chNum)) {
+        grouped.set(chNum, []);
+      }
+      grouped.get(chNum).push(stage);
+    }
+
+    const chapterNums = Array.from(grouped.keys()).sort((a, b) => a - b);
+    return chapterNums.map((chNum) => {
+      const chStages = grouped.get(chNum) || [];
+      const meta = this._data.chaptersByNumber?.get(chNum) || null;
+      const firstStage = chStages[0] || null;
+      const firstTerrain = firstStage?.terrainId
+        ? this._data.terrainsById?.get(firstStage.terrainId)
+        : null;
+
+      const totalCount = chStages.length;
+      const clearedCount = chStages.filter((s) => s.cleared).length;
+      const unlockedCount = chStages.filter((s) => s.unlocked).length;
+      const isCurrent = chNum === currentChapterNum;
+      const allCleared = totalCount > 0 && clearedCount === totalCount;
+
+      let status = 'available';
+      if (unlockedCount === 0) {
+        status = 'locked';
+      } else if (isCurrent) {
+        status = 'current';
+      } else if (allCleared) {
+        status = 'completed';
+      }
+
+      let unlockRequirement = null;
+      if (status === 'locked' && firstStage?.unlockAfter) {
+        const reqStage = this._data.stagesById.get(firstStage.unlockAfter);
+        if (reqStage) {
+          unlockRequirement = {
+            stageId: reqStage.id,
+            code: reqStage.code,
+            name: reqStage.name,
+            chapter: reqStage.chapter || 1,
+          };
+        }
+      }
+
+      return {
+        chapter: chNum,
+        title: meta?.title || firstStage?.chapterName || `Chapter ${chNum}`,
+        realm: meta?.realm || firstTerrain?.realmTitle || firstTerrain?.name || 'Star Struck Realm',
+        description:
+          meta?.description ||
+          firstStage?.description ||
+          `Campaign operations across Chapter ${chNum}.`,
+        artworkAssetId: meta?.artworkAssetId || firstStage?.backgroundAssetId || 'bg_battle_orbital_ridge',
+        stages: chStages,
+        totalCount,
+        clearedCount,
+        unlockedCount,
+        progressPct: totalCount > 0 ? Math.round((clearedCount / totalCount) * 100) : 0,
+        isCurrent,
+        allCleared,
+        status,
+        unlockRequirement,
+        currentStageId: isCurrent ? currentStage?.id || null : null,
+      };
+    });
+  }
+
   selectStage(stageId) {
     if (!this._data.stagesById.has(stageId)) {
       return { ok: false, reason: 'Unknown stage.' };
@@ -279,6 +393,7 @@ export class ProgressionSystem {
       stageId,
       victory,
       rating,
+      enemiesDefeated: Math.max(0, enemiesDefeated),
       rewards: granted,
     });
 

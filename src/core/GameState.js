@@ -26,6 +26,9 @@ export class GameState {
       chapterFilter: 'all',
       cardCategoryFilter: 'all',
       lastSummonResults: [],
+      missionsCategory: 'main',
+      missionsSelectedChapter: null,
+      missionsSelectedStageId: null,
     };
 
     // Transient battle session state (never persisted to localStorage)
@@ -93,6 +96,10 @@ export class GameState {
 
   get inventory() {
     return this._persistent.inventory;
+  }
+
+  get missions() {
+    return this._persistent.missions;
   }
 
   get settings() {

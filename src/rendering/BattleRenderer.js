@@ -1,12 +1,12 @@
 /**
- * BattleRenderer — High-performance Isometric 2D Canvas battlefield renderer.
+ * BattleRenderer — High-performance 2.5D Rectangular Canvas battlefield renderer.
  *
- * P3 Upgrades:
- * - Static arena floor offscreen cache (redraws only on resize/stage change -> stable 60 FPS at 50 units)
+ * Features:
+ * - Wide, front-facing rectangular 2.5D perspective arena with static offscreen floor cache
  * - Crisp directional unit stride/tilt, attack lunge & melee slash arcs, hit flash, death dissolve
  * - Enhanced projectile trails (physical bolts, arcane orbs, AoE fireballs, heal & shield prisms)
  * - Uncluttered micro status indicators (shield dome, burn embers, stun stars, slow frost, buff chevrons)
- * - Boss entrance shockwaves, telegraph countdown rings with ability names, and 5 distinct Commander Ultimates
+ * - Boss entrance shockwaves, world-accurate telegraph rings, and 5 distinct Commander Ultimates
  */
 
 import { UNIT_STATES } from '../battle/UnitManager.js';
@@ -14,141 +14,141 @@ import { UNIT_STATES } from '../battle/UnitManager.js';
 export const TERRAIN_THEMES = Object.freeze({
   orbital_bastion: {
     label: 'Celestial Citadel',
-    backdropInner: 'rgba(28, 44, 78, 0.72)',
-    backdropMid: 'rgba(11, 20, 40, 0.9)',
-    backdropOuter: '#060a14',
-    slabFront: '#131d36',
-    slabSide: '#0a1021',
-    slabRim: 'rgba(226, 183, 91, 0.34)',
-    floorStops: ['#162442', '#1c2d50', '#242544'],
-    gridColor: 'rgba(226, 198, 134, 0.09)',
-    borderColor: 'rgba(226, 183, 91, 0.52)',
-    cornerColor: '#f3d284',
-    sigilPrimary: 'rgba(226, 183, 91, 0.34)',
-    sigilSecondary: 'rgba(125, 211, 252, 0.24)',
+    backdropInner: 'rgba(34, 38, 56, 0.68)',
+    backdropMid: 'rgba(14, 16, 24, 0.92)',
+    backdropOuter: '#08090e',
+    slabFront: '#181c28',
+    slabSide: '#10131c',
+    slabRim: 'rgba(216, 180, 108, 0.45)',
+    floorStops: ['#181e2d', '#1d2232', '#231f2b'],
+    gridColor: 'rgba(216, 180, 108, 0.085)',
+    borderColor: 'rgba(216, 180, 108, 0.62)',
+    cornerColor: '#f2d89b',
+    sigilPrimary: 'rgba(216, 180, 108, 0.34)',
+    sigilSecondary: 'rgba(243, 239, 230, 0.18)',
     sigilStyle: 'celestial_compass',
-    obstacleLeft: '#263455',
-    obstacleRight: '#18233d',
-    obstacleTop: '#384c76',
-    obstacleEdge: 'rgba(226, 183, 91, 0.62)',
-    obstacleCrest: 'rgba(243, 210, 132, 0.6)',
-    riftGlow: 'rgba(125, 211, 252, 0.28)',
-    particles: ['#f3d284', '#f8fafc', '#7dd3fc'],
+    obstacleLeft: '#2b3144',
+    obstacleRight: '#1d2130',
+    obstacleTop: '#3a4259',
+    obstacleEdge: 'rgba(216, 180, 108, 0.64)',
+    obstacleCrest: 'rgba(242, 216, 155, 0.58)',
+    riftGlow: 'rgba(94, 184, 232, 0.28)',
+    particles: ['#f2d89b', '#f3efe6', '#9ad5f5'],
   },
   azure_relay: {
     label: 'Azure Leyline',
-    backdropInner: 'rgba(12, 56, 78, 0.74)',
-    backdropMid: 'rgba(7, 24, 38, 0.9)',
-    backdropOuter: '#040c14',
-    slabFront: '#0a2538',
-    slabSide: '#061724',
-    slabRim: 'rgba(45, 212, 191, 0.34)',
-    floorStops: ['#0d2d45', '#10374f', '#132a47'],
-    gridColor: 'rgba(94, 234, 212, 0.095)',
-    borderColor: 'rgba(45, 212, 191, 0.52)',
-    cornerColor: '#5eead4',
-    sigilPrimary: 'rgba(45, 212, 191, 0.34)',
-    sigilSecondary: 'rgba(56, 189, 248, 0.28)',
+    backdropInner: 'rgba(18, 44, 54, 0.7)',
+    backdropMid: 'rgba(10, 19, 26, 0.92)',
+    backdropOuter: '#060b10',
+    slabFront: '#11222d',
+    slabSide: '#0a151d',
+    slabRim: 'rgba(94, 212, 194, 0.4)',
+    floorStops: ['#122531', '#152b36', '#172330'],
+    gridColor: 'rgba(94, 212, 194, 0.085)',
+    borderColor: 'rgba(94, 212, 194, 0.54)',
+    cornerColor: '#86e7d8',
+    sigilPrimary: 'rgba(94, 212, 194, 0.34)',
+    sigilSecondary: 'rgba(216, 180, 108, 0.24)',
     sigilStyle: 'leyline_lattice',
-    obstacleLeft: '#14445c',
-    obstacleRight: '#0c2c3d',
-    obstacleTop: '#1f617f',
-    obstacleEdge: 'rgba(94, 234, 212, 0.65)',
-    obstacleCrest: 'rgba(94, 234, 212, 0.65)',
-    riftGlow: 'rgba(45, 212, 191, 0.3)',
-    particles: ['#5eead4', '#38bdf8', '#e0f2fe'],
+    obstacleLeft: '#1b3b49',
+    obstacleRight: '#112731',
+    obstacleTop: '#265061',
+    obstacleEdge: 'rgba(134, 231, 216, 0.62)',
+    obstacleCrest: 'rgba(134, 231, 216, 0.62)',
+    riftGlow: 'rgba(94, 212, 194, 0.3)',
+    particles: ['#86e7d8', '#7ac7ea', '#f0f7f6'],
   },
   obsidian_spire: {
     label: 'Obsidian Sanctum',
-    backdropInner: 'rgba(46, 20, 68, 0.74)',
-    backdropMid: 'rgba(17, 10, 29, 0.92)',
-    backdropOuter: '#08050f',
-    slabFront: '#1b112b',
-    slabSide: '#10091c',
-    slabRim: 'rgba(192, 132, 252, 0.36)',
-    floorStops: ['#1b132c', '#241838', '#2c152d'],
-    gridColor: 'rgba(192, 132, 252, 0.09)',
-    borderColor: 'rgba(192, 132, 252, 0.5)',
-    cornerColor: '#e879f9',
-    sigilPrimary: 'rgba(192, 132, 252, 0.36)',
-    sigilSecondary: 'rgba(244, 114, 182, 0.24)',
+    backdropInner: 'rgba(42, 22, 56, 0.72)',
+    backdropMid: 'rgba(16, 11, 23, 0.93)',
+    backdropOuter: '#08060c',
+    slabFront: '#1b1426',
+    slabSide: '#110c19',
+    slabRim: 'rgba(183, 139, 250, 0.42)',
+    floorStops: ['#1a1426', '#211830', '#271728'],
+    gridColor: 'rgba(183, 139, 250, 0.085)',
+    borderColor: 'rgba(183, 139, 250, 0.54)',
+    cornerColor: '#d9b8ff',
+    sigilPrimary: 'rgba(183, 139, 250, 0.36)',
+    sigilSecondary: 'rgba(232, 121, 168, 0.24)',
     sigilStyle: 'arcane_hexagram',
-    obstacleLeft: '#2a1c42',
-    obstacleRight: '#1a102b',
-    obstacleTop: '#3d285e',
-    obstacleEdge: 'rgba(216, 180, 254, 0.62)',
-    obstacleCrest: 'rgba(232, 121, 249, 0.65)',
-    riftGlow: 'rgba(192, 132, 252, 0.36)',
-    particles: ['#c084fc', '#f472b6', '#e9d5ff'],
+    obstacleLeft: '#2c2040',
+    obstacleRight: '#1d142b',
+    obstacleTop: '#3e2d59',
+    obstacleEdge: 'rgba(217, 184, 255, 0.62)',
+    obstacleCrest: 'rgba(232, 121, 168, 0.65)',
+    riftGlow: 'rgba(183, 139, 250, 0.34)',
+    particles: ['#c4a3ff', '#f09dc2', '#efe7fb'],
   },
   cavalry_plains: {
-    label: 'Tempest Steppe',
-    backdropInner: 'rgba(20, 58, 52, 0.72)',
-    backdropMid: 'rgba(11, 28, 28, 0.9)',
-    backdropOuter: '#061010',
-    slabFront: '#152e2b',
-    slabSide: '#0c1c1a',
-    slabRim: 'rgba(110, 231, 183, 0.32)',
-    floorStops: ['#163430', '#1d3d35', '#2b3329'],
-    gridColor: 'rgba(167, 243, 208, 0.085)',
-    borderColor: 'rgba(52, 211, 153, 0.48)',
-    cornerColor: '#fcd34d',
-    sigilPrimary: 'rgba(252, 211, 77, 0.32)',
-    sigilSecondary: 'rgba(52, 211, 153, 0.28)',
+    label: 'Gale Pavilion Steppe',
+    backdropInner: 'rgba(22, 46, 40, 0.72)',
+    backdropMid: 'rgba(11, 22, 20, 0.92)',
+    backdropOuter: '#060c0b',
+    slabFront: '#152723',
+    slabSide: '#0c1815',
+    slabRim: 'rgba(216, 180, 108, 0.38)',
+    floorStops: ['#162b26', '#1c322b', '#262b23'],
+    gridColor: 'rgba(186, 226, 206, 0.075)',
+    borderColor: 'rgba(76, 201, 167, 0.5)',
+    cornerColor: '#ecc878',
+    sigilPrimary: 'rgba(236, 200, 120, 0.32)',
+    sigilSecondary: 'rgba(62, 201, 167, 0.28)',
     sigilStyle: 'windstep_banners',
-    obstacleLeft: '#2d473d',
-    obstacleRight: '#1b2e27',
-    obstacleTop: '#426152',
-    obstacleEdge: 'rgba(252, 211, 77, 0.56)',
+    obstacleLeft: '#2c4238',
+    obstacleRight: '#1c2c25',
+    obstacleTop: '#3e594d',
+    obstacleEdge: 'rgba(236, 200, 120, 0.58)',
     obstacleCrest: 'rgba(110, 231, 183, 0.55)',
-    riftGlow: 'rgba(52, 211, 153, 0.28)',
-    particles: ['#6ee7b7', '#fde68a', '#ecfdf5'],
+    riftGlow: 'rgba(62, 201, 167, 0.28)',
+    particles: ['#76dec2', '#f0d79a', '#eef8f4'],
   },
   chrono_nexus: {
-    label: 'Astral Sundial',
-    backdropInner: 'rgba(56, 42, 24, 0.68)',
-    backdropMid: 'rgba(17, 18, 34, 0.9)',
-    backdropOuter: '#080912',
-    slabFront: '#221e2b',
-    slabSide: '#14111b',
-    slabRim: 'rgba(251, 191, 36, 0.38)',
-    floorStops: ['#1c213b', '#27263d', '#312633'],
-    gridColor: 'rgba(251, 191, 36, 0.095)',
-    borderColor: 'rgba(251, 191, 36, 0.55)',
-    cornerColor: '#fde68a',
-    sigilPrimary: 'rgba(251, 191, 36, 0.38)',
-    sigilSecondary: 'rgba(167, 139, 250, 0.26)',
+    label: 'Radiant Sundial',
+    backdropInner: 'rgba(54, 42, 24, 0.68)',
+    backdropMid: 'rgba(18, 17, 24, 0.92)',
+    backdropOuter: '#09090d',
+    slabFront: '#221e24',
+    slabSide: '#151218',
+    slabRim: 'rgba(232, 192, 104, 0.44)',
+    floorStops: ['#1d1f2e', '#262430', '#2e2427'],
+    gridColor: 'rgba(232, 192, 104, 0.09)',
+    borderColor: 'rgba(232, 192, 104, 0.58)',
+    cornerColor: '#f5dca0',
+    sigilPrimary: 'rgba(232, 192, 104, 0.38)',
+    sigilSecondary: 'rgba(183, 139, 250, 0.24)',
     sigilStyle: 'chrono_astrolabe',
-    obstacleLeft: '#3a3242',
-    obstacleRight: '#241f2b',
-    obstacleTop: '#544658',
-    obstacleEdge: 'rgba(251, 191, 36, 0.66)',
-    obstacleCrest: 'rgba(253, 230, 138, 0.68)',
-    riftGlow: 'rgba(251, 191, 36, 0.32)',
-    particles: ['#fbbf24', '#c4b5fd', '#fef3c7'],
+    obstacleLeft: '#3a333e',
+    obstacleRight: '#262129',
+    obstacleTop: '#514654',
+    obstacleEdge: 'rgba(232, 192, 104, 0.68)',
+    obstacleCrest: 'rgba(245, 220, 160, 0.68)',
+    riftGlow: 'rgba(232, 192, 104, 0.32)',
+    particles: ['#ecc368', '#d2c2fa', '#faf3e1'],
   },
   hyperion_throne: {
     label: 'Ironforge Dreadnought',
-    backdropInner: 'rgba(72, 28, 18, 0.72)',
-    backdropMid: 'rgba(26, 13, 14, 0.92)',
-    backdropOuter: '#0d0607',
-    slabFront: '#2a1816',
-    slabSide: '#180d0c',
-    slabRim: 'rgba(251, 146, 60, 0.38)',
-    floorStops: ['#251c22', '#2f1e1f', '#381c1a'],
-    gridColor: 'rgba(251, 146, 60, 0.095)',
-    borderColor: 'rgba(251, 146, 60, 0.56)',
-    cornerColor: '#fdba74',
-    sigilPrimary: 'rgba(251, 146, 60, 0.38)',
-    sigilSecondary: 'rgba(248, 113, 113, 0.28)',
+    backdropInner: 'rgba(62, 28, 18, 0.72)',
+    backdropMid: 'rgba(22, 13, 13, 0.93)',
+    backdropOuter: '#0b0606',
+    slabFront: '#281916',
+    slabSide: '#180f0d',
+    slabRim: 'rgba(234, 141, 72, 0.42)',
+    floorStops: ['#221b1e', '#2b1e1d', '#331d19'],
+    gridColor: 'rgba(234, 141, 72, 0.088)',
+    borderColor: 'rgba(234, 141, 72, 0.58)',
+    cornerColor: '#f2c265',
+    sigilPrimary: 'rgba(234, 141, 72, 0.38)',
+    sigilSecondary: 'rgba(232, 100, 96, 0.28)',
     sigilStyle: 'ironforge_core',
-    obstacleLeft: '#402826',
-    obstacleRight: '#291918',
-    obstacleTop: '#593732',
-    obstacleEdge: 'rgba(251, 146, 60, 0.68)',
-    obstacleCrest: 'rgba(251, 146, 60, 0.72)',
-    riftGlow: 'rgba(249, 115, 22, 0.34)',
-    particles: ['#fb923c', '#fbbf24', '#fca5a5'],
+    obstacleLeft: '#402a24',
+    obstacleRight: '#291a16',
+    obstacleTop: '#573a32',
+    obstacleEdge: 'rgba(234, 141, 72, 0.68)',
+    obstacleCrest: 'rgba(242, 194, 101, 0.72)',
+    riftGlow: 'rgba(234, 141, 72, 0.34)',
+    particles: ['#ea8d48', '#f2c265', '#f5a59d'],
   },
 });
 
@@ -409,18 +409,18 @@ export class BattleRenderer {
 
     // 14. Pause Veil
     if (this._state.battle.status === 'paused') {
-      ctx.fillStyle = 'rgba(6, 10, 20, 0.56)';
+      ctx.fillStyle = 'rgba(8, 9, 14, 0.62)';
       ctx.fillRect(0, 0, w, h);
-      ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+      ctx.strokeStyle = 'rgba(216, 180, 108, 0.55)';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.moveTo(w * 0.5 - 120, h * 0.48 - 22);
-      ctx.lineTo(w * 0.5 + 120, h * 0.48 - 22);
-      ctx.moveTo(w * 0.5 - 120, h * 0.48 + 14);
-      ctx.lineTo(w * 0.5 + 120, h * 0.48 + 14);
+      ctx.moveTo(w * 0.5 - 140, h * 0.48 - 24);
+      ctx.lineTo(w * 0.5 + 140, h * 0.48 - 24);
+      ctx.moveTo(w * 0.5 - 140, h * 0.48 + 16);
+      ctx.lineTo(w * 0.5 + 140, h * 0.48 + 16);
       ctx.stroke();
-      ctx.fillStyle = '#edf2fa';
-      ctx.font = '700 22px Outfit, sans-serif';
+      ctx.fillStyle = '#f3efe6';
+      ctx.font = '700 22px Cinzel, Georgia, serif';
       ctx.textAlign = 'center';
       ctx.fillText('BATTLE PAUSED', w * 0.5, h * 0.48);
     }
@@ -449,41 +449,61 @@ export class BattleRenderer {
     const pTR = bf.worldToScreen(W, 0, w, h);
     const thickness = 14;
 
-    // Platform slab bevels
+    // Grounded under-shadow beneath the rectangular battle deck
+    ctx.save();
+    ctx.fillStyle = 'rgba(2, 3, 7, 0.56)';
+    ctx.beginPath();
+    ctx.moveTo(pBL.x + 8, pBL.y + thickness + 10);
+    ctx.lineTo(pBR.x - 8, pBR.y + thickness + 10);
+    ctx.lineTo(pBR.x + 12, pBR.y + thickness + 2);
+    ctx.lineTo(pBL.x - 12, pBL.y + thickness + 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    // Front-facing architectural platform slab (single crisp front face + beveled side flanks)
     ctx.fillStyle = theme.slabFront;
     ctx.beginPath();
     ctx.moveTo(pBL.x, pBL.y);
     ctx.lineTo(pBR.x, pBR.y);
-    ctx.lineTo(pBR.x, pBR.y + thickness);
-    ctx.lineTo(pBL.x, pBL.y + thickness);
+    ctx.lineTo(pBR.x - 4, pBR.y + thickness);
+    ctx.lineTo(pBL.x + 4, pBL.y + thickness);
     ctx.closePath();
     ctx.fill();
 
+    // Subtle dark recessed trim on the front slab face
     ctx.fillStyle = theme.slabSide;
     ctx.beginPath();
-    ctx.moveTo(pBR.x, pBR.y);
-    ctx.lineTo(pTR.x, pTR.y);
-    ctx.lineTo(pTR.x, pTR.y + thickness);
-    ctx.lineTo(pBR.x, pBR.y + thickness);
+    ctx.moveTo(pBL.x + 2, pBL.y + thickness * 0.55);
+    ctx.lineTo(pBR.x - 2, pBR.y + thickness * 0.55);
+    ctx.lineTo(pBR.x - 4, pBR.y + thickness);
+    ctx.lineTo(pBL.x + 4, pBL.y + thickness);
     ctx.closePath();
     ctx.fill();
 
-    // Rim highlight along lower slab
+    // Rim highlight along lower front slab
     ctx.strokeStyle = theme.slabRim;
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 1.2;
     ctx.beginPath();
-    ctx.moveTo(pBL.x, pBL.y + thickness);
-    ctx.lineTo(pBR.x, pBR.y + thickness);
-    ctx.lineTo(pTR.x, pTR.y + thickness);
+    ctx.moveTo(pBL.x + 4, pBL.y + thickness);
+    ctx.lineTo(pBR.x - 4, pBR.y + thickness);
     ctx.stroke();
 
-    // Arena main surface
+    // Arena main rectangular surface (pure horizontal gradient left -> right)
     this._drawPoly(ctx, bf, w, h, [[0, 0], [W, 0], [W, H], [0, H]]);
-    const floorGrad = ctx.createLinearGradient(pBL.x, pTR.y, pTR.x, pBL.y);
+    const floorGrad = ctx.createLinearGradient(pBL.x, pBL.y, pBR.x, pBR.y);
     floorGrad.addColorStop(0, theme.floorStops[0]);
-    floorGrad.addColorStop(0.48, theme.floorStops[1]);
+    floorGrad.addColorStop(0.5, theme.floorStops[1]);
     floorGrad.addColorStop(1, theme.floorStops[2]);
     ctx.fillStyle = floorGrad;
+    ctx.fill();
+
+    // Subtle top-to-bottom depth shading so front edge feels closer than back edge
+    const depthShade = ctx.createLinearGradient(0, pTL.y, 0, pBL.y);
+    depthShade.addColorStop(0, 'rgba(0, 0, 0, 0.2)');
+    depthShade.addColorStop(0.45, 'rgba(255, 255, 255, 0.02)');
+    depthShade.addColorStop(1, 'rgba(0, 0, 0, 0.06)');
+    ctx.fillStyle = depthShade;
     ctx.fill();
 
     // Enemy Deployment Region (RIGHT)
@@ -494,13 +514,13 @@ export class BattleRenderer {
       [er.maxX, er.maxY],
       [er.minX, er.maxY],
     ]);
-    ctx.fillStyle = 'rgba(248, 113, 113, 0.08)';
+    ctx.fillStyle = 'rgba(232, 93, 104, 0.075)';
     ctx.fill();
-    ctx.strokeStyle = 'rgba(248, 113, 113, 0.28)';
+    ctx.strokeStyle = 'rgba(232, 93, 104, 0.28)';
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    // Isometric tactical grid lines (every 10 world units)
+    // Clean rectangular tactical grid lines (every 10 world units)
     ctx.strokeStyle = theme.gridColor;
     ctx.lineWidth = 1;
     for (let x = 10; x < W; x += 10) {
@@ -520,6 +540,22 @@ export class BattleRenderer {
       ctx.stroke();
     }
 
+    // Horizontal tactical lane guides (subtle golden-muted guide rails at 25% & 75% depth)
+    ctx.save();
+    ctx.strokeStyle = theme.sigilSecondary;
+    ctx.globalAlpha = 0.45;
+    ctx.setLineDash([4, 8]);
+    for (const laneY of [28, 72]) {
+      const la = bf.worldToScreen(4, laneY, w, h);
+      const lb = bf.worldToScreen(W - 4, laneY, w, h);
+      ctx.beginPath();
+      ctx.moveTo(la.x, la.y);
+      ctx.lineTo(lb.x, lb.y);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    ctx.restore();
+
     // Center meridian + realm-specific centerpiece sigil
     const midTop = bf.worldToScreen(W * 0.5, 4, w, h);
     const midBot = bf.worldToScreen(W * 0.5, H - 4, w, h);
@@ -537,50 +573,62 @@ export class BattleRenderer {
     this._drawRealmCenterpiece(ctx, bf, w, h, midCenter, theme);
     ctx.restore();
 
+    // Crisp inner architectural border (2 world units inset)
+    this._drawPoly(ctx, bf, w, h, [[1.4, 2], [W - 1.4, 2], [W - 1.4, H - 2], [1.4, H - 2]]);
+    ctx.strokeStyle = theme.gridColor;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
     // Arena crisp outer border
     this._drawPoly(ctx, bf, w, h, [[0, 0], [W, 0], [W, H], [0, H]]);
     ctx.strokeStyle = theme.borderColor;
     ctx.lineWidth = 1.8;
     ctx.stroke();
 
-    // Corner vertices
+    // Faceted corner diamonds
     ctx.fillStyle = theme.cornerColor;
     for (const pt of [pTL, pTR, pBR, pBL]) {
       ctx.beginPath();
-      ctx.arc(pt.x, pt.y, 2.5, 0, Math.PI * 2);
+      ctx.moveTo(pt.x, pt.y - 4);
+      ctx.lineTo(pt.x + 4, pt.y);
+      ctx.lineTo(pt.x, pt.y + 4);
+      ctx.lineTo(pt.x - 4, pt.y);
+      ctx.closePath();
       ctx.fill();
     }
 
-    // Subtle zone labels
+    // Subtle zone labels neatly aligned along the lower arena rim
     const fr = bf.regions.friendly;
-    const allyLbl = bf.worldToScreen((fr.minX + fr.maxX) * 0.5, fr.maxY + 4, w, h);
-    const enemyLbl = bf.worldToScreen((er.minX + er.maxX) * 0.5, er.maxY + 4, w, h);
+    const allyLbl = bf.worldToScreen((fr.minX + fr.maxX) * 0.5, H - 3.2, w, h);
+    const enemyLbl = bf.worldToScreen((er.minX + er.maxX) * 0.5, H - 3.2, w, h);
     ctx.font = '600 10px "JetBrains Mono", monospace';
     ctx.textAlign = 'center';
-    ctx.fillStyle = 'rgba(56, 189, 248, 0.78)';
+    ctx.fillStyle = 'rgba(154, 213, 245, 0.8)';
     ctx.fillText('ALLY ZONE', allyLbl.x, allyLbl.y);
-    ctx.fillStyle = 'rgba(248, 113, 113, 0.78)';
+    ctx.fillStyle = 'rgba(244, 148, 156, 0.82)';
     ctx.fillText('ENEMY ZONE', enemyLbl.x, enemyLbl.y);
   }
 
   _drawRealmCenterpiece(ctx, bf, w, h, center, theme) {
+    const rxBase = Math.max(24, (center.scaleX || center.scale) * 5.2);
+    const ryBase = Math.max(14, (center.scaleY || center.scale * 0.5) * 5.2);
+
     ctx.strokeStyle = theme.sigilPrimary;
     ctx.lineWidth = 1.3;
     ctx.beginPath();
-    ctx.ellipse(center.x, center.y, 28, 14, 0, 0, Math.PI * 2);
+    ctx.ellipse(center.x, center.y, rxBase, ryBase, 0, 0, Math.PI * 2);
     ctx.stroke();
 
     ctx.strokeStyle = theme.sigilSecondary;
     ctx.lineWidth = 1;
 
     if (theme.sigilStyle === 'arcane_hexagram') {
-      // Twin opposing ritual triangles for Dark Arcane Sanctum
       for (const dir of [-1, 1]) {
         ctx.beginPath();
         for (let k = 0; k < 3; k += 1) {
           const a = (Math.PI * 2 * k) / 3 + (dir > 0 ? 0 : Math.PI);
-          const x = center.x + Math.cos(a) * 24;
-          const y = center.y + Math.sin(a) * 12;
+          const x = center.x + Math.cos(a) * rxBase * 0.86;
+          const y = center.y + Math.sin(a) * ryBase * 0.86;
           if (k === 0) ctx.moveTo(x, y);
           else ctx.lineTo(x, y);
         }
@@ -588,50 +636,45 @@ export class BattleRenderer {
         ctx.stroke();
       }
     } else if (theme.sigilStyle === 'chrono_astrolabe') {
-      // Concentric sundial rings + 8 clockwork spokes
       ctx.beginPath();
-      ctx.ellipse(center.x, center.y, 40, 20, 0, 0, Math.PI * 2);
+      ctx.ellipse(center.x, center.y, rxBase * 1.42, ryBase * 1.42, 0, 0, Math.PI * 2);
       ctx.stroke();
       for (let k = 0; k < 8; k += 1) {
         const a = (Math.PI * k) / 4;
         ctx.beginPath();
-        ctx.moveTo(center.x + Math.cos(a) * 14, center.y + Math.sin(a) * 7);
-        ctx.lineTo(center.x + Math.cos(a) * 38, center.y + Math.sin(a) * 19);
+        ctx.moveTo(center.x + Math.cos(a) * rxBase * 0.5, center.y + Math.sin(a) * ryBase * 0.5);
+        ctx.lineTo(center.x + Math.cos(a) * rxBase * 1.36, center.y + Math.sin(a) * ryBase * 1.36);
         ctx.stroke();
       }
     } else if (theme.sigilStyle === 'ironforge_core') {
-      // Heavy riveted octagonal furnace grate
       ctx.beginPath();
       for (let k = 0; k < 8; k += 1) {
         const a = (Math.PI * k) / 4 + Math.PI / 8;
-        const x = center.x + Math.cos(a) * 34;
-        const y = center.y + Math.sin(a) * 17;
+        const x = center.x + Math.cos(a) * rxBase * 1.24;
+        const y = center.y + Math.sin(a) * ryBase * 1.24;
         if (k === 0) ctx.moveTo(x, y);
         else ctx.lineTo(x, y);
       }
       ctx.closePath();
       ctx.stroke();
     } else if (theme.sigilStyle === 'windstep_banners') {
-      // Sweeping twin highland wind-lane arcs
       const nArc = bf.worldToScreen(50, 26, w, h);
       const sArc = bf.worldToScreen(50, 74, w, h);
       ctx.beginPath();
-      ctx.ellipse(nArc.x, nArc.y, 26, 11, 0, 0, Math.PI * 2);
+      ctx.ellipse(nArc.x, nArc.y, rxBase * 0.85, ryBase * 0.72, 0, 0, Math.PI * 2);
       ctx.stroke();
       ctx.beginPath();
-      ctx.ellipse(sArc.x, sArc.y, 26, 11, 0, 0, Math.PI * 2);
+      ctx.ellipse(sArc.x, sArc.y, rxBase * 0.85, ryBase * 0.72, 0, 0, Math.PI * 2);
       ctx.stroke();
     } else if (theme.sigilStyle === 'leyline_lattice') {
-      // Diamond crystal conduit lattice
-      this._drawPoly(ctx, bf, w, h, [[50, 38], [62, 50], [50, 62], [38, 50]]);
+      this._drawPoly(ctx, bf, w, h, [[50, 38], [58, 50], [50, 62], [42, 50]]);
       ctx.stroke();
     } else {
-      // Celestial 4-point compass star
       ctx.beginPath();
-      ctx.moveTo(center.x - 32, center.y);
-      ctx.lineTo(center.x + 32, center.y);
-      ctx.moveTo(center.x, center.y - 16);
-      ctx.lineTo(center.x, center.y + 16);
+      ctx.moveTo(center.x - rxBase * 1.22, center.y);
+      ctx.lineTo(center.x + rxBase * 1.22, center.y);
+      ctx.moveTo(center.x, center.y - ryBase * 1.22);
+      ctx.lineTo(center.x, center.y + ryBase * 1.22);
       ctx.stroke();
     }
   }
@@ -718,7 +761,7 @@ export class BattleRenderer {
       return;
     }
 
-    // 3. AoE Skill Card blast radius reticle
+    // 3. AoE Skill Card blast radius reticle (world-accurate ellipse radii)
     const eff = selectedCard.effect;
     if (
       selectedCard.category === 'skill' &&
@@ -728,9 +771,9 @@ export class BattleRenderer {
       const tierKey = String(selectedCard.tier || 1);
       const radius = eff.radiusByTier?.[tierKey] ?? 18;
       const p = bf.worldToScreen(x, y, w, h);
-      const rx = radius * p.scale * 0.85;
-      const ry = radius * p.scale * 0.46;
-      const color = eff.color || '#38bdf8';
+      const rx = radius * (p.scaleX ?? p.scale * 0.85);
+      const ry = radius * (p.scaleY ?? p.scale * 0.46);
+      const color = eff.color || '#5eb8e8';
 
       ctx.save();
       ctx.strokeStyle = color;
@@ -748,41 +791,55 @@ export class BattleRenderer {
       ctx.globalAlpha = 0.95;
       ctx.font = '700 9.5px "JetBrains Mono", monospace';
       ctx.textAlign = 'center';
-      ctx.fillStyle = '#070c17';
+      ctx.fillStyle = '#08090e';
       ctx.fillText(`CAST · ${selectedCard.name.toUpperCase()}`, p.x + 1, p.y - ry * 0.4 + 1);
-      ctx.fillStyle = '#fde68a';
+      ctx.fillStyle = '#f2d89b';
       ctx.fillText(`CAST · ${selectedCard.name.toUpperCase()}`, p.x, p.y - ry * 0.4);
       ctx.restore();
     }
   }
 
   _drawCommanderDais(ctx, bf, w, h, commander, ultimateEnergy, elapsed, hoverDais = false) {
-    // Position Commander on an elevated command dais flanking the Ally Zone
-    // so the Commander has unmistakable presence and can be clicked to unleash Ultimates.
-    const p = bf.worldToScreen(-13.5, 44, w, h);
-    const s = Math.max(0.74, Math.min(1.32, p.scale / 7.2));
+    // Anchor Commander on an elevated command dais flanking the left edge of the
+    // widened rectangular Ally Zone so it never overlaps units or clips off-screen.
+    const leftEdge = bf.worldToScreen(0, 52, w, h);
+    const s = Math.max(0.72, Math.min(1.16, leftEdge.scale / 8.2));
     const ultPct = Math.max(0, Math.min(1, (ultimateEnergy || 0) / 100));
     const ultReady = ultPct >= 1;
 
     const themeColors = {
-      astra: { accent: '#e6be64', glow: 'rgba(230, 190, 100, 0.42)', ring: '#f7dc94' },
-      kael: { accent: '#38bdf8', glow: 'rgba(56, 189, 248, 0.42)', ring: '#7dd3fc' },
-      lyra: { accent: '#34d399', glow: 'rgba(52, 211, 153, 0.42)', ring: '#6ee7b7' },
-      seraphina: { accent: '#a78bfa', glow: 'rgba(167, 139, 250, 0.42)', ring: '#c4b5fd' },
-      vanguard_zero: { accent: '#fb923c', glow: 'rgba(251, 146, 60, 0.42)', ring: '#fdba74' },
+      astra: { accent: '#e5be6a', glow: 'rgba(229, 190, 106, 0.42)', ring: '#f7e1a5' },
+      kael: { accent: '#3ec9a7', glow: 'rgba(62, 201, 167, 0.42)', ring: '#88e7cf' },
+      lyra: { accent: '#4cd495', glow: 'rgba(76, 212, 149, 0.42)', ring: '#9beec5' },
+      seraphina: { accent: '#b78bfa', glow: 'rgba(183, 139, 250, 0.42)', ring: '#d9c0ff' },
+      vanguard_zero: { accent: '#ea8d48', glow: 'rgba(234, 141, 72, 0.42)', ring: '#f7c494' },
     };
     const palette = themeColors[commander.id] || themeColors.astra;
-    const floatY = Math.sin(elapsed * 2.2) * 3.2 * s;
+    const floatY = Math.sin(elapsed * 2.2) * 2.8 * s;
 
-    // Keep dais safely inside canvas margins across all desktop resolutions
-    const cardW = 68 * s;
-    const cardH = 96 * s;
-    const cx = Math.max(cardW * 0.5 + 16, Math.min(w - cardW * 0.5 - 16, p.x));
-    const cy = Math.max(cardH + 74, Math.min(h - 170, p.y));
+    // Fit cleanly inside the left margin alongside the rectangular arena
+    const cardW = 64 * s;
+    const cardH = 94 * s;
+    const desiredCx = leftEdge.x - cardW * 0.5 - 16 * s;
+    const cx = Math.max(cardW * 0.5 + 12, Math.min(w - cardW * 0.5 - 14, desiredCx));
+    const cy = Math.max(cardH + 74, Math.min(h - 190, leftEdge.y + 22 * s));
 
     const frameX = cx - cardW * 0.5;
     const frameY = cy - cardH - 10 * s + floatY;
-    const cornerR = 8 * s;
+    const cut = 7 * s;
+
+    const traceChamfer = () => {
+      ctx.beginPath();
+      ctx.moveTo(frameX + cut, frameY);
+      ctx.lineTo(frameX + cardW - cut, frameY);
+      ctx.lineTo(frameX + cardW, frameY + cut);
+      ctx.lineTo(frameX + cardW, frameY + cardH - cut);
+      ctx.lineTo(frameX + cardW - cut, frameY + cardH);
+      ctx.lineTo(frameX + cut, frameY + cardH);
+      ctx.lineTo(frameX, frameY + cardH - cut);
+      ctx.lineTo(frameX, frameY + cut);
+      ctx.closePath();
+    };
 
     // Record interactive hit-box covering the Commander portrait + dais platform
     this._lastDaisRect = {
@@ -797,10 +854,10 @@ export class BattleRenderer {
     ctx.save();
 
     // 1. Subtle energy tether connecting Commander Dais to Ally Zone center
-    const allyAnchor = bf.worldToScreen(8, 48, w, h);
+    const allyAnchor = bf.worldToScreen(8, 52, w, h);
     ctx.save();
     ctx.strokeStyle = palette.accent;
-    ctx.globalAlpha = ultReady ? 0.34 + Math.sin(elapsed * 5) * 0.14 : 0.16;
+    ctx.globalAlpha = ultReady ? 0.36 + Math.sin(elapsed * 5) * 0.14 : 0.18;
     ctx.lineWidth = ultReady ? 2 : 1.2;
     ctx.setLineDash([5, 6]);
     ctx.beginPath();
@@ -811,27 +868,27 @@ export class BattleRenderer {
     ctx.restore();
 
     // 2. Ground Command Platform Shadow & Stepped Dais
-    ctx.fillStyle = 'rgba(2, 6, 16, 0.65)';
+    ctx.fillStyle = 'rgba(4, 5, 10, 0.7)';
     ctx.beginPath();
-    ctx.ellipse(cx, cy + 5 * s, 38 * s, 16 * s, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx, cy + 5 * s, 36 * s, 14 * s, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = '#0c1830';
-    ctx.strokeStyle = hoverDais ? '#fde68a' : palette.accent;
-    ctx.lineWidth = ultReady || hoverDais ? 2.6 : 1.6;
+    ctx.fillStyle = '#141720';
+    ctx.strokeStyle = hoverDais ? '#f2d89b' : palette.accent;
+    ctx.lineWidth = ultReady || hoverDais ? 2.4 : 1.5;
     ctx.beginPath();
-    ctx.ellipse(cx, cy, 34 * s, 14.5 * s, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx, cy, 32 * s, 12.5 * s, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
-    // Outer rotating rune ring (visibly distinguishes Commander from regular units)
+    // Outer rotating rune ring
     ctx.save();
     ctx.strokeStyle = palette.ring;
     ctx.globalAlpha = ultReady || hoverDais ? 0.88 : 0.45;
-    ctx.lineWidth = ultReady || hoverDais ? 2.2 : 1.4;
-    ctx.setLineDash([10, 6]);
+    ctx.lineWidth = ultReady || hoverDais ? 2 : 1.3;
+    ctx.setLineDash([9, 6]);
     ctx.beginPath();
-    ctx.ellipse(cx, cy, (40 + Math.sin(elapsed * 3) * 2) * s, (17.5 + Math.sin(elapsed * 3) * 0.8) * s, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx, cy, (38 + Math.sin(elapsed * 3) * 1.8) * s, (15 + Math.sin(elapsed * 3) * 0.7) * s, 0, 0, Math.PI * 2);
     ctx.stroke();
     ctx.setLineDash([]);
     ctx.restore();
@@ -839,32 +896,34 @@ export class BattleRenderer {
     // Ultimate charge arc around the dais rim
     if (ultPct > 0.01) {
       ctx.save();
-      ctx.strokeStyle = ultReady ? '#fde68a' : palette.accent;
-      ctx.lineWidth = 3;
+      ctx.strokeStyle = ultReady ? '#f5dca0' : palette.accent;
+      ctx.lineWidth = 2.8;
       ctx.beginPath();
-      ctx.ellipse(cx, cy, 36.5 * s, 15.8 * s, 0, -Math.PI * 0.5, -Math.PI * 0.5 + Math.PI * 2 * ultPct);
+      ctx.ellipse(cx, cy, 34.5 * s, 13.8 * s, 0, -Math.PI * 0.5, -Math.PI * 0.5 + Math.PI * 2 * ultPct);
       ctx.stroke();
       ctx.restore();
     }
 
-    // 3. Elevated Commander Portrait Frame (2.3x larger than ordinary units)
-    const aura = ctx.createRadialGradient(cx, frameY + cardH * 0.5, 6 * s, cx, frameY + cardH * 0.5, cardH * (hoverDais ? 0.84 : 0.72));
+    // 3. Elevated Chamfered Commander Portrait Frame
+    const aura = ctx.createRadialGradient(
+      cx,
+      frameY + cardH * 0.5,
+      6 * s,
+      cx,
+      frameY + cardH * 0.5,
+      cardH * (hoverDais ? 0.82 : 0.68),
+    );
     aura.addColorStop(0, palette.glow);
-    aura.addColorStop(1, 'rgba(6, 11, 22, 0)');
+    aura.addColorStop(1, 'rgba(8, 9, 14, 0)');
     ctx.fillStyle = aura;
     ctx.beginPath();
-    ctx.arc(cx, frameY + cardH * 0.5, cardH * (hoverDais ? 0.84 : 0.72), 0, Math.PI * 2);
+    ctx.arc(cx, frameY + cardH * 0.5, cardH * (hoverDais ? 0.82 : 0.68), 0, Math.PI * 2);
     ctx.fill();
 
     // Clipped portrait card body
     ctx.save();
-    ctx.beginPath();
-    if (typeof ctx.roundRect === 'function') {
-      ctx.roundRect(frameX, frameY, cardW, cardH, cornerR);
-    } else {
-      ctx.rect(frameX, frameY, cardW, cardH);
-    }
-    ctx.fillStyle = '#0a1428';
+    traceChamfer();
+    ctx.fillStyle = '#12151e';
     ctx.fill();
     if (typeof ctx.clip === 'function') {
       ctx.clip();
@@ -875,57 +934,52 @@ export class BattleRenderer {
       ctx.drawImage(portrait, frameX, frameY, cardW, cardH);
     } else {
       const grad = ctx.createLinearGradient(frameX, frameY, frameX, frameY + cardH);
-      grad.addColorStop(0, '#16294f');
-      grad.addColorStop(1, '#091122');
+      grad.addColorStop(0, '#222736');
+      grad.addColorStop(1, '#10131c');
       ctx.fillStyle = grad;
       ctx.fillRect(frameX, frameY, cardW, cardH);
     }
 
     // Subtle bottom scrim inside portrait frame
-    const scrim = ctx.createLinearGradient(frameX, frameY + cardH * 0.58, frameX, frameY + cardH);
-    scrim.addColorStop(0, 'rgba(6, 11, 22, 0)');
-    scrim.addColorStop(1, 'rgba(6, 11, 22, 0.92)');
+    const scrim = ctx.createLinearGradient(frameX, frameY + cardH * 0.55, frameX, frameY + cardH);
+    scrim.addColorStop(0, 'rgba(10, 12, 18, 0)');
+    scrim.addColorStop(1, 'rgba(10, 12, 18, 0.94)');
     ctx.fillStyle = scrim;
-    ctx.fillRect(frameX, frameY + cardH * 0.58, cardW, cardH * 0.42);
+    ctx.fillRect(frameX, frameY + cardH * 0.55, cardW, cardH * 0.45);
     ctx.restore();
 
-    // Crisp luminous outer border around Commander portrait
-    ctx.beginPath();
-    if (typeof ctx.roundRect === 'function') {
-      ctx.roundRect(frameX, frameY, cardW, cardH, cornerR);
-    } else {
-      ctx.rect(frameX, frameY, cardW, cardH);
-    }
-    ctx.strokeStyle = ultReady || hoverDais ? '#fde68a' : palette.accent;
-    ctx.lineWidth = ultReady || hoverDais ? 2.8 : 2;
+    // Crisp outer chamfer border
+    traceChamfer();
+    ctx.strokeStyle = ultReady || hoverDais ? '#f5dca0' : palette.accent;
+    ctx.lineWidth = ultReady || hoverDais ? 2.6 : 1.8;
     ctx.stroke();
 
     // Top crest diamond
     const crestY = frameY - 2 * s;
-    ctx.fillStyle = ultReady ? '#fde68a' : palette.accent;
+    ctx.fillStyle = ultReady ? '#f5dca0' : palette.accent;
     ctx.beginPath();
-    ctx.moveTo(cx, crestY - 6 * s);
-    ctx.lineTo(cx + 6 * s, crestY);
-    ctx.lineTo(cx, crestY + 6 * s);
-    ctx.lineTo(cx - 6 * s, crestY);
+    ctx.moveTo(cx, crestY - 5.5 * s);
+    ctx.lineTo(cx + 5.5 * s, crestY);
+    ctx.lineTo(cx, crestY + 5.5 * s);
+    ctx.lineTo(cx - 5.5 * s, crestY);
     ctx.closePath();
     ctx.fill();
 
     // Commander Name & Role Tag
     const labelY = frameY + cardH - 6 * s;
-    ctx.font = `700 ${Math.max(8, Math.round(8.5 * s))}px "JetBrains Mono", monospace`;
+    ctx.font = `700 ${Math.max(8, Math.round(8.2 * s))}px "JetBrains Mono", monospace`;
     ctx.textAlign = 'center';
-    ctx.fillStyle = ultReady ? '#fde68a' : palette.ring;
+    ctx.fillStyle = ultReady ? '#f5dca0' : palette.ring;
     ctx.fillText(ultReady ? 'ULT READY' : 'COMMANDER', cx, labelY - 10 * s);
 
-    ctx.font = `700 ${Math.max(9, Math.round(10.5 * s))}px Outfit, sans-serif`;
-    ctx.fillStyle = '#f8fafc';
+    ctx.font = `700 ${Math.max(9, Math.round(10 * s))}px Cinzel, Georgia, serif`;
+    ctx.fillStyle = '#f3efe6';
     const shortName = (commander.name || 'Commander').split(' ')[0];
     ctx.fillText(shortName, cx, labelY);
 
     if (hoverDais && ultReady) {
-      ctx.font = `700 ${Math.max(8, Math.round(8.5 * s))}px "JetBrains Mono", monospace`;
-      ctx.fillStyle = '#fde68a';
+      ctx.font = `700 ${Math.max(8, Math.round(8.2 * s))}px "JetBrains Mono", monospace`;
+      ctx.fillStyle = '#f5dca0';
       ctx.fillText('CLICK TO CAST', cx, frameY - 12 * s);
     }
 
@@ -942,9 +996,9 @@ export class BattleRenderer {
         const x2 = feat.x + (feat.width || 8);
         const y2 = feat.y + (feat.height || 8);
         this._drawPoly(ctx, bf, w, h, [[x1, y1], [x2, y1], [x2, y2], [x1, y2]]);
-        ctx.fillStyle = '#04070f';
+        ctx.fillStyle = '#07080d';
         ctx.fill();
-        ctx.strokeStyle = 'rgba(248, 113, 113, 0.58)';
+        ctx.strokeStyle = 'rgba(232, 93, 104, 0.56)';
         ctx.lineWidth = 1.5;
         ctx.stroke();
 
@@ -953,13 +1007,13 @@ export class BattleRenderer {
         ctx.fillStyle = theme.riftGlow;
         ctx.globalAlpha = 0.62 + Math.sin(elapsed * 3) * 0.22;
         ctx.beginPath();
-        ctx.ellipse(c.x, c.y, 13, 6.5, 0, 0, Math.PI * 2);
+        ctx.ellipse(c.x, c.y, 15, 7, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
       } else if (feat.type === 'decorative') {
         const c = bf.worldToScreen(feat.x, feat.y, w, h);
-        const rx = (feat.radius || 6) * c.scale * 0.85;
-        const ry = (feat.radius || 6) * c.scale * 0.45;
+        const rx = (feat.radius || 6) * (c.scaleX ?? c.scale * 0.85);
+        const ry = (feat.radius || 6) * (c.scaleY ?? c.scale * 0.45);
         ctx.save();
         ctx.strokeStyle = theme.sigilPrimary;
         ctx.lineWidth = 1.2;
@@ -981,8 +1035,10 @@ export class BattleRenderer {
     const y1 = feat.y;
     const x2 = feat.x + (feat.width || 6);
     const y2 = feat.y + (feat.height || 6);
-    const elev = 7.5;
+    const midX = (x1 + x2) * 0.5;
+    const elev = 6.5;
 
+    const b0 = bf.worldToScreen(x1, y1, w, h, 0);
     const b1 = bf.worldToScreen(x2, y1, w, h, 0);
     const b2 = bf.worldToScreen(x2, y2, w, h, 0);
     const b3 = bf.worldToScreen(x1, y2, w, h, 0);
@@ -993,6 +1049,39 @@ export class BattleRenderer {
     const t3 = bf.worldToScreen(x1, y2, w, h, elev);
 
     ctx.save();
+
+    // Subtle ground cast shadow
+    ctx.fillStyle = 'rgba(4, 5, 10, 0.36)';
+    ctx.beginPath();
+    ctx.moveTo(b3.x - 3, b3.y + 4);
+    ctx.lineTo(b2.x + 3, b2.y + 4);
+    ctx.lineTo(b1.x + 4, b1.y + 2);
+    ctx.lineTo(b0.x - 4, b0.y + 2);
+    ctx.closePath();
+    ctx.fill();
+
+    // Perspective-visible inner side wall (left-of-center shows right side; right-of-center shows left side)
+    if (midX < bf.worldWidth * 0.5) {
+      ctx.fillStyle = theme.obstacleRight;
+      ctx.beginPath();
+      ctx.moveTo(b2.x, b2.y);
+      ctx.lineTo(b1.x, b1.y);
+      ctx.lineTo(t1.x, t1.y);
+      ctx.lineTo(t2.x, t2.y);
+      ctx.closePath();
+      ctx.fill();
+    } else if (midX > bf.worldWidth * 0.5) {
+      ctx.fillStyle = theme.obstacleRight;
+      ctx.beginPath();
+      ctx.moveTo(b0.x, b0.y);
+      ctx.lineTo(b3.x, b3.y);
+      ctx.lineTo(t3.x, t3.y);
+      ctx.lineTo(t0.x, t0.y);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // Front vertical face
     ctx.fillStyle = theme.obstacleLeft;
     ctx.beginPath();
     ctx.moveTo(b3.x, b3.y);
@@ -1002,15 +1091,7 @@ export class BattleRenderer {
     ctx.closePath();
     ctx.fill();
 
-    ctx.fillStyle = theme.obstacleRight;
-    ctx.beginPath();
-    ctx.moveTo(b2.x, b2.y);
-    ctx.lineTo(b1.x, b1.y);
-    ctx.lineTo(t1.x, t1.y);
-    ctx.lineTo(t2.x, t2.y);
-    ctx.closePath();
-    ctx.fill();
-
+    // Top horizontal cap
     ctx.fillStyle = theme.obstacleTop;
     ctx.beginPath();
     ctx.moveTo(t0.x, t0.y);
@@ -1024,10 +1105,10 @@ export class BattleRenderer {
     ctx.lineWidth = 1.2;
     ctx.stroke();
 
-    const tc = bf.worldToScreen((x1 + x2) * 0.5, (y1 + y2) * 0.5, w, h, elev);
+    const tc = bf.worldToScreen(midX, (y1 + y2) * 0.5, w, h, elev);
     ctx.fillStyle = theme.obstacleCrest;
     ctx.beginPath();
-    ctx.ellipse(tc.x, tc.y, 6, 3, 0, 0, Math.PI * 2);
+    ctx.ellipse(tc.x, tc.y, 7, 3.2, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
@@ -1037,8 +1118,8 @@ export class BattleRenderer {
       const tg = telegraphs[i];
       const p = bf.worldToScreen(tg.x, tg.y, w, h);
       const progress = Math.min(1, tg.elapsed / Math.max(0.05, tg.duration));
-      const rx = tg.radius * p.scale * 0.85;
-      const ry = tg.radius * p.scale * 0.46;
+      const rx = tg.radius * (p.scaleX ?? p.scale * 0.85);
+      const ry = tg.radius * (p.scaleY ?? p.scale * 0.46);
       const color = tg.color || '#f87171';
 
       ctx.save();
@@ -1068,9 +1149,9 @@ export class BattleRenderer {
         ctx.globalAlpha = 0.95;
         ctx.font = '700 9.5px "JetBrains Mono", monospace';
         ctx.textAlign = 'center';
-        ctx.fillStyle = '#070c17';
+        ctx.fillStyle = '#08090e';
         ctx.fillText(tg.label, p.x + 1, p.y - ry * 0.35 + 1);
-        ctx.fillStyle = '#fde68a';
+        ctx.fillStyle = '#f5dca0';
         ctx.fillText(tg.label, p.x, p.y - ry * 0.35);
       }
       ctx.restore();
@@ -1083,8 +1164,8 @@ export class BattleRenderer {
     const isDead = unit.state === UNIT_STATES.DEAD;
     const isMoving = unit.state === UNIT_STATES.MOVING;
     const isCasting = unit.state === UNIT_STATES.CASTING;
-    const scale = (unit.visualScale || 1) * Math.max(0.75, Math.min(1.25, p.scale / 7.2));
-    const spriteSize = 42 * scale;
+    const scale = (unit.visualScale || 1) * Math.max(0.76, Math.min(1.26, p.scale / 8.0));
+    const spriteSize = 44 * scale;
 
     const phase = unit.phase || 0;
     const walkBob = isMoving
@@ -1528,24 +1609,26 @@ export class BattleRenderer {
 
       // Ground layer effects: ring, heal_wave, deploy, death, boss_entrance, tactic_pulse
       const p = bf.worldToScreen(fx.x, fx.y, w, h);
-      const r = fx.radius * p.scale * (0.3 + t * 0.78);
+      const grow = 0.3 + t * 0.78;
+      const rx = fx.radius * (p.scaleX ?? p.scale * 0.88) * grow;
+      const ry = fx.radius * (p.scaleY ?? p.scale * 0.48) * grow;
       ctx.save();
       ctx.globalAlpha = alpha * 0.85;
-      ctx.strokeStyle = fx.color || '#38bdf8';
+      ctx.strokeStyle = fx.color || '#5eb8e8';
       ctx.lineWidth = fx.kind === 'boss_entrance' ? 3.5 : fx.kind === 'heal_wave' || fx.kind === 'tactic_pulse' ? 3 : 2;
       ctx.beginPath();
-      ctx.ellipse(p.x, p.y, r * 0.88, r * 0.48, 0, 0, Math.PI * 2);
+      ctx.ellipse(p.x, p.y, rx, ry, 0, 0, Math.PI * 2);
       ctx.stroke();
 
       if (fx.kind === 'boss_entrance' || fx.kind === 'deploy') {
-        ctx.strokeStyle = fx.secondaryColor || '#e2b75b';
+        ctx.strokeStyle = fx.secondaryColor || '#e5be6a';
         ctx.lineWidth = 1.6;
         ctx.beginPath();
-        ctx.ellipse(p.x, p.y, r * 0.58, r * 0.32, 0, 0, Math.PI * 2);
+        ctx.ellipse(p.x, p.y, rx * 0.64, ry * 0.64, 0, 0, Math.PI * 2);
         ctx.stroke();
       }
 
-      ctx.fillStyle = fx.color || '#38bdf8';
+      ctx.fillStyle = fx.color || '#5eb8e8';
       ctx.globalAlpha = alpha * 0.14;
       ctx.fill();
       ctx.restore();
@@ -1586,15 +1669,31 @@ export class BattleRenderer {
       if (u.state === UNIT_STATES.DEAD) continue;
       const p = bf.worldToScreen(u.x, u.y, w, h);
 
-      ctx.strokeStyle = 'rgba(251, 191, 36, 0.55)';
+      ctx.strokeStyle = 'rgba(232, 192, 104, 0.58)';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      ctx.ellipse(p.x, p.y, u.collisionRadius * p.scale * 0.85, u.collisionRadius * p.scale * 0.46, 0, 0, Math.PI * 2);
+      ctx.ellipse(
+        p.x,
+        p.y,
+        u.collisionRadius * (p.scaleX ?? p.scale * 0.85),
+        u.collisionRadius * (p.scaleY ?? p.scale * 0.46),
+        0,
+        0,
+        Math.PI * 2,
+      );
       ctx.stroke();
 
-      ctx.strokeStyle = u.side === 'ally' ? 'rgba(56, 189, 248, 0.22)' : 'rgba(248, 113, 113, 0.22)';
+      ctx.strokeStyle = u.side === 'ally' ? 'rgba(94, 184, 232, 0.24)' : 'rgba(232, 93, 104, 0.24)';
       ctx.beginPath();
-      ctx.ellipse(p.x, p.y, u.attackRange * p.scale * 0.85, u.attackRange * p.scale * 0.46, 0, 0, Math.PI * 2);
+      ctx.ellipse(
+        p.x,
+        p.y,
+        u.attackRange * (p.scaleX ?? p.scale * 0.85),
+        u.attackRange * (p.scaleY ?? p.scale * 0.46),
+        0,
+        0,
+        Math.PI * 2,
+      );
       ctx.stroke();
 
       if (u.path && u.path.length > 0) {

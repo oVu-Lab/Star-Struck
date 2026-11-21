@@ -181,7 +181,7 @@ export class InventoryScreen {
                                 <img data-card-emblem="${card.iconAssetId}" alt="${card.name}" />
                               </div>
                               <div style="min-width: 0; flex: 1;">
-                                <div style="font-family: var(--font-display); font-size: 0.86rem; font-weight: 600; color: var(--celestial-ivory); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                <div style="font-family: var(--font-display); font-size: 0.86rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                                   ${card.name}
                                 </div>
                                 <div class="meta-line tabular-nums" style="font-size: 0.72rem; margin-top: 2px;">
@@ -210,7 +210,7 @@ export class InventoryScreen {
                               data-select-entry="${item.id}"
                             >
                               <div class="workspace-pane__head" style="width: 100%;">
-                                <strong style="font-size: 0.92rem; color: var(--celestial-ivory);">${item.name}</strong>
+                                <strong style="font-size: 0.92rem; color: var(--text-primary);">${item.name}</strong>
                                 <span class="item-tile__qty tabular-nums" style="${item.id === 'currency_astrite' ? 'color: var(--accent-gold-bright);' : ''}">
                                   ${formatNumber(item.quantity)}
                                 </span>
@@ -277,7 +277,7 @@ export class InventoryScreen {
 
                       <div class="dossier-skill" style="margin-top: auto;">
                         <div class="section-kicker section-kicker--gold">Merge Evolution (Lv.I → Lv.III)</div>
-                        <p class="dossier-skill__desc" style="color: var(--celestial-ivory);">
+                        <p class="dossier-skill__desc" style="color: var(--text-primary);">
                           ${selectedCard.upgradeSummary || 'Merge adjacent identical cards in battle to amplify potency.'}
                         </p>
                       </div>
@@ -312,7 +312,7 @@ export class InventoryScreen {
                         <div class="kv-list">
                           <div class="kv-row">
                             <span class="kv-label">Available Quantity</span>
-                            <span class="kv-value tabular-nums" style="font-size: 1.15rem; color: ${selectedItem.id === 'currency_astrite' ? 'var(--accent-gold-bright)' : 'var(--accent-blue-bright)'};">
+                            <span class="kv-value tabular-nums" style="font-size: 1.15rem; color: ${selectedItem.id === 'currency_astrite' ? 'var(--accent-gold-bright)' : 'var(--text-primary)'};">
                               ${formatNumber(selectedItem.quantity)}
                             </span>
                           </div>

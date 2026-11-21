@@ -80,8 +80,8 @@ export class BattleScreen {
     const isMuted = Boolean(gameState.settings?.muted);
 
     container.innerHTML = `
-      <section class="battle-theater" aria-label="Isometric Battlefield">
-        <canvas id="battle-canvas" class="battle-canvas" aria-label="Isometric tactical battlefield canvas"></canvas>
+      <section class="battle-theater" aria-label="Tactical Battlefield">
+        <canvas id="battle-canvas" class="battle-canvas" aria-label="Tactical battlefield canvas"></canvas>
 
         <header class="battle-topbar" aria-label="Battle Status Bar">
           <div class="hud-pill-group hud-pill-group--left">
@@ -611,21 +611,25 @@ export class BattleScreen {
       btn.className = 'tactical-card tactical-card--empty';
       btn.dataset.slotIndex = String(idx);
       btn.innerHTML = `
-        <span class="tactical-card__key tabular-nums" aria-hidden="true">${idx + 1}</span>
-        <div class="tactical-card__top">
-          <span class="tactical-card__cost tabular-nums"></span>
-          <span class="tactical-card__category"></span>
-          <span class="tactical-card__tier tabular-nums"></span>
-        </div>
-        <div class="tactical-card__art">
-          <img alt="" />
-        </div>
-        <div class="tactical-card__body">
-          <div class="tactical-card__name"></div>
-          <div class="tactical-card__hint"></div>
-        </div>
-        <div class="tactical-card__cooldown" hidden>
-          <span class="tabular-nums"></span>
+        <div class="tactical-card__inner">
+          <div class="tactical-card__top">
+            <span class="tactical-card__cost tabular-nums"></span>
+            <span class="tactical-card__tier tabular-nums"></span>
+          </div>
+          <div class="tactical-card__art">
+            <img class="tactical-card__img" alt="" />
+            <span class="tactical-card__category"></span>
+          </div>
+          <div class="tactical-card__body">
+            <div class="tactical-card__name"></div>
+            <div class="tactical-card__footer">
+              <span class="tactical-card__hint"></span>
+              <span class="tactical-card__key tabular-nums" aria-hidden="true">${idx + 1}</span>
+            </div>
+          </div>
+          <div class="tactical-card__cooldown" hidden>
+            <span class="tabular-nums"></span>
+          </div>
         </div>
       `;
 
@@ -661,7 +665,7 @@ export class BattleScreen {
         category: btn.querySelector('.tactical-card__category'),
         tier: btn.querySelector('.tactical-card__tier'),
         art: btn.querySelector('.tactical-card__art'),
-        img: btn.querySelector('img'),
+        img: btn.querySelector('.tactical-card__img'),
         name: btn.querySelector('.tactical-card__name'),
         hint: btn.querySelector('.tactical-card__hint'),
         cdWrap: btn.querySelector('.tactical-card__cooldown'),
@@ -670,7 +674,7 @@ export class BattleScreen {
       this._slotMeta.push({
         instanceId: null,
         tier: 0,
-        iconAssetId: null,
+        artAssetId: null,
         isEmpty: true,
       });
     }
@@ -942,7 +946,7 @@ export class BattleScreen {
           node.hint.textContent = 'Deck empty';
           meta.instanceId = null;
           meta.tier = 0;
-          meta.iconAssetId = null;
+          meta.artAssetId = null;
           meta.isEmpty = true;
         }
         continue;
@@ -988,7 +992,7 @@ export class BattleScreen {
       node.art.hidden = false;
       node.name.className = 'tactical-card__name';
 
-      node.cost.textContent = `${slot.cost}E`;
+      node.cost.textContent = `${slot.cost}`;
       node.cost.className = `tactical-card__cost tabular-nums ${!affordable && inCombat ? 'is-short' : ''}`;
       node.category.textContent = `${slot.rarity || 'R'} · ${CATEGORY_LABELS[slot.category] || 'Card'}`;
       node.category.className = `tactical-card__category rarity-${rarityLower}`;
@@ -997,22 +1001,22 @@ export class BattleScreen {
 
       let hint = '';
       if (!inCombat) {
-        hint = b.phase === BATTLE_PHASES.PREPARATION ? 'Ready in combat' : 'Battle ended';
+        hint = b.phase === BATTLE_PHASES.PREPARATION ? 'Combat ready' : 'Ended';
       } else if (canMergeTarget) {
         const nextRoman = slot.tier + 1 === 3 ? 'III' : 'II';
-        hint = `Merge → Lv.${nextRoman}`;
+        hint = `Merge → ${nextRoman}`;
       } else if (onCooldown) {
         hint = `CD ${cooldown.toFixed(1)}s`;
       } else if (capped) {
         hint = `Cap ${b.friendlyCap}/${b.friendlyCap}`;
       } else if (!affordable) {
-        hint = `Need ${slot.cost} E`;
+        hint = `Need ${slot.cost}E`;
       } else if (isSelected) {
-        hint = slot.category === 'unit' ? 'Click Ally Zone / card' : 'Click map / card';
+        hint = slot.category === 'unit' ? 'Deploy Ally' : 'Cast / Click';
       } else if (isPassiveMergeReady) {
-        hint = 'Merge pair ready';
+        hint = 'Merge ready';
       } else {
-        hint = 'Click or press key';
+        hint = CATEGORY_LABELS[slot.category] || 'Ready';
       }
       node.hint.textContent = hint;
 
@@ -1025,10 +1029,19 @@ export class BattleScreen {
         if (slot.upgradeSummary) tooltipParts.push(`Merge Scaling: ${slot.upgradeSummary}`);
         node.root.title = tooltipParts.join('\n');
 
-        if (meta.iconAssetId !== slot.iconAssetId || meta.isEmpty) {
+        // Display full unit character art on unit cards, framed sigil art on skills/tactics/supports
+        const unitDef =
+          slot.category === 'unit' && slot.unitId
+            ? this._ctx.dataRegistry?.unitsById?.get(slot.unitId)
+            : null;
+        const resolvedArtId = unitDef?.spriteAssetId || slot.iconAssetId;
+        const isUnitArt = Boolean(unitDef?.spriteAssetId);
+
+        if (meta.artAssetId !== resolvedArtId || meta.isEmpty) {
           node.img.alt = slot.name;
-          assetManager.bindImageElement(node.img, slot.iconAssetId);
-          meta.iconAssetId = slot.iconAssetId;
+          node.img.className = `tactical-card__img ${isUnitArt ? 'is-unit-art' : 'is-emblem-art'}`;
+          assetManager.bindImageElement(node.img, resolvedArtId);
+          meta.artAssetId = resolvedArtId;
         }
       }
 
@@ -1174,7 +1187,7 @@ export class BattleScreen {
               </div>
               ${
                 results.isFirstClear
-                  ? '<div style="margin-top: 8px; font-size: 0.78rem; color: var(--accent-gold-bright); font-weight: 600;">First Clear Bonus Earned</div>'
+                  ? '<div style="margin-top: 8px; font-size: 0.78rem; color: var(--accent-gold-luminous); font-weight: 600;">First Clear Bonus Earned</div>'
                   : ''
               }
             </div>
@@ -1219,7 +1232,7 @@ export class BattleScreen {
 
           <div class="results-rewards">
             <div class="section-kicker section-kicker--gold">Battle Rewards</div>
-            <div class="meta-line tabular-nums" style="color: var(--celestial-ivory); font-size: 0.88rem;">
+            <div class="meta-line tabular-nums" style="color: var(--text-primary); font-size: 0.88rem;">
               <span>+${formatNumber(r.credits || 0)} Credits</span>
               ${r.astrite > 0 ? `<span class="meta-sep">·</span><span style="color: var(--accent-gold-bright); font-weight: 700;">+${formatNumber(r.astrite)} Astrite</span>` : ''}
               <span class="meta-sep">·</span>

@@ -1,84 +1,99 @@
 /* ==========================================================================
-   Astral Command — Design Tokens & Base Typography (P4 Structural Redesign)
-   60% Deep Orbital Navy · 30% Structural Slate · 10% Electric Blue & Celestial Gold
+   Star Struck — Global White / Warm Ivory Design Architecture & Tokens
+   Genshin Impact-Inspired Alabaster, Soft Cream & Burnished Antique Gold
+   Supporting Multi-Realm Identities:
+   (Celestial Order · Gale Pavilion · Radiant Sanctum · Obsidian Spire · Ironforge)
    ========================================================================== */
 
 :root {
-  /* Dominant Canvas (60%) */
-  --bg-canvas: #060b16;
-  --bg-elevated: #0b1325;
-  --bg-deep: #040710;
+  /* 60% Dominant Canvas — Warm Sunlit Ivory & Parchment Alabaster */
+  --bg-canvas: #f5f0e6;
+  --bg-elevated: #ebe4d6;
+  --bg-deep: #15141a;
 
-  /* Structural Surfaces (30%) */
-  --surface-1: #0f1a30;
-  --surface-2: #152340;
-  --surface-3: #1c2e52;
-  --surface-hover: #21365e;
-  --surface-glass: rgba(10, 17, 34, 0.84);
-  --surface-glass-strong: rgba(8, 14, 28, 0.92);
-  --border-subtle: rgba(148, 179, 214, 0.14);
-  --border-strong: rgba(148, 179, 214, 0.3);
-  --border-luminous: rgba(248, 250, 252, 0.22);
+  /* 30% Structural Surfaces — Layered White, Warm Ivory & Soft Cream Depth */
+  --surface-1: #fcfaf5;
+  --surface-2: #f2ece0;
+  --surface-3: #e7decb;
+  --surface-hover: #ffffff;
+  --surface-dark: #2c2621;
+  --surface-dark-2: #3a332c;
+  --surface-glass: rgba(252, 250, 245, 0.95);
+  --surface-glass-strong: rgba(246, 241, 231, 0.97);
 
-  /* Focal Accents (10%) */
-  --accent-blue: #38bdf8;
-  --accent-blue-bright: #7dd3fc;
-  --accent-blue-strong: #0ea5e9;
-  --accent-blue-soft: rgba(56, 189, 248, 0.14);
+  /* Delicate Warm Stone & Antique Gold Hairlines */
+  --border-subtle: rgba(138, 114, 78, 0.22);
+  --border-strong: rgba(162, 126, 66, 0.5);
+  --border-ivory: rgba(255, 255, 255, 0.9);
+  --border-luminous: rgba(182, 140, 62, 0.72);
 
-  /* Celestial Gold & Ivory Identity */
-  --accent-gold: #e6be64;
-  --accent-gold-bright: #f7dc94;
-  --accent-gold-soft: rgba(230, 190, 100, 0.16);
-  --celestial-ivory: #f8fafc;
-  --celestial-rim: rgba(247, 220, 148, 0.5);
+  /* 10% Focal Accents — Antique Gold, Muted Bronze & High-Contrast Light Accents */
+  --accent-gold: #94691a;
+  --accent-gold-bright: #8a6116;
+  --accent-gold-luminous: #ebd08c;
+  --accent-gold-deep: #6b490e;
+  --accent-gold-soft: rgba(166, 124, 46, 0.12);
+  --celestial-ivory: #2a241e;
+  --celestial-rim: rgba(176, 136, 64, 0.62);
 
-  /* Category Accents */
-  --cat-unit: #38bdf8;
-  --cat-skill: #a78bfa;
-  --cat-tactic: #f59e0b;
-  --cat-support: #34d399;
+  /* Semantic Tactical Cerulean (Strictly for Ally/Energy/Unit Semantics — AA on Ivory) */
+  --accent-blue: #226ea3;
+  --accent-blue-bright: #1b5f8f;
+  --accent-blue-strong: #154b72;
+  --accent-blue-soft: rgba(34, 110, 163, 0.11);
 
-  /* Semantic States */
-  --state-ally: #34d399;
-  --state-enemy: #f87171;
-  --state-warn: #fbbf24;
-  --state-danger: #ef4444;
+  /* Card Category Accents (Calibrated for Crisp Contrast on White/Cream) */
+  --cat-unit: #1e6a9c;
+  --cat-skill: #6c3fb5;
+  --cat-tactic: #a66212;
+  --cat-support: #1c7a56;
 
-  /* Rarity Tokens */
-  --rarity-ssr: #e6be64;
-  --rarity-ssr-glow: rgba(230, 190, 100, 0.32);
-  --rarity-sr: #a78bfa;
-  --rarity-sr-glow: rgba(167, 139, 250, 0.26);
-  --rarity-r: #38bdf8;
-  --rarity-r-glow: rgba(56, 189, 248, 0.22);
+  /* Semantic States (Calibrated for Light Surfaces) */
+  --state-ally: #1d7a55;
+  --state-enemy: #b8323e;
+  --state-warn: #9f6711;
+  --state-danger: #a82834;
 
-  /* Default Hero Theme (overridden by .theme-* classes) */
-  --hero-accent: #e6be64;
-  --hero-secondary: #f8fafc;
-  --hero-glow: rgba(230, 190, 100, 0.22);
+  /* Rarity Palette — Gemstone Tones Readable on Ivory & White */
+  --rarity-ssr: #8f5f0e;
+  --rarity-ssr-border: #cfa042;
+  --rarity-ssr-glow: rgba(207, 160, 66, 0.24);
+  --rarity-sr: #6c3fb5;
+  --rarity-sr-glow: rgba(108, 63, 181, 0.2);
+  --rarity-r: #246896;
+  --rarity-r-glow: rgba(36, 104, 150, 0.18);
 
-  /* Typography */
-  --font-display: 'Outfit', system-ui, -apple-system, sans-serif;
+  /* Default Hero Realm Theme (Overridden by .theme-* classes) */
+  --hero-accent: #8f6517;
+  --hero-accent-light: #f0cf82;
+  --hero-secondary: #2b6894;
+  --hero-glow: rgba(196, 154, 68, 0.18);
+
+  /* Typography — Carved Fantasy Display + Crisp UI Sans + Tabular Mono */
+  --font-display: 'Cinzel', Georgia, 'Times New Roman', serif;
+  --font-ui: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   --font-body: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
 
-  --text-primary: #eef4fc;
-  --text-secondary: #a2b4ce;
-  --text-muted: #6f84a2;
-  --text-inverse: #060b16;
+  /* Deliberate High-Contrast Text Hierarchy */
+  --text-primary: #2a241e;
+  --text-secondary: #5a5045;
+  --text-muted: #75695b;
+  --text-on-dark: #faf6ee;
+  --text-on-dark-muted: #d6ccbc;
+  --text-inverse: #faf6ee;
 
-  /* Elevation & Shadows */
-  --shadow-panel: 0 10px 28px rgba(2, 6, 16, 0.38);
-  --shadow-elevated: 0 16px 40px rgba(2, 6, 16, 0.58);
-  --shadow-gold: 0 0 24px rgba(230, 190, 100, 0.24);
-  --shadow-blue: 0 0 22px rgba(56, 189, 248, 0.22);
+  /* Soft Restrained Light-Theme Shadows */
+  --shadow-panel: 0 8px 22px rgba(46, 36, 24, 0.08), 0 2px 6px rgba(46, 36, 24, 0.05);
+  --shadow-elevated: 0 18px 42px rgba(36, 28, 18, 0.16), 0 4px 12px rgba(36, 28, 18, 0.08);
+  --shadow-gold: 0 10px 26px rgba(166, 124, 46, 0.18);
+  --shadow-blue: 0 8px 20px rgba(34, 110, 163, 0.14);
 
-  /* Radii & Spacing */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  /* Refined Architectural Corner Geometry */
+  --radius-sm: 3px;
+  --radius-md: 5px;
+  --radius-lg: 7px;
+  --radius-xl: 10px;
 
   --space-1: 4px;
   --space-2: 8px;
@@ -93,42 +108,56 @@
   --ease-snap: cubic-bezier(0.22, 1, 0.36, 1);
   --duration-fast: 140ms;
   --duration-base: 190ms;
-  --duration-reveal: 320ms;
+  --duration-reveal: 300ms;
 
   /* Layout Metrics */
-  --topbar-height: 54px;
+  --topbar-height: 56px;
   --content-max-width: 1560px;
 }
 
-/* Individual Commander Theme Overrides */
+/* ==========================================================================
+   Multi-Realm Commander Theme Overrides
+   (--hero-accent: readable on ivory/white | --hero-accent-light: dark scrims)
+   ========================================================================== */
+
+/* Celestial Order — Sovereign Ivory, Burnished Gold & Celestial Azure */
 .theme-astra {
-  --hero-accent: #e6be64;
-  --hero-secondary: #f8fafc;
-  --hero-glow: rgba(230, 190, 100, 0.24);
+  --hero-accent: #8f6517;
+  --hero-accent-light: #f0cf82;
+  --hero-secondary: #2b6894;
+  --hero-glow: rgba(196, 154, 68, 0.19);
 }
 
+/* Gale Pavilion — Warm White, Eastern Jade & Wind-Gold */
 .theme-kael {
-  --hero-accent: #38bdf8;
-  --hero-secondary: #a78bfa;
-  --hero-glow: rgba(56, 189, 248, 0.24);
+  --hero-accent: #18755d;
+  --hero-accent-light: #6ce0c2;
+  --hero-secondary: #9a7124;
+  --hero-glow: rgba(28, 146, 116, 0.17);
 }
 
+/* Radiant Sanctum — Ivory, Sacred Gold & Sunlit Emerald */
 .theme-lyra {
-  --hero-accent: #34d399;
-  --hero-secondary: #d1fae5;
-  --hero-glow: rgba(52, 211, 153, 0.22);
+  --hero-accent: #1f784d;
+  --hero-accent-light: #7de8b2;
+  --hero-secondary: #a67a24;
+  --hero-glow: rgba(42, 158, 102, 0.17);
 }
 
+/* Obsidian Spire — Dark Arcane Amethyst & Velvet Crimson */
 .theme-seraphina {
-  --hero-accent: #a78bfa;
-  --hero-secondary: #e6be64;
-  --hero-glow: rgba(167, 139, 250, 0.24);
+  --hero-accent: #683ab0;
+  --hero-accent-light: #cca6ff;
+  --hero-secondary: #9c3262;
+  --hero-glow: rgba(110, 66, 182, 0.19);
 }
 
+/* Ironforge Frontier — Cream, Forged Bronze & Copper Clockwork */
 .theme-vanguard_zero {
-  --hero-accent: #60a5fa;
-  --hero-secondary: #fbbf24;
-  --hero-glow: rgba(96, 165, 250, 0.24);
+  --hero-accent: #a34b14;
+  --hero-accent-light: #f5ab6e;
+  --hero-secondary: #8a621e;
+  --hero-glow: rgba(182, 94, 36, 0.17);
 }
 
 *,
@@ -147,16 +176,20 @@ body {
   font-family: var(--font-body);
   font-size: 14.5px;
   line-height: 1.5;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.005em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Sunlit Warm Ivory Canvas with Delicate Engraved Filigree Lattice */
 body {
+  background-color: var(--bg-canvas);
   background-image:
-    radial-gradient(ellipse 70% 42% at 50% -10%, rgba(56, 189, 248, 0.12), transparent 62%),
-    radial-gradient(ellipse 48% 36% at 88% 10%, rgba(230, 190, 100, 0.08), transparent 60%),
-    linear-gradient(180deg, #060b16 0%, #091124 52%, #060b17 100%);
+    linear-gradient(180deg, rgba(255, 253, 248, 0.72) 0%, rgba(245, 240, 230, 0.18) 38%, rgba(226, 215, 196, 0.42) 100%),
+    linear-gradient(90deg, rgba(162, 128, 72, 0.055) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(162, 128, 72, 0.055) 1px, transparent 1px),
+    linear-gradient(180deg, #f8f4ec 0%, #f3ede1 55%, #ece4d5 100%);
+  background-size: 100% 100%, 72px 72px, 72px 72px, 100% 100%;
   background-attachment: fixed;
   overflow-x: hidden;
 }
@@ -167,9 +200,10 @@ h3,
 h4 {
   margin: 0;
   font-family: var(--font-display);
-  font-weight: 600;
+  font-weight: 700;
   color: var(--text-primary);
   line-height: 1.18;
+  letter-spacing: 0.02em;
   text-wrap: balance;
 }
 
@@ -194,14 +228,14 @@ button {
 
 button:disabled {
   cursor: not-allowed;
-  opacity: 0.44;
+  opacity: 0.48;
 }
 
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 [tabindex]:focus-visible {
-  outline: 2px solid var(--accent-blue);
+  outline: 2px solid var(--accent-gold);
   outline-offset: 2px;
 }
 
@@ -228,23 +262,23 @@ svg {
   border: 0;
 }
 
-/* Refined Thin Scrollbars */
+/* Refined Light-Theme Thin Scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(6, 11, 22, 0.45);
+  background: rgba(224, 215, 198, 0.65);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 179, 214, 0.24);
-  border-radius: 3px;
+  background: rgba(154, 122, 68, 0.36);
+  border-radius: 2px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 179, 214, 0.42);
+  background: rgba(154, 122, 68, 0.62);
 }
 
 @media (prefers-reduced-motion: reduce) {

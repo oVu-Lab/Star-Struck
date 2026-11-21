@@ -286,7 +286,7 @@ export class FormationScreen {
 
           <div class="workspace-pane__head">
             <span class="section-heading" style="font-size: 0.88rem;">
-              Starting Squad · Editing <span style="color: var(--accent-blue-bright);">Slot ${selectedSlotIdx + 1}</span>
+              Starting Squad · Editing <span style="color: var(--accent-gold-bright);">Slot ${selectedSlotIdx + 1}</span>
             </span>
             <span class="meta-line" style="font-size: 0.74rem;">Select a slot, then assign a unit from the collection</span>
           </div>
@@ -305,13 +305,13 @@ export class FormationScreen {
                       </div>
                       <div style="min-width: 0; flex: 1;">
                         <div class="meta-line tabular-nums" style="font-size: 0.7rem;">
-                          <span style="color: ${isSel ? 'var(--accent-blue-bright)' : 'var(--text-muted)'}; font-weight: 700;">Slot ${slot.slotIndex + 1}</span>
+                          <span style="color: ${isSel ? 'var(--accent-gold-bright)' : 'var(--text-muted)'}; font-weight: 700;">Slot ${slot.slotIndex + 1}</span>
                           <span class="meta-sep" aria-hidden="true">·</span>
                           <span>${meta.shortPos}</span>
                           <span class="meta-sep" aria-hidden="true">·</span>
                           <span style="color: var(--accent-blue-bright);">${u?.cost ?? 20}E</span>
                         </div>
-                        <div style="font-weight: 600; font-size: 0.88rem; color: var(--celestial-ivory); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        <div style="font-weight: 600; font-size: 0.88rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                           ${u?.name || slot.unitId}
                         </div>
                         <div class="meta-line tabular-nums" style="font-size: 0.72rem;">
@@ -389,7 +389,7 @@ export class FormationScreen {
                     </div>
                     <div style="min-width: 0; flex: 1;">
                       <div class="workspace-pane__head" style="gap: 6px;">
-                        <strong style="font-size: 0.96rem; color: var(--celestial-ivory);">${selectedUnit.name}</strong>
+                        <strong style="font-size: 0.96rem; color: var(--text-primary);">${selectedUnit.name}</strong>
                         <span class="meta-line tabular-nums" style="font-size: 0.76rem;">
                           <span class="rarity-${(selectedUnit.rarity || 'R').toLowerCase()}">${selectedUnit.rarity}</span>
                           <span class="meta-sep" aria-hidden="true">·</span>
@@ -642,7 +642,7 @@ export class FormationScreen {
                           <img data-deck-icon="${card.iconAssetId}" alt="${card.name}" />
                         </div>
                         <div style="min-width: 0;">
-                          <div style="font-weight: 600; font-size: 0.85rem; color: var(--celestial-ivory); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                          <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                             ${card.name}
                           </div>
                           <div class="meta-line tabular-nums" style="font-size: 0.74rem;">
@@ -719,9 +719,9 @@ export class FormationScreen {
                         <button type="button" class="deck-draft-pill" data-deck-remove="${cid}" title="Click to remove one copy">
                           <span style="min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                             <span class="cat-text-${cat}" style="margin-right: 6px;">${CATEGORY_LABELS[cat]}</span>
-                            <strong style="color: var(--celestial-ivory);">${card?.name || cid}</strong>
+                            <strong style="color: var(--text-primary);">${card?.name || cid}</strong>
                           </span>
-                          <span class="tabular-nums" style="color: var(--accent-blue-bright); font-weight: 700; flex-shrink: 0;">×${qty}</span>
+                          <span class="tabular-nums" style="color: var(--accent-gold-bright); font-weight: 700; flex-shrink: 0;">×${qty}</span>
                         </button>
                       `;
                     })
@@ -869,7 +869,7 @@ export class FormationScreen {
                       ${stage.unlocked ? '' : 'disabled'}
                     >
                       <div class="workspace-pane__head" style="width: 100%;">
-                        <strong style="font-size: 0.9rem; color: var(--celestial-ivory);">Stage ${stage.code} · ${stage.name}</strong>
+                        <strong style="font-size: 0.9rem; color: var(--text-primary);">Stage ${stage.code} · ${stage.name}</strong>
                         <span class="tabular-nums" style="color: ${stage.bestRating ? 'var(--accent-gold-bright)' : 'var(--text-muted)'}; font-weight: 700; font-size: 0.82rem;">
                           ${stage.unlocked ? stage.bestRating || (stage.cleared ? 'Cleared' : 'Ready') : 'Locked'}
                         </span>
@@ -882,7 +882,7 @@ export class FormationScreen {
                         <span class="tabular-nums">Rec Lv.${stage.recommendedLevel || 1}</span>
                         ${
                           stageBossWave
-                            ? '<span class="meta-sep" aria-hidden="true">·</span><span style="color: #fca5a5; font-weight: 600;">Boss</span>'
+                            ? '<span class="meta-sep" aria-hidden="true">·</span><span style="color: var(--state-enemy); font-weight: 700;">Boss</span>'
                             : ''
                         }
                       </div>

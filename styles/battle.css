@@ -1,6 +1,6 @@
 /* ==========================================================================
-   Astral Command — Full-Viewport Battle Theater & Integrated Tactical Dock (P4)
-   100vw x 100vh Edge-to-Edge Canvas · Slim Floating Top HUD · Compact 6-Card Dock
+   Star Struck — Battle Theater, Warm Ivory HUD & Portrait Trading Cards
+   Wide 2.5D Rectangular Arena · Alabaster & Antique Gold HUD · ~2:3 Cards
    ========================================================================== */
 
 .battle-theater {
@@ -12,7 +12,7 @@
   user-select: none;
 }
 
-/* Full-Bleed Isometric Battlefield Canvas */
+/* Full-Bleed Battlefield Canvas */
 .battle-canvas {
   position: absolute;
   inset: 0;
@@ -23,14 +23,14 @@
 }
 
 /* ==========================================================================
-   Slim Translucent Top Battle HUD
+   Architectural Top Battle HUD — Warm Alabaster Plaques & Antique Gold Trim
    ========================================================================== */
 
 .battle-topbar {
   position: absolute;
   top: 10px;
-  left: 14px;
-  right: 14px;
+  left: 16px;
+  right: 16px;
   z-index: 12;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
@@ -45,11 +45,12 @@
   align-items: center;
   gap: 12px;
   padding: 6px 14px;
-  background: rgba(7, 13, 26, 0.82);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(148, 179, 214, 0.22);
-  border-radius: var(--radius-md);
-  box-shadow: 0 6px 20px rgba(2, 6, 16, 0.45);
+  background: linear-gradient(180deg, rgba(253, 251, 246, 0.96) 0%, rgba(243, 236, 223, 0.97) 100%);
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  box-shadow:
+    0 8px 22px rgba(14, 12, 10, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.92);
   min-height: 40px;
 }
 
@@ -72,15 +73,17 @@
 
 .hud-stage-name {
   font-family: var(--font-display);
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 700;
-  color: var(--celestial-ivory);
+  letter-spacing: 0.03em;
+  color: var(--text-primary);
   white-space: nowrap;
 }
 
 .hud-realm-name {
-  font-size: 0.76rem;
-  font-weight: 600;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
   color: var(--accent-gold-bright);
   white-space: nowrap;
 }
@@ -89,14 +92,14 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   color: var(--text-secondary);
   white-space: nowrap;
 }
 
 .hud-tactic-active {
   color: var(--accent-gold-bright);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .hud-force-stat {
@@ -107,15 +110,15 @@
 }
 
 .hud-force-stat__label {
-  font-size: 0.71rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
+  font-size: 0.69rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
 
 .hud-force-stat__val {
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   font-weight: 700;
 }
 
@@ -128,44 +131,91 @@
 }
 
 .hud-timer {
-  font-size: 1rem;
+  font-size: 0.98rem;
   font-weight: 700;
-  color: var(--celestial-ivory);
+  color: var(--text-primary);
   padding: 0 14px;
   border-left: 1px solid var(--border-subtle);
   border-right: 1px solid var(--border-subtle);
   white-space: nowrap;
 }
 
+/* Faceted Chamfered HUD Control Buttons (Light Ivory Plate with Dark Ink) */
 .hud-ctrl-btn {
+  --hud-cut: 5px;
+  position: relative;
+  isolation: isolate;
   min-height: 30px;
-  padding: 4px 11px;
-  border-radius: var(--radius-sm);
-  font-family: var(--font-display);
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--celestial-ivory);
-  background: rgba(24, 38, 68, 0.84);
-  border: 1px solid var(--border-strong);
+  padding: 4px 12px;
+  font-family: var(--font-ui);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  background: rgba(156, 122, 66, 0.58);
+  clip-path: polygon(
+    var(--hud-cut) 0,
+    calc(100% - var(--hud-cut)) 0,
+    100% var(--hud-cut),
+    100% calc(100% - var(--hud-cut)),
+    calc(100% - var(--hud-cut)) 100%,
+    var(--hud-cut) 100%,
+    0 calc(100% - var(--hud-cut)),
+    0 var(--hud-cut)
+  );
   white-space: nowrap;
-  transition: background-color var(--duration-fast), border-color var(--duration-fast), color var(--duration-fast);
+  transition: background-color var(--duration-fast), color var(--duration-fast), transform var(--duration-fast);
+}
+
+.hud-ctrl-btn::before {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  z-index: -1;
+  background: linear-gradient(180deg, #ffffff 0%, #f2eadc 100%);
+  clip-path: polygon(
+    4px 0,
+    calc(100% - 4px) 0,
+    100% 4px,
+    100% calc(100% - 4px),
+    calc(100% - 4px) 100%,
+    4px 100%,
+    0 calc(100% - 4px),
+    0 4px
+  );
+  transition: background var(--duration-fast);
 }
 
 .hud-ctrl-btn:hover:not(:disabled) {
-  border-color: var(--accent-blue);
-  background: rgba(34, 54, 94, 0.94);
+  background: var(--accent-gold);
+  color: var(--accent-gold-deep);
+}
+
+.hud-ctrl-btn:hover:not(:disabled)::before {
+  background: #ffffff;
+}
+
+.hud-ctrl-btn:active:not(:disabled) {
+  transform: scale(0.96);
 }
 
 .hud-ctrl-btn--ghost {
-  background: transparent;
-  border-color: var(--border-subtle);
-  color: var(--text-secondary);
+  background: rgba(184, 50, 62, 0.52);
+  color: #8f1d28;
+}
+
+.hud-ctrl-btn--ghost::before {
+  background: #fdf4f4;
 }
 
 .hud-ctrl-btn--ghost:hover:not(:disabled) {
-  color: #fecaca;
-  border-color: rgba(248, 113, 113, 0.5);
-  background: rgba(239, 68, 68, 0.14);
+  color: #ffffff;
+  background: #9e222e;
+}
+
+.hud-ctrl-btn--ghost:hover:not(:disabled)::before {
+  background: #b8323e;
 }
 
 .hud-ctrl-btn--icon {
@@ -177,7 +227,7 @@
 }
 
 /* ==========================================================================
-   Boss HP Bar & Wave Transition Banner (Top-Center Safe Slot)
+   Boss HP Bar (Intentionally Dark Dramatic Header) & Wave Transition Banner
    ========================================================================== */
 
 .boss-hud-bar {
@@ -186,20 +236,19 @@
   left: 50%;
   transform: translateX(-50%);
   z-index: 11;
-  width: min(440px, calc(100% - 32px));
-  background: rgba(11, 14, 28, 0.88);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(230, 190, 100, 0.62);
-  border-radius: var(--radius-md);
-  padding: 7px 12px;
+  width: min(460px, calc(100% - 32px));
+  background: linear-gradient(180deg, rgba(38, 32, 27, 0.96) 0%, rgba(24, 20, 17, 0.98) 100%);
+  border: 1.5px solid rgba(207, 160, 66, 0.78);
+  border-radius: 3px;
+  padding: 7px 14px;
   pointer-events: none;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.52);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.52);
   animation: screen-enter var(--duration-base) var(--ease-tactical) both;
 }
 
 .boss-hud-bar.is-casting {
-  border-color: #f87171;
-  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.56), 0 0 22px rgba(239, 68, 68, 0.34);
+  border-color: #e85d68;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55), 0 0 22px rgba(232, 93, 104, 0.38);
 }
 
 .boss-hud-bar__head {
@@ -214,34 +263,35 @@
 .boss-hud-bar__name {
   font-family: var(--font-display);
   font-weight: 700;
-  color: var(--accent-gold-bright);
+  letter-spacing: 0.04em;
+  color: var(--accent-gold-luminous);
 }
 
 .boss-hud-bar__cast {
   font-size: 0.72rem;
-  color: #fca5a5;
+  color: #ffb3ba;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .boss-hud-bar__hp {
   font-size: 0.76rem;
-  color: var(--celestial-ivory);
+  color: var(--text-on-dark);
 }
 
 .boss-hud-track {
   position: relative;
   width: 100%;
   height: 7px;
-  background: rgba(255, 255, 255, 0.09);
-  border-radius: 3px;
+  background: #120f0d;
+  border: 1px solid rgba(235, 208, 140, 0.28);
   overflow: hidden;
 }
 
 .boss-hud-fill {
   height: 100%;
-  background: linear-gradient(90deg, #dc2626 0%, #f97316 55%, #f7dc94 100%);
+  background: linear-gradient(90deg, #b82834 0%, #df6038 56%, #f2d89b 100%);
   transition: width 140ms var(--ease-tactical);
 }
 
@@ -250,8 +300,7 @@
   left: 0;
   bottom: 0;
   height: 3px;
-  background: linear-gradient(90deg, #38bdf8 0%, #bae6fd 100%);
-  box-shadow: 0 0 8px rgba(56, 189, 248, 0.85);
+  background: linear-gradient(90deg, #5eb8e8 0%, #cbe9fa 100%);
   transition: width 140ms var(--ease-tactical);
 }
 
@@ -261,30 +310,40 @@
   left: 50%;
   transform: translateX(-50%);
   z-index: 11;
-  padding: 7px 26px;
+  padding: 7px 36px;
   background: linear-gradient(
     90deg,
-    rgba(6, 11, 22, 0.05) 0%,
-    rgba(9, 18, 36, 0.9) 18%,
-    rgba(9, 18, 36, 0.9) 82%,
-    rgba(6, 11, 22, 0.05) 100%
+    rgba(252, 249, 242, 0) 0%,
+    rgba(252, 249, 242, 0.95) 18%,
+    rgba(255, 253, 248, 0.98) 50%,
+    rgba(252, 249, 242, 0.95) 82%,
+    rgba(252, 249, 242, 0) 100%
   );
-  border-top: 1px solid rgba(56, 189, 248, 0.72);
-  border-bottom: 1px solid rgba(56, 189, 248, 0.72);
+  border-top: 1.5px solid rgba(166, 124, 46, 0.8);
+  border-bottom: 1.5px solid rgba(166, 124, 46, 0.8);
   font-family: var(--font-display);
   font-size: 0.98rem;
-  font-weight: 600;
-  color: var(--celestial-ivory);
-  letter-spacing: 0.05em;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   pointer-events: none;
   white-space: nowrap;
   animation: banner-sweep 220ms var(--ease-tactical) both;
 }
 
 .battle-banner.is-boss-banner {
-  border-top-color: rgba(248, 113, 113, 0.85);
-  border-bottom-color: rgba(230, 190, 100, 0.85);
-  color: var(--accent-gold-bright);
+  background: linear-gradient(
+    90deg,
+    rgba(28, 22, 20, 0) 0%,
+    rgba(36, 26, 24, 0.96) 18%,
+    rgba(44, 28, 26, 0.98) 50%,
+    rgba(36, 26, 24, 0.96) 82%,
+    rgba(28, 22, 20, 0) 100%
+  );
+  border-top-color: rgba(232, 93, 104, 0.9);
+  border-bottom-color: rgba(235, 208, 140, 0.9);
+  color: var(--accent-gold-luminous);
 }
 
 @keyframes banner-sweep {
@@ -293,7 +352,7 @@
 }
 
 /* ==========================================================================
-   Floating Preparation Strip (Positioned Top-Center so Ally Zone stays 100% open)
+   Floating Preparation Strip — Warm Ivory Plaque
    ========================================================================== */
 
 .prep-floating-bar {
@@ -307,12 +366,13 @@
   justify-content: space-between;
   gap: 14px;
   padding: 8px 14px 8px 16px;
-  width: min(980px, calc(100% - 28px));
-  background: rgba(9, 17, 34, 0.92);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(56, 189, 248, 0.48);
-  border-radius: var(--radius-md);
-  box-shadow: 0 10px 28px rgba(2, 6, 16, 0.54);
+  width: min(1000px, calc(100% - 28px));
+  background: linear-gradient(180deg, rgba(254, 252, 248, 0.97) 0%, rgba(244, 237, 224, 0.98) 100%);
+  border: 1.5px solid var(--border-strong);
+  border-radius: 4px;
+  box-shadow:
+    0 12px 28px rgba(14, 12, 10, 0.36),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
 }
 
 .prep-floating-bar[hidden] {
@@ -322,7 +382,7 @@
 .prep-floating-bar__info {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
   min-width: 0;
 }
 
@@ -330,17 +390,18 @@
   font-family: var(--font-display);
   font-size: 0.86rem;
   font-weight: 700;
-  color: var(--accent-blue-bright);
+  letter-spacing: 0.03em;
+  color: var(--accent-gold-bright);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .prep-passive-label {
-  font-family: var(--font-sans, inherit);
+  font-family: var(--font-body);
   font-size: 0.74rem;
-  font-weight: 500;
-  color: var(--accent-gold-bright);
+  font-weight: 600;
+  color: var(--text-primary);
   margin-left: 4px;
 }
 
@@ -356,7 +417,7 @@
   flex-shrink: 0;
 }
 
-/* Game-style Commander Portrait Switcher in Preparation Bar */
+/* Commander Portrait Switcher inside Preparation Bar */
 .prep-commander-switcher {
   display: inline-flex;
   align-items: center;
@@ -365,9 +426,9 @@
   max-width: 440px;
   overflow-x: auto;
   scrollbar-width: none;
-  background: rgba(6, 11, 22, 0.74);
+  background: var(--bg-elevated);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: 3px;
 }
 
 .prep-commander-switcher::-webkit-scrollbar {
@@ -379,44 +440,44 @@
   align-items: center;
   gap: 6px;
   padding: 3px 8px 3px 4px;
-  border-radius: var(--radius-sm);
-  background: rgba(15, 26, 48, 0.82);
+  border-radius: 2px;
+  background: #fdfcf8;
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
   transition:
     border-color var(--duration-fast),
     background-color var(--duration-fast),
-    transform var(--duration-fast),
-    box-shadow var(--duration-fast);
+    transform var(--duration-fast);
 }
 
 .prep-cmd-tile:hover {
-  border-color: var(--hero-accent, var(--accent-blue));
-  color: var(--celestial-ivory);
+  border-color: var(--hero-accent, var(--accent-gold));
+  background: #ffffff;
+  color: var(--text-primary);
   transform: translateY(-1px);
 }
 
 .prep-cmd-tile.is-active {
-  border-color: var(--hero-accent, var(--accent-gold-bright));
+  border-color: var(--hero-accent, var(--accent-gold));
   background:
     radial-gradient(ellipse 95% 100% at 0% 50%, var(--hero-glow), transparent 72%),
-    rgba(24, 38, 68, 0.96);
-  color: var(--celestial-ivory);
-  box-shadow: 0 0 12px var(--hero-glow);
+    #ffffff;
+  color: var(--text-primary);
+  box-shadow: 0 2px 8px rgba(46, 36, 24, 0.1);
 }
 
 .prep-cmd-tile__thumb {
   width: 24px;
   height: 30px;
-  border-radius: 3px;
+  border-radius: 2px;
   overflow: hidden;
   border: 1px solid var(--border-strong);
-  background: var(--bg-elevated);
+  background: #2c2621;
   flex-shrink: 0;
 }
 
 .prep-cmd-tile.is-active .prep-cmd-tile__thumb {
-  border-color: var(--hero-accent, var(--accent-gold-bright));
+  border-color: var(--hero-accent, var(--accent-gold));
 }
 
 .prep-cmd-tile__thumb img {
@@ -434,9 +495,9 @@
 }
 
 .prep-cmd-tile__name {
-  font-family: var(--font-display);
+  font-family: var(--font-ui);
   font-size: 0.74rem;
-  font-weight: 600;
+  font-weight: 700;
   color: inherit;
 }
 
@@ -449,23 +510,22 @@
 .card-preview-strip {
   position: absolute;
   left: 50%;
-  bottom: 146px;
+  bottom: 184px;
   transform: translateX(-50%);
   z-index: 15;
-  max-width: min(920px, calc(100% - 40px));
+  max-width: min(880px, calc(100% - 40px));
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 6px 14px;
-  background: rgba(7, 13, 27, 0.92);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(56, 189, 248, 0.42);
-  border-radius: var(--radius-md);
-  box-shadow: 0 8px 24px rgba(2, 6, 16, 0.56);
+  padding: 6px 16px;
+  background: rgba(253, 250, 244, 0.97);
+  border: 1.5px solid var(--border-strong);
+  border-radius: 4px;
+  box-shadow: 0 10px 24px rgba(14, 12, 10, 0.34);
   font-size: 0.78rem;
   pointer-events: none;
-  animation: banner-sweep 160ms var(--ease-tactical) both;
+  animation: banner-sweep 150ms var(--ease-tactical) both;
 }
 
 .card-preview-strip[hidden] {
@@ -475,7 +535,7 @@
 .card-preview-strip__title {
   font-family: var(--font-display);
   font-weight: 700;
-  color: var(--celestial-ivory);
+  color: var(--text-primary);
 }
 
 .card-preview-strip__desc {
@@ -484,32 +544,48 @@
 
 .card-preview-strip__upgrade {
   color: var(--accent-gold-bright);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 /* ==========================================================================
-   Integrated Bottom Floating Tactical Command Bar
-   Energy & Deck Core (Left) · Six Tactical Cards (Center) · Elevated Commander Stage (Right)
+   Integrated Bottom Tactical Command Dock — Compact Warm Ivory & Portrait Hand
+   Energy Core (Left) · 6 Portrait ~2:3 Cards (Center) · Commander Console (Right)
    ========================================================================== */
 
 .battle-command-dock {
+  --card-w: 102px;
+  --card-h: 150px;
   position: absolute;
   left: 50%;
   bottom: 10px;
   transform: translateX(-50%);
   z-index: 14;
-  width: min(1220px, calc(100% - 24px));
+  width: max-content;
+  max-width: calc(100vw - 24px);
   display: grid;
-  grid-template-columns: 148px minmax(0, 1fr) 154px;
+  grid-template-columns: 156px auto 138px;
   align-items: stretch;
-  gap: 10px;
-  padding: 8px 10px;
-  background: linear-gradient(180deg, rgba(11, 20, 38, 0.88) 0%, rgba(7, 13, 26, 0.95) 100%);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(148, 179, 214, 0.24);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 12px 34px rgba(2, 6, 16, 0.62), inset 0 1px 0 rgba(248, 250, 252, 0.08);
+  gap: 12px;
+  padding: 8px 12px;
+  background: linear-gradient(180deg, rgba(252, 249, 242, 0.97) 0%, rgba(239, 231, 216, 0.98) 100%);
+  border: 1.5px solid var(--border-strong);
+  border-radius: 5px;
+  box-shadow:
+    0 14px 36px rgba(10, 8, 6, 0.48),
+    inset 0 1px 0 rgba(255, 255, 255, 0.94);
   overflow: visible;
+}
+
+/* Delicate Antique Gold Top Filigree Rule */
+.battle-command-dock::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 24px;
+  right: 24px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent-gold) 50%, transparent);
+  pointer-events: none;
 }
 
 /* Left Zone: Command Energy & Deck Telemetry */
@@ -517,27 +593,26 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 6px;
-  padding: 6px 8px 6px 6px;
+  gap: 8px;
+  padding: 8px 10px 8px 4px;
   border-right: 1px solid var(--border-subtle);
 }
 
 .dock-energy-core__kicker {
-  font-family: var(--font-display);
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+  font-family: var(--font-ui);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--accent-gold-bright);
 }
 
 .dock-energy-core__val {
-  font-size: 1.24rem;
+  font-size: 1.32rem;
   font-weight: 700;
-  line-height: 1.05;
+  line-height: 1.1;
   color: var(--accent-blue-bright);
-  border-radius: var(--radius-sm);
-  padding: 1px 2px;
+  padding: 2px 0;
 }
 
 .dock-energy-core__val.is-energy-spent {
@@ -545,169 +620,238 @@
 }
 
 @keyframes energy-spend-pulse {
-  0% { background: rgba(56, 189, 248, 0.34); color: var(--celestial-ivory); }
+  0% { background: rgba(34, 110, 163, 0.22); color: var(--text-primary); }
   100% { background: transparent; }
 }
 
 .dock-energy-core__sub {
-  font-size: 0.74rem;
-  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--text-primary);
 }
 
 .dock-energy-core__hint {
-  font-size: 0.7rem;
-  color: var(--text-muted);
-  line-height: 1.25;
+  font-size: 0.71rem;
+  color: var(--text-secondary);
+  line-height: 1.3;
+  margin-top: 2px;
 }
 
-/* Center Zone: Six Integrated Tactical Cards */
+/* Center Zone: Six Portrait Trading Cards (~2:3 Aspect Ratio) */
 .card-slots-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 7px;
-  align-items: stretch;
+  grid-template-columns: repeat(6, var(--card-w));
+  gap: 8px;
+  align-items: end;
 }
 
 .tactical-card {
   position: relative;
-  overflow: hidden;
+  width: var(--card-w);
+  height: var(--card-h);
+  padding: 2px;
+  border-radius: 5px;
+  background: linear-gradient(180deg, #cba253 0%, #9b7632 100%);
   text-align: left;
-  background: linear-gradient(180deg, #142342 0%, #0a1326 100%);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: 6px 7px 7px;
-  min-height: 112px;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  gap: 3px;
-  box-shadow: inset 0 1px 0 rgba(248, 250, 252, 0.07);
+  box-shadow: 0 6px 14px rgba(34, 26, 16, 0.22);
+  transform-origin: center bottom;
   transition:
-    border-color var(--duration-fast) var(--ease-tactical),
     transform var(--duration-fast) var(--ease-tactical),
     box-shadow var(--duration-fast) var(--ease-tactical),
-    opacity var(--duration-fast) var(--ease-tactical);
+    background var(--duration-fast) var(--ease-tactical),
+    opacity var(--duration-fast) var(--ease-tactical),
+    filter var(--duration-fast) var(--ease-tactical);
 }
 
-.tactical-card--unit {
+.tactical-card__inner {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #ffffff 0%, #f5efe3 100%);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+}
+
+/* Category Trim & Soft Luminous Parchment Art Backdrop */
+.tactical-card--unit .tactical-card__inner {
   border-top: 2.5px solid var(--cat-unit);
-  background: radial-gradient(ellipse 90% 45% at 50% 0%, rgba(56, 189, 248, 0.15), transparent 72%), linear-gradient(180deg, #142342 0%, #0a1326 100%);
 }
-.tactical-card--skill {
+.tactical-card--unit .tactical-card__art {
+  background:
+    radial-gradient(ellipse 90% 72% at 50% 42%, rgba(34, 110, 163, 0.16), transparent 74%),
+    linear-gradient(180deg, #eef4f8 0%, #e1eaf0 100%);
+}
+
+.tactical-card--skill .tactical-card__inner {
   border-top: 2.5px solid var(--cat-skill);
-  background: radial-gradient(ellipse 90% 45% at 50% 0%, rgba(167, 139, 250, 0.16), transparent 72%), linear-gradient(180deg, #172042 0%, #0b1124 100%);
 }
-.tactical-card--tactic {
+.tactical-card--skill .tactical-card__art {
+  background:
+    radial-gradient(ellipse 90% 72% at 50% 42%, rgba(108, 63, 181, 0.17), transparent 74%),
+    linear-gradient(180deg, #f3eef9 0%, #e7dff2 100%);
+}
+
+.tactical-card--tactic .tactical-card__inner {
   border-top: 2.5px solid var(--cat-tactic);
-  background: radial-gradient(ellipse 90% 45% at 50% 0%, rgba(245, 158, 11, 0.16), transparent 72%), linear-gradient(180deg, #1b223a 0%, #0b1222 100%);
 }
-.tactical-card--support {
+.tactical-card--tactic .tactical-card__art {
+  background:
+    radial-gradient(ellipse 90% 72% at 50% 42%, rgba(186, 120, 26, 0.19), transparent 74%),
+    linear-gradient(180deg, #faf3e4 0%, #efe3cb 100%);
+}
+
+.tactical-card--support .tactical-card__inner {
   border-top: 2.5px solid var(--cat-support);
-  background: radial-gradient(ellipse 90% 45% at 50% 0%, rgba(52, 211, 153, 0.15), transparent 72%), linear-gradient(180deg, #12253c 0%, #0a1322 100%);
+}
+.tactical-card--support .tactical-card__art {
+  background:
+    radial-gradient(ellipse 90% 72% at 50% 42%, rgba(28, 122, 86, 0.16), transparent 74%),
+    linear-gradient(180deg, #ebf6f1 0%, #dcece5 100%);
 }
 
-.tactical-card--sr { border-color: rgba(167, 139, 250, 0.42); }
+/* Rarity Frame Treatments */
+.tactical-card--r {
+  background: linear-gradient(180deg, #87a8c2 0%, #5a7891 100%);
+}
+
+.tactical-card--sr {
+  background: linear-gradient(180deg, #a680e6 0%, #6f46b3 100%);
+}
+
 .tactical-card--ssr {
-  border-color: rgba(230, 190, 100, 0.56);
-  box-shadow: inset 0 1px 0 rgba(247, 220, 148, 0.25), 0 4px 14px rgba(230, 190, 100, 0.12);
+  background: linear-gradient(180deg, #e8c674 0%, #ba8b32 54%, #876018 100%);
+  box-shadow: 0 6px 16px rgba(154, 114, 38, 0.34);
 }
 
-.tactical-card--ssr::after,
-.tactical-card.is-max-tier::after {
+.tactical-card--ssr .tactical-card__inner::after,
+.tactical-card.is-max-tier .tactical-card__inner::after {
   content: '';
   position: absolute;
-  inset: -45% -95%;
-  background: linear-gradient(112deg, transparent 38%, rgba(255, 255, 255, 0.22) 49%, rgba(247, 220, 148, 0.2) 53%, transparent 64%);
+  inset: -40% -90%;
+  background: linear-gradient(112deg, transparent 38%, rgba(255, 255, 255, 0.52) 49%, rgba(235, 200, 116, 0.28) 53%, transparent 64%);
   animation: holo-sweep 3.4s ease-in-out infinite;
   pointer-events: none;
 }
 
+/* Empty Card Slot */
 .tactical-card--empty {
+  background: rgba(154, 122, 68, 0.24);
+  opacity: 0.62;
+  cursor: default;
+  box-shadow: none;
+}
+
+.tactical-card--empty .tactical-card__inner {
   border-style: dashed;
-  border-color: var(--border-subtle);
-  background: rgba(8, 14, 28, 0.5);
+  border-color: rgba(154, 122, 68, 0.42);
+  background: rgba(235, 227, 212, 0.72);
   justify-content: center;
   align-items: center;
   text-align: center;
-  opacity: 0.48;
-  cursor: default;
 }
 
 .tactical-card__empty-label {
   font-family: var(--font-display);
   font-size: 0.74rem;
-  font-weight: 600;
-  color: var(--text-secondary);
+  font-weight: 700;
+  color: var(--text-muted);
 }
 
+/* Interactive Card States — Crisp Physical Game Card Feedback */
 .tactical-card.is-unusable {
-  opacity: 0.62;
+  opacity: 0.56;
+  filter: saturate(0.45);
 }
 
 .tactical-card:hover:not(.tactical-card--empty) {
-  border-color: var(--accent-blue);
-  transform: translateY(-7px);
-  box-shadow: 0 12px 24px rgba(2, 6, 16, 0.58), 0 0 18px rgba(56, 189, 248, 0.22);
-  z-index: 2;
+  transform: translateY(-11px);
+  background: linear-gradient(180deg, #d8ac50 0%, #a67822 65%, #755010 100%);
+  box-shadow: 0 16px 26px rgba(24, 18, 12, 0.34), 0 0 16px rgba(207, 160, 66, 0.36);
+  z-index: 4;
 }
 
 .tactical-card.is-selected {
-  border-color: var(--accent-blue-bright);
-  transform: translateY(-10px);
-  box-shadow: 0 14px 26px rgba(2, 6, 16, 0.65), 0 0 24px rgba(56, 189, 248, 0.4);
-  z-index: 3;
+  transform: translateY(-18px) scale(1.03);
+  background: linear-gradient(180deg, #f3d589 0%, #c49234 50%, #8a6016 100%);
+  box-shadow:
+    0 20px 30px rgba(20, 15, 10, 0.42),
+    0 0 22px rgba(207, 160, 66, 0.54);
+  z-index: 6;
 }
 
+/* Top Selection Diamond Crest */
+.tactical-card.is-selected::before {
+  content: '';
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  transform: translateX(-50%) rotate(45deg);
+  background: #2c2621;
+  border: 1.5px solid #ebd08c;
+  box-shadow: 0 2px 8px rgba(20, 15, 10, 0.45);
+  z-index: 8;
+}
+
+/* Adjacent Merge-Ready Pair Highlight */
 .tactical-card.is-merge-ready {
-  border-color: rgba(230, 190, 100, 0.78);
-  box-shadow: inset 0 1px 0 rgba(247, 220, 148, 0.25), 0 0 14px rgba(230, 190, 100, 0.22);
+  background: linear-gradient(180deg, #e8c46e 0%, #b8872c 60%, #805a14 100%);
+  box-shadow: 0 8px 18px rgba(166, 124, 46, 0.36);
 }
 
 .tactical-card.is-merge-ready .tactical-card__hint {
   color: var(--accent-gold-bright);
-  font-weight: 600;
+  font-weight: 700;
 }
 
+/* Active Merge Target (Adjacent to Selected Card) */
 .tactical-card.is-merge-target {
-  border-color: var(--accent-gold-bright);
-  background: radial-gradient(ellipse 95% 65% at 50% 0%, rgba(247, 220, 148, 0.3), transparent 72%), rgba(30, 32, 48, 0.96);
   opacity: 1;
-  transform: translateY(-7px);
-  box-shadow: 0 12px 24px rgba(2, 6, 16, 0.58), 0 0 22px rgba(230, 190, 100, 0.42);
-  z-index: 2;
+  filter: none;
+  transform: translateY(-12px);
+  background: linear-gradient(180deg, #f4d689 0%, #c4912e 52%, #855c12 100%);
+  box-shadow:
+    0 16px 28px rgba(24, 18, 10, 0.38),
+    0 0 24px rgba(214, 166, 62, 0.65);
+  z-index: 5;
 }
 
+.tactical-card.is-merge-target .tactical-card__inner {
+  background: linear-gradient(180deg, #fffdf4 0%, #f5e5ba 100%);
+}
+
+.tactical-card.is-merge-target .tactical-card__hint {
+  color: #6b490e;
+  font-weight: 700;
+}
+
+/* Upgraded Tier II & Max Tier III Framing */
 .tactical-card.is-upgraded {
-  border-color: rgba(230, 190, 100, 0.68);
+  background: linear-gradient(180deg, #e5c16a 0%, #b38328 65%, #7a5512 100%);
 }
 
 .tactical-card.is-max-tier {
-  border-color: var(--celestial-ivory);
-  border-top-color: var(--accent-gold-bright);
-}
-
-.tactical-card__key {
-  position: absolute;
-  right: 5px;
-  bottom: 4px;
-  font-size: 0.6rem;
-  font-weight: 700;
-  color: rgba(148, 179, 214, 0.46);
-  pointer-events: none;
+  background: linear-gradient(180deg, #f5da94 0%, #c99634 48%, #8a6016 100%);
 }
 
 .tactical-card.is-newly-drawn { animation: card-draw 220ms var(--ease-tactical) both; }
 .tactical-card.is-just-merged { animation: card-merge-burst 400ms var(--ease-snap) both; }
-.tactical-card.is-invalid-shake { animation: card-invalid-shake 250ms ease-in-out; border-color: var(--state-danger); }
+.tactical-card.is-invalid-shake { animation: card-invalid-shake 250ms ease-in-out; }
 
 @keyframes card-draw {
-  from { opacity: 0; transform: translateY(12px) scale(0.92); }
+  from { opacity: 0; transform: translateY(14px) scale(0.92); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes card-merge-burst {
-  0% { transform: scale(0.9); filter: brightness(1.85); box-shadow: 0 0 34px rgba(247, 220, 148, 0.85); }
-  55% { transform: translateY(-6px) scale(1.04); filter: brightness(1.22); }
+  0% { transform: scale(0.9); filter: brightness(1.4); box-shadow: 0 0 32px rgba(214, 166, 62, 0.85); }
+  55% { transform: translateY(-10px) scale(1.05); filter: brightness(1.12); }
   100% { transform: translateY(0) scale(1); filter: brightness(1); }
 }
 
@@ -718,97 +862,178 @@
   74% { transform: translateX(-3px); }
 }
 
+/* Portrait Card Anatomy: Top Cost Medallion & Tier Header */
 .tactical-card__top {
+  position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 3px;
-  font-size: 0.68rem;
+  padding: 4px 5px 3px;
+  background: linear-gradient(180deg, #fcfaf5 0%, #f1eadc 100%);
+  border-bottom: 1px solid rgba(154, 122, 68, 0.24);
 }
 
+/* Intentionally Dark Cerulean Cost Medallion with Crisp White Numeral */
 .tactical-card__cost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 19px;
+  padding: 0 5px;
+  background: #1b5f8f;
+  border: 1px solid #134568;
+  clip-path: polygon(4px 0, calc(100% - 4px) 0, 100% 50%, calc(100% - 4px) 100%, 4px 100%, 0 50%);
+  font-size: 0.72rem;
   font-weight: 700;
-  color: var(--accent-blue-bright);
+  color: #ffffff;
+  line-height: 1;
 }
 
 .tactical-card__cost.is-short {
-  color: var(--state-enemy);
-}
-
-.tactical-card__category {
-  font-size: 0.63rem;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  background: #a82834;
+  border-color: #7c1822;
+  color: #fff6f6;
 }
 
 .tactical-card__tier {
-  color: var(--accent-gold-bright);
+  font-size: 0.66rem;
   font-weight: 700;
-  flex-shrink: 0;
+  letter-spacing: 0.04em;
+  color: var(--accent-gold-bright);
 }
 
+/* Portrait Card Anatomy: Tall Framed Artwork Window (~56% of card height) */
 .tactical-card__art {
-  height: 36px;
+  position: relative;
+  flex: 1;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 6px 6px 16px;
+  overflow: hidden;
+  border-bottom: 1px solid rgba(154, 122, 68, 0.28);
 }
 
-.tactical-card__art img {
-  max-height: 34px;
+.tactical-card__art::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 22px;
+  background: linear-gradient(180deg, transparent 0%, rgba(252, 249, 242, 0.96) 100%);
+  pointer-events: none;
+}
+
+.tactical-card__img {
+  max-width: 100%;
+  max-height: 100%;
   width: auto;
-  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.45));
+  height: auto;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 6px rgba(42, 34, 24, 0.24));
   transition: transform var(--duration-fast) var(--ease-tactical);
 }
 
-.tactical-card:hover:not(.tactical-card--empty) .tactical-card__art img {
-  transform: scale(1.08);
+.tactical-card__img.is-unit-art {
+  max-height: 100%;
+  transform: scale(1.06);
+}
+
+.tactical-card__img.is-emblem-art {
+  max-height: 78%;
+}
+
+.tactical-card:hover:not(.tactical-card--empty) .tactical-card__img {
+  transform: scale(1.12);
+}
+
+.tactical-card__category {
+  position: absolute;
+  left: 5px;
+  right: 5px;
+  bottom: 2px;
+  z-index: 2;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Portrait Card Anatomy: Title Plate & Action Footer */
+.tactical-card__body {
+  padding: 5px 6px 4px;
+  background: linear-gradient(180deg, #fdfcf8 0%, #f3ece0 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex-shrink: 0;
 }
 
 .tactical-card__name {
-  font-family: var(--font-display);
-  font-size: 0.76rem;
-  font-weight: 600;
-  color: var(--celestial-ivory);
-  line-height: 1.16;
+  font-family: var(--font-ui);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.15;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.tactical-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding-top: 2px;
+  border-top: 1px solid rgba(154, 122, 68, 0.2);
 }
 
 .tactical-card__hint {
-  font-size: 0.64rem;
+  font-size: 0.6rem;
   color: var(--text-secondary);
-  line-height: 1.18;
+  line-height: 1.15;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.tactical-card.is-merge-target .tactical-card__hint {
-  color: var(--accent-gold-bright);
+.tactical-card__key {
+  font-size: 0.58rem;
   font-weight: 700;
+  color: var(--accent-gold);
+  flex-shrink: 0;
 }
 
+/* Cooldown Veil — Intentionally Dark Frosted Overlay with Crisp White Timer */
 .tactical-card__cooldown {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(6, 11, 22, 0.84);
-  backdrop-filter: blur(2px);
+  z-index: 5;
+  background: rgba(28, 24, 20, 0.84);
+  border-top: 1.5px solid #ebd08c;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.82rem;
+  font-size: 0.84rem;
   font-weight: 700;
-  color: var(--accent-blue-bright);
+  color: #ffffff;
   pointer-events: none;
 }
 
-/* Right Zone: Tall Clickable Commander Card with Bottom Ultimate Charge Bar */
+/* ==========================================================================
+   Right Zone: Tall Portrait Commander Ultimate Card (Intentionally Dark Art Stage)
+   ========================================================================== */
+
 .dock-commander-module {
   position: relative;
   display: flex;
@@ -821,18 +1046,17 @@
 
 .dock-commander-card {
   position: relative;
-  width: 142px;
-  height: 214px;
-  margin-top: -100px;
-  border-radius: var(--radius-md);
+  width: 126px;
+  height: 196px;
+  margin-top: -46px;
+  border-radius: 5px;
   overflow: hidden;
   border: 2px solid var(--hero-accent, var(--accent-gold));
   background:
-    radial-gradient(ellipse 90% 65% at 50% 25%, var(--hero-glow, rgba(230, 190, 100, 0.28)), #081124 78%);
+    radial-gradient(ellipse 90% 65% at 50% 25%, var(--hero-glow, rgba(207, 160, 66, 0.3)), #1c1815 78%);
   box-shadow:
-    0 14px 32px rgba(2, 6, 16, 0.76),
-    0 0 20px var(--hero-glow, rgba(230, 190, 100, 0.24)),
-    inset 0 1px 0 rgba(255, 255, 255, 0.26);
+    0 12px 26px rgba(18, 14, 10, 0.48),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
   flex-shrink: 0;
   transition:
     transform var(--duration-base) var(--ease-tactical),
@@ -840,7 +1064,6 @@
     border-color var(--duration-base) var(--ease-tactical);
 }
 
-/* Keep artwork crisp and full-opacity while Ultimate is charging */
 .dock-commander-card:disabled {
   opacity: 1;
   cursor: default;
@@ -848,7 +1071,7 @@
 
 .dock-commander-card.is-ult-ready {
   cursor: pointer;
-  border-color: var(--accent-gold-bright);
+  border-color: var(--accent-gold-luminous);
   transform: translateY(-4px);
   animation: commander-ready-pulse 1.5s ease-in-out infinite;
 }
@@ -857,17 +1080,16 @@
   content: '';
   position: absolute;
   inset: -40% -90%;
-  background: linear-gradient(112deg, transparent 36%, rgba(255, 255, 255, 0.34) 49%, rgba(247, 220, 148, 0.32) 53%, transparent 66%);
+  background: linear-gradient(112deg, transparent 36%, rgba(255, 255, 255, 0.36) 49%, rgba(242, 216, 155, 0.34) 53%, transparent 66%);
   animation: holo-sweep 2.2s ease-in-out infinite;
   pointer-events: none;
 }
 
 .dock-commander-card.is-ult-ready:hover {
-  transform: translateY(-9px) scale(1.025);
+  transform: translateY(-10px) scale(1.03);
   box-shadow:
-    0 18px 40px rgba(2, 6, 16, 0.85),
-    0 0 46px var(--hero-glow, rgba(230, 190, 100, 0.88)),
-    0 0 18px rgba(247, 220, 148, 0.75);
+    0 18px 34px rgba(18, 14, 10, 0.58),
+    0 0 36px rgba(214, 166, 62, 0.72);
 }
 
 .dock-commander-card.is-ult-ready:active {
@@ -877,15 +1099,13 @@
 @keyframes commander-ready-pulse {
   0%, 100% {
     box-shadow:
-      0 14px 34px rgba(2, 6, 16, 0.8),
-      0 0 26px var(--hero-glow, rgba(230, 190, 100, 0.58)),
-      0 0 10px rgba(247, 220, 148, 0.45);
+      0 12px 28px rgba(18, 14, 10, 0.5),
+      0 0 18px rgba(214, 166, 62, 0.52);
   }
   50% {
     box-shadow:
-      0 16px 38px rgba(2, 6, 16, 0.84),
-      0 0 44px var(--hero-glow, rgba(230, 190, 100, 0.92)),
-      0 0 18px rgba(247, 220, 148, 0.78);
+      0 14px 32px rgba(18, 14, 10, 0.56),
+      0 0 32px rgba(235, 198, 102, 0.85);
   }
 }
 
@@ -902,8 +1122,8 @@
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 22px 8px 8px;
-  background: linear-gradient(180deg, transparent 0%, rgba(5, 9, 18, 0.94) 64%);
+  padding: 24px 8px 8px;
+  background: linear-gradient(180deg, transparent 0%, rgba(20, 16, 13, 0.96) 64%);
   pointer-events: none;
   display: flex;
   flex-direction: column;
@@ -920,53 +1140,51 @@
 
 .dock-commander-card__ult-name {
   font-family: var(--font-display);
-  font-size: 0.64rem;
-  font-weight: 600;
-  color: var(--celestial-ivory);
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--text-on-dark);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .dock-commander-card__ult-pct {
-  font-size: 0.64rem;
+  font-size: 0.62rem;
   font-weight: 700;
-  color: var(--accent-gold-bright);
+  color: var(--accent-gold-luminous);
   white-space: nowrap;
   flex-shrink: 0;
 }
 
 .dock-commander-card.is-ult-ready .dock-commander-card__ult-pct {
-  color: #fef08a;
+  color: #fff2c2;
 }
 
 .dock-commander-card__track {
   width: 100%;
-  height: 8px;
-  background: rgba(6, 11, 22, 0.88);
-  border: 1px solid rgba(248, 250, 252, 0.2);
-  border-radius: 999px;
+  height: 7px;
+  background: #120f0d;
+  border: 1px solid rgba(235, 208, 140, 0.34);
+  border-radius: 1px;
   overflow: hidden;
 }
 
 .dock-commander-card__fill {
   height: 100%;
-  background: linear-gradient(90deg, #d99f36 0%, var(--hero-accent, #e6be64) 55%, #fef08a 100%);
-  box-shadow: 0 0 10px var(--hero-glow, rgba(230, 190, 100, 0.65));
+  background: linear-gradient(90deg, #b88b3a 0%, var(--hero-accent-light, #f0cf82) 58%, #fff4d2 100%);
   transition: width var(--duration-base) var(--ease-tactical);
 }
 
 .dock-commander-card.is-ult-ready .dock-commander-card__track {
-  border-color: rgba(254, 240, 138, 0.85);
+  border-color: rgba(255, 242, 194, 0.88);
 }
 
 .dock-commander-card.is-ult-ready .dock-commander-card__fill {
-  background: linear-gradient(90deg, #f59e0b 0%, #fde68a 60%, #ffffff 100%);
-  box-shadow: 0 0 14px rgba(254, 240, 138, 0.9);
+  background: linear-gradient(90deg, #e5a94c 0%, #f5dca0 58%, #ffffff 100%);
 }
 
 /* ==========================================================================
-   Commander Ultimate Cut-In Overlay (Anime Slash Presentation)
+   Commander Ultimate Cut-In & Outcome Splash (Intentionally Dark Theatrical Band)
    ========================================================================== */
 
 .ultimate-cutin {
@@ -975,7 +1193,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(102deg, rgba(6, 11, 22, 0.88) 0%, var(--hero-glow, rgba(230, 190, 100, 0.28)) 48%, rgba(6, 11, 22, 0.9) 100%);
+  background: linear-gradient(102deg, rgba(16, 13, 11, 0.86) 0%, var(--hero-glow, rgba(207, 160, 66, 0.32)) 48%, rgba(16, 13, 11, 0.88) 100%);
   pointer-events: none;
   opacity: 0;
   transform: scale(1.04);
@@ -996,20 +1214,19 @@
   justify-content: center;
   gap: 28px;
   padding: 20px 36px;
-  background: linear-gradient(90deg, transparent 0%, rgba(7, 13, 28, 0.94) 14%, rgba(13, 23, 45, 0.96) 50%, rgba(7, 13, 28, 0.94) 86%, transparent 100%);
-  border-top: 1.5px solid var(--hero-accent, var(--accent-gold));
-  border-bottom: 1.5px solid var(--hero-accent, var(--accent-gold));
-  box-shadow: 0 0 42px var(--hero-glow, rgba(230, 190, 100, 0.28));
+  background: linear-gradient(90deg, transparent 0%, rgba(26, 22, 18, 0.96) 14%, rgba(36, 30, 25, 0.98) 50%, rgba(26, 22, 18, 0.96) 86%, transparent 100%);
+  border-top: 1.5px solid var(--hero-accent-light, var(--accent-gold-luminous));
+  border-bottom: 1.5px solid var(--hero-accent-light, var(--accent-gold-luminous));
+  box-shadow: 0 0 42px rgba(18, 14, 10, 0.56);
 }
 
 .ultimate-cutin__portrait {
   width: 132px;
   height: 188px;
-  border-radius: var(--radius-md);
+  border-radius: 3px;
   overflow: hidden;
-  border: 2px solid var(--hero-accent, var(--accent-gold-bright));
-  background: var(--bg-elevated);
-  box-shadow: 0 0 28px var(--hero-glow, rgba(230, 190, 100, 0.42));
+  border: 2px solid var(--hero-accent-light, var(--accent-gold-luminous));
+  background: #1c1815;
   flex-shrink: 0;
 }
 
@@ -1021,24 +1238,24 @@
 }
 
 .ultimate-cutin__eyebrow {
-  font-family: var(--font-display);
-  font-size: 0.78rem;
+  font-family: var(--font-ui);
+  font-size: 0.76rem;
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--hero-accent, var(--accent-gold-bright));
+  color: var(--hero-accent-light, var(--accent-gold-luminous));
 }
 
 .ultimate-cutin__title {
   font-family: var(--font-display);
   font-size: clamp(1.5rem, 2.8vw, 2.35rem);
   font-weight: 700;
-  color: var(--celestial-ivory);
+  color: var(--text-on-dark);
 }
 
 .ultimate-cutin__sub {
   font-size: 0.86rem;
-  color: var(--text-secondary);
+  color: var(--text-on-dark-muted);
 }
 
 /* Dramatic Brief Outcome Splash before Results Modal */
@@ -1050,7 +1267,7 @@
   align-items: center;
   justify-content: center;
   pointer-events: none;
-  background: radial-gradient(ellipse 75% 40% at 50% 50%, rgba(6, 11, 22, 0.72), rgba(4, 8, 17, 0.35));
+  background: radial-gradient(ellipse 75% 40% at 50% 50%, rgba(20, 16, 13, 0.74), rgba(12, 10, 8, 0.36));
   animation: outcome-splash-in 260ms var(--ease-tactical) both;
 }
 
@@ -1061,39 +1278,36 @@
 .battle-outcome-splash__band {
   width: 100%;
   text-align: center;
-  padding: 22px 24px;
-  background: linear-gradient(90deg, transparent 0%, rgba(7, 13, 28, 0.92) 20%, rgba(13, 23, 45, 0.95) 50%, rgba(7, 13, 28, 0.92) 80%, transparent 100%);
-  border-top: 2px solid var(--accent-gold-bright);
-  border-bottom: 2px solid var(--accent-gold-bright);
+  padding: 24px 24px;
+  background: linear-gradient(90deg, transparent 0%, rgba(28, 23, 19, 0.94) 20%, rgba(38, 32, 26, 0.97) 50%, rgba(28, 23, 19, 0.94) 80%, transparent 100%);
+  border-top: 2px solid var(--accent-gold-luminous);
+  border-bottom: 2px solid var(--accent-gold-luminous);
 }
 
 .battle-outcome-splash.is-defeat .battle-outcome-splash__band {
-  border-top-color: #f87171;
-  border-bottom-color: #f87171;
+  border-top-color: #e85d68;
+  border-bottom-color: #e85d68;
 }
 
 .battle-outcome-splash__kicker {
-  font-family: var(--font-display);
-  font-size: 0.82rem;
-  letter-spacing: 0.14em;
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--text-secondary);
+  color: var(--text-on-dark-muted);
 }
 
 .battle-outcome-splash__title {
   font-family: var(--font-display);
   font-size: clamp(2.2rem, 5vw, 3.6rem);
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  background: linear-gradient(90deg, var(--celestial-ivory) 0%, var(--accent-gold-bright) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--accent-gold-luminous);
 }
 
 .battle-outcome-splash.is-defeat .battle-outcome-splash__title {
-  background: none;
-  color: #fca5a5;
+  color: #f8a4ab;
 }
 
 @keyframes outcome-splash-in {
@@ -1103,23 +1317,22 @@
 
 .results-tip {
   font-size: 0.82rem;
-  color: var(--accent-blue-bright);
-  padding: 9px 12px;
-  border-radius: var(--radius-sm);
-  background: rgba(56, 189, 248, 0.08);
-  border-left: 3px solid var(--accent-blue);
+  color: var(--text-primary);
+  padding: 9px 13px;
+  border-radius: 3px;
+  background: rgba(207, 160, 66, 0.12);
+  border: 1px solid rgba(166, 124, 46, 0.38);
 }
 
 /* ==========================================================================
-   Redesigned Battle Results Overlay (Asymmetric 2-Column Cinematic Report)
+   Battle Results Overlay — Asymmetric Portrait Showcase (Dark) + Ivory Report
    ========================================================================== */
 
 .battle-results-overlay {
   position: absolute;
   inset: 0;
   z-index: 30;
-  background: rgba(4, 8, 17, 0.84);
-  backdrop-filter: blur(8px);
+  background: rgba(20, 16, 13, 0.68);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1138,16 +1351,15 @@
   overflow-y: auto;
   display: grid;
   grid-template-columns: 245px minmax(0, 1fr);
-  background: linear-gradient(135deg, #13213e 0%, #0a1326 100%);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-xl);
+  background: linear-gradient(145deg, #ffffff 0%, #f5efe2 100%);
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-elevated);
   animation: screen-enter 260ms var(--ease-tactical) both;
 }
 
 .results-modal.is-victory {
-  border-color: rgba(230, 190, 100, 0.56);
-  box-shadow: var(--shadow-elevated), 0 0 42px rgba(230, 190, 100, 0.18);
+  border-color: rgba(182, 136, 46, 0.72);
 }
 
 .results-modal.is-victory::before {
@@ -1156,13 +1368,13 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, var(--accent-gold), var(--celestial-ivory) 50%, var(--accent-blue));
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent-gold), #ebd08c 50%, var(--accent-gold));
   z-index: 3;
 }
 
 .results-modal.is-defeat {
-  border-color: rgba(248, 113, 113, 0.48);
+  border-color: rgba(184, 50, 62, 0.64);
 }
 
 .results-modal.is-defeat::before {
@@ -1171,20 +1383,30 @@
   top: 0;
   left: 0;
   right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #ef4444, #f87171 50%, transparent);
+  height: 2px;
+  background: linear-gradient(90deg, var(--state-danger), #e85d68 50%, transparent);
   z-index: 3;
 }
 
+/* Left Column: Intentionally Dark Portrait Feature Column */
 .results-visual-col {
   position: relative;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   padding: 22px 20px;
-  background: radial-gradient(ellipse 90% 60% at 50% 25%, var(--hero-glow), rgba(6, 11, 22, 0.94) 72%);
-  border-right: 1px solid var(--border-subtle);
+  background: radial-gradient(ellipse 90% 60% at 50% 25%, var(--hero-glow), #1e1915 72%);
+  border-right: 1px solid var(--border-strong);
   overflow: hidden;
+  color: var(--text-on-dark);
+}
+
+.results-visual-col .section-kicker {
+  color: var(--accent-gold-luminous);
+}
+
+.results-visual-col .meta-line {
+  color: var(--text-on-dark-muted);
 }
 
 .results-visual-col__bg {
@@ -1194,7 +1416,7 @@
   height: 100%;
   object-fit: cover;
   object-position: center 14%;
-  opacity: 0.42;
+  opacity: 0.44;
 }
 
 .results-visual-col__inner {
@@ -1208,30 +1430,28 @@
 }
 
 .results-outcome-title {
-  font-size: 2.1rem;
+  font-family: var(--font-display);
+  font-size: 2rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   line-height: 1.05;
 }
 
 .results-outcome-title.is-victory {
-  background: linear-gradient(90deg, var(--celestial-ivory) 0%, var(--accent-gold-bright) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--accent-gold-luminous);
 }
 
 .results-outcome-title.is-defeat {
-  color: var(--state-enemy);
+  color: #f8a4ab;
 }
 
 .results-grade-box {
   align-self: flex-start;
   padding: 10px 20px;
-  background: rgba(6, 11, 22, 0.88);
-  border: 1.5px solid rgba(230, 190, 100, 0.65);
-  border-radius: var(--radius-md);
-  box-shadow: 0 0 22px rgba(230, 190, 100, 0.22);
+  background: rgba(20, 16, 13, 0.88);
+  border: 1.5px solid var(--accent-gold-luminous);
+  border-radius: 3px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
   animation: grade-stamp 360ms var(--ease-snap) 100ms backwards;
 }
 
@@ -1245,17 +1465,18 @@
   font-size: 0.68rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--text-on-dark-muted);
 }
 
 .results-grade-box__val {
   font-family: var(--font-display);
   font-size: 2.1rem;
   font-weight: 700;
-  color: var(--accent-gold-bright);
+  color: var(--accent-gold-luminous);
   line-height: 1;
 }
 
+/* Right Column: Crisp Warm Ivory Report */
 .results-detail-col {
   padding: 22px 24px;
   display: flex;
@@ -1270,9 +1491,9 @@
 }
 
 .results-stat {
-  background: rgba(7, 13, 27, 0.78);
+  background: var(--surface-2);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: 3px;
   padding: 10px 12px;
   display: flex;
   flex-direction: column;
@@ -1287,13 +1508,13 @@
 .results-stat__value {
   font-size: 0.98rem;
   font-weight: 700;
-  color: var(--celestial-ivory);
+  color: var(--text-primary);
 }
 
 .results-rewards {
-  background: rgba(7, 13, 27, 0.84);
-  border: 1px solid rgba(230, 190, 100, 0.28);
-  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
@@ -1301,50 +1522,74 @@
 }
 
 /* ==========================================================================
-   Responsive Battle Adjustments (1280x720 down to mobile)
+   Responsive Portrait Card Scaling (1920x1080 down to 1280x720 & mobile)
    ========================================================================== */
 
 @media (min-width: 1680px) {
   .battle-command-dock {
-    width: min(1320px, calc(100% - 32px));
-    grid-template-columns: 160px minmax(0, 1fr) 170px;
+    --card-w: 112px;
+    --card-h: 164px;
+    grid-template-columns: 168px auto 152px;
+    gap: 14px;
+    padding: 9px 14px;
+  }
+
+  .card-preview-strip {
+    bottom: 200px;
   }
 
   .dock-commander-card {
-    width: 158px;
-    height: 238px;
-    margin-top: -120px;
+    width: 138px;
+    height: 214px;
+    margin-top: -54px;
   }
 }
 
-@media (max-width: 1320px) {
+@media (max-width: 1380px), (max-height: 780px) {
   .battle-command-dock {
-    grid-template-columns: 134px minmax(0, 1fr) 136px;
-    gap: 8px;
-    padding: 6px 8px;
+    --card-w: 92px;
+    --card-h: 136px;
+    grid-template-columns: 142px auto 124px;
+    gap: 9px;
+    padding: 7px 10px;
+    bottom: 8px;
   }
 
-  .dock-commander-module {
-    padding-left: 8px;
+  .card-preview-strip {
+    bottom: 168px;
   }
 
   .dock-commander-card {
-    width: 126px;
-    height: 188px;
-    margin-top: -82px;
+    width: 112px;
+    height: 174px;
+    margin-top: -38px;
   }
 
-  .tactical-card {
-    min-height: 104px;
-    padding: 5px 6px;
+  .tactical-card__name {
+    font-size: 0.68rem;
   }
 
-  .tactical-card__art {
-    height: 30px;
+  .tactical-card__hint {
+    font-size: 0.56rem;
+  }
+}
+
+@media (max-width: 1020px) {
+  .battle-command-dock {
+    --card-w: 84px;
+    --card-h: 124px;
+    grid-template-columns: 128px auto 112px;
+    gap: 7px;
   }
 
-  .tactical-card__art img {
-    max-height: 28px;
+  .card-slots-grid {
+    gap: 5px;
+  }
+
+  .dock-commander-card {
+    width: 102px;
+    height: 158px;
+    margin-top: -30px;
   }
 }
 
@@ -1360,6 +1605,7 @@
   }
 
   .battle-command-dock {
+    width: calc(100vw - 16px);
     grid-template-columns: 1fr;
     max-height: 44vh;
     overflow-y: auto;
@@ -1375,6 +1621,7 @@
 
   .card-slots-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    justify-items: center;
   }
 
   .dock-commander-module {
@@ -1385,8 +1632,8 @@
 
   .dock-commander-card {
     margin-top: 0;
-    width: 120px;
-    height: 164px;
+    width: 112px;
+    height: 160px;
   }
 
   .results-modal {

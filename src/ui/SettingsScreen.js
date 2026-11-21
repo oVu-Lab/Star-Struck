@@ -67,7 +67,7 @@ export class SettingsScreen {
                 <div class="setting-control__top">
                   <label for="slider-music" style="font-weight: 500;">Music Volume</label>
                   <div class="setting-control__right">
-                    <span id="val-music" class="tabular-nums" style="color: var(--accent-blue-bright);">
+                    <span id="val-music" class="tabular-nums" style="color: var(--accent-gold-bright);">
                       ${isMasterMuted || isMusicMuted ? 'Muted' : `${Math.round(s.musicVolume * 100)}%`}
                     </span>
                     <button
@@ -95,7 +95,7 @@ export class SettingsScreen {
                 <div class="setting-control__top">
                   <label for="slider-sfx" style="font-weight: 500;">Sound Effects Volume</label>
                   <div class="setting-control__right">
-                    <span id="val-sfx" class="tabular-nums" style="color: var(--accent-blue-bright);">
+                    <span id="val-sfx" class="tabular-nums" style="color: var(--accent-gold-bright);">
                       ${isMasterMuted || isSfxMuted ? 'Muted' : `${Math.round(s.sfxVolume * 100)}%`}
                     </span>
                     <button

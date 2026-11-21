@@ -13,7 +13,26 @@ export const DATA_ENDPOINTS = {
   bosses: './data/bosses.json',
   terrain: './data/terrain.json',
   balance: './data/balance.json',
+  missions: './data/missions.json',
 };
+
+const VALID_MISSION_METRICS = new Set([
+  'battles_played',
+  'battles_won',
+  'enemies_defeated',
+  'cards_merged',
+  'cards_played',
+  'ultimates_used',
+  'summons_performed',
+  'units_upgraded',
+]);
+
+export const DEFAULT_MISSIONS_CONFIG = Object.freeze({
+  schemaVersion: 1,
+  daily: [],
+  weekly: [],
+  seasonalEvents: [],
+});
 
 const VALID_CARD_CATEGORIES = new Set(['unit', 'skill', 'tactic', 'support']);
 
@@ -278,6 +297,68 @@ export function validateDataBundle(raw) {
         }
       }
     }
+    if (raw.missions) {
+      const validateMissionList = (list, label) => {
+        if (!Array.isArray(list)) {
+          errors.push(`missions.${label} must be an array.`);
+          return;
+        }
+        const seen = new Set();
+        for (const m of list) {
+          if (!m || typeof m.id !== 'string' || !m.id.trim()) {
+            errors.push(`Mission in missions.${label} is missing a valid id.`);
+            continue;
+          }
+          if (seen.has(m.id)) {
+            errors.push(`Duplicate mission id "${m.id}" in missions.${label}.`);
+          }
+          seen.add(m.id);
+          if (typeof m.title !== 'string' || !m.title.trim()) {
+            errors.push(`Mission "${m.id}" is missing a title.`);
+          }
+          if (!VALID_MISSION_METRICS.has(m.metric)) {
+            errors.push(`Mission "${m.id}" has unsupported metric "${m.metric}".`);
+          }
+          if (typeof m.target !== 'number' || !Number.isFinite(m.target) || m.target <= 0) {
+            errors.push(`Mission "${m.id}" must define a positive numeric target.`);
+          }
+          if (!m.rewards || typeof m.rewards !== 'object') {
+            errors.push(`Mission "${m.id}" must define a rewards object.`);
+          }
+        }
+      };
+
+      validateMissionList(raw.missions.daily, 'daily');
+      validateMissionList(raw.missions.weekly, 'weekly');
+
+      if (raw.missions.seasonalEvents !== undefined) {
+        if (!Array.isArray(raw.missions.seasonalEvents)) {
+          errors.push('missions.seasonalEvents must be an array.');
+        } else {
+          const eventIds = new Set();
+          for (const ev of raw.missions.seasonalEvents) {
+            if (!ev || typeof ev.id !== 'string' || !ev.id.trim()) {
+              errors.push('Seasonal event entry is missing a valid id.');
+              continue;
+            }
+            if (eventIds.has(ev.id)) {
+              errors.push(`Duplicate seasonal event id "${ev.id}".`);
+            }
+            eventIds.add(ev.id);
+            if (typeof ev.title !== 'string' || !ev.title.trim()) {
+              errors.push(`Seasonal event "${ev.id}" is missing a title.`);
+            }
+            if (typeof ev.startAt !== 'string' || Number.isNaN(Date.parse(ev.startAt))) {
+              errors.push(`Seasonal event "${ev.id}" has invalid startAt timestamp.`);
+            }
+            if (typeof ev.endAt !== 'string' || Number.isNaN(Date.parse(ev.endAt))) {
+              errors.push(`Seasonal event "${ev.id}" has invalid endAt timestamp.`);
+            }
+            validateMissionList(ev.missions, `seasonalEvents[${ev.id}].missions`);
+          }
+        }
+      }
+    }
   }
 
   return { valid: errors.length === 0, errors };
@@ -304,6 +385,19 @@ export function buildDataRegistry(raw) {
   const bossAbilities = raw.bosses?.bossAbilities || [];
   const terrains = raw.terrain?.terrains || [];
   const balance = raw.balance || DEFAULT_BALANCE;
+  const chapters = Array.isArray(raw.stages?.chapters) ? raw.stages.chapters : [];
+  const chaptersByNumber = new Map();
+  for (const ch of chapters) {
+    if (ch && Number.isInteger(ch.chapter)) {
+      chaptersByNumber.set(ch.chapter, ch);
+    }
+  }
+  const missionsConfig = raw.missions || DEFAULT_MISSIONS_CONFIG;
+  const dailyMissions = Array.isArray(missionsConfig.daily) ? missionsConfig.daily : [];
+  const weeklyMissions = Array.isArray(missionsConfig.weekly) ? missionsConfig.weekly : [];
+  const seasonalEvents = Array.isArray(missionsConfig.seasonalEvents)
+    ? missionsConfig.seasonalEvents
+    : [];
 
   return {
     heroes: raw.heroes.heroes,
@@ -321,6 +415,8 @@ export function buildDataRegistry(raw) {
     defaultBattleDeck: raw.cards.defaultBattleDeck || null,
     stages: raw.stages.stages,
     stagesById: indexById(raw.stages.stages),
+    chapters,
+    chaptersByNumber,
     banners: raw.banners.banners,
     bannersById: indexById(raw.banners.banners),
     elites,
@@ -334,6 +430,14 @@ export function buildDataRegistry(raw) {
     terrains,
     terrainsById: indexById(terrains),
     balance,
+    missions: {
+      daily: dailyMissions,
+      weekly: weeklyMissions,
+      seasonalEvents,
+    },
+    dailyMissionsById: indexById(dailyMissions),
+    weeklyMissionsById: indexById(weeklyMissions),
+    seasonalEventsById: indexById(seasonalEvents),
   };
 }
 

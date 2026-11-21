@@ -100,7 +100,7 @@ export class SummonScreen {
               <img id="banner-featured-img" alt="${banner?.name || 'Featured Banner'}" />
               <div class="summon-artwork__scrim">
                 <span class="rarity-ssr">${isTactical ? 'Tactical Requisition' : 'Featured SSR Banner'}</span>
-                <strong style="font-size: 1.12rem; font-family: var(--font-display); color: var(--celestial-ivory);">
+                <strong style="font-size: 1.12rem; font-family: var(--font-display); color: var(--text-on-dark);">
                   ${banner?.name || 'Starlight Sovereign'}
                 </strong>
               </div>
@@ -111,7 +111,7 @@ export class SummonScreen {
                 <div class="section-kicker section-kicker--gold">
                   ${isTactical ? 'Armory Supply Drop' : 'Starlight Resonance'}
                 </div>
-                <h2 style="font-size: 1.55rem; margin-top: 4px; color: var(--celestial-ivory);">
+                <h2 style="font-size: 1.55rem; margin-top: 4px; color: var(--text-primary);">
                   ${banner?.name || 'Starlight Sovereign'}
                 </h2>
                 <p style="margin-top: 6px; font-size: 0.88rem; color: var(--text-secondary);">
@@ -252,7 +252,7 @@ export class SummonScreen {
                                     </span>
                                     <div class="summon-result-card__meta">
                                       <span class="rarity-${entry.rarity.toLowerCase()}" style="font-size: 0.72rem;">${entry.rarity} · Card</span>
-                                      <strong style="font-size: 0.86rem; color: var(--celestial-ivory);">${entry.card?.name || entry.cardId}</strong>
+                                      <strong style="font-size: 0.86rem; color: var(--text-primary);">${entry.card?.name || entry.cardId}</strong>
                                     </div>
                                   </div>
                                   <span style="font-size: 0.72rem; color: var(--text-secondary);">${detail}</span>
@@ -280,7 +280,7 @@ export class SummonScreen {
                                   </span>
                                   <div class="summon-result-card__meta">
                                     <span class="rarity-${entry.rarity.toLowerCase()}" style="font-size: 0.72rem;">${entry.rarity} · Commander</span>
-                                    <strong style="font-size: 0.86rem; color: var(--celestial-ivory);">${entry.hero?.name || entry.heroId}</strong>
+                                    <strong style="font-size: 0.86rem; color: var(--text-primary);">${entry.hero?.name || entry.heroId}</strong>
                                   </div>
                                 </div>
                                 <span style="font-size: 0.72rem; color: var(--text-secondary);">${bonusText}</span>

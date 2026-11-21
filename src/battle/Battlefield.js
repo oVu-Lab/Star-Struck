@@ -1,6 +1,7 @@
 /**
- * Battlefield — 100x100 world-coordinate tactical arena with isometric diagonal
- * screen projection, logical deployment regions, and data-driven terrain grid.
+ * Battlefield — 100x100 world-coordinate tactical arena with wide, front-facing
+ * rectangular 2.5D perspective projection, logical deployment regions, and
+ * data-driven terrain grid.
  *
  * All simulation calculations (movement, range, pathfinding, collision) use
  * world coordinates (0..100, 0..100). Screen coordinates are strictly for
@@ -9,14 +10,13 @@
 
 import { clamp } from '../utils/MathUtils.js';
 
-// Diagonal isometric projection basis:
-// +X (friendly left -> enemy right) projects along (ISO_XX, ISO_YX)
-// +Y (north flank -> south flank)   projects along (ISO_XY, ISO_YY)
-const ISO_XX = 0.86;
-const ISO_XY = -0.38;
-const ISO_YX = 0.22;
-const ISO_YY = 0.56;
-const ISO_DET = ISO_XX * ISO_YY - ISO_XY * ISO_YX; // 0.5652
+// Front-facing rectangular 2.5D perspective projection:
+// +X (friendly left -> enemy right) stays purely horizontal (zero diagonal tilt).
+// +Y (north flank -> south flank) advances straight toward the camera with a
+// subtle horizontal perspective taper so the far edge is ~91.5% as wide as the
+// near edge — reading as a spacious, flat rectangular battlefield with subtle depth.
+const PERSP_TAPER = 0.085;
+const MIN_ROW_SCALE = 0.25;
 
 export class Battlefield {
   constructor({ balance = null, terrainConfig = null } = {}) {
@@ -271,59 +271,86 @@ export class Battlefield {
   }
 
   /**
-   * Computes camera projection parameters that fit the entire isometric diamond
-   * cleanly inside a full-viewport canvas while keeping top HUD and bottom
-   * floating tactical hand regions clear of battlefield units.
+   * Computes camera projection parameters that frame a wide, front-facing
+   * rectangular arena occupying the majority of the viewport while keeping
+   * the top HUD, left Commander Dais, and bottom portrait card dock clear.
    */
   getProjectionParams(canvasWidth, canvasHeight) {
-    // Full diamond span at scale = 1: width ≈ 124, height ≈ 78
-    const padX = Math.max(32, canvasWidth * 0.045);
-    const topPad = Math.max(60, Math.min(92, canvasHeight * 0.088));
-    const bottomPad = Math.max(146, Math.min(182, canvasHeight * 0.215));
-    const availW = Math.max(120, canvasWidth - padX * 2);
-    const availH = Math.max(100, canvasHeight - topPad - bottomPad);
-    const scale = Math.min(availW / 126, availH / 80);
+    const leftPad = Math.max(106, Math.min(152, canvasWidth * 0.088));
+    const rightPad = Math.max(36, Math.min(68, canvasWidth * 0.036));
+    const topPad = Math.max(66, Math.min(96, canvasHeight * 0.092));
+    const bottomPad = Math.max(166, Math.min(216, canvasHeight * 0.218));
+
+    const availW = Math.max(160, canvasWidth - leftPad - rightPad);
+    const availH = Math.max(116, canvasHeight - topPad - bottomPad);
+
+    // Maintain a clearly horizontal rectangular battlefield (~2.1:1 to 2.55:1)
+    const arenaW = Math.min(availW, availH * 2.55);
+    const arenaH = Math.min(availH * 0.92, arenaW / 2.02);
+
+    const centerX = leftPad + availW * 0.5;
+    const topY = topPad + (availH - arenaH) * 0.45;
+    const scaleXBase = arenaW / this.worldWidth;
+    const scaleY = arenaH / this.worldHeight;
+    const scale = Math.sqrt(scaleXBase * scaleY);
+
     return {
-      centerX: canvasWidth * 0.5,
-      centerY: topPad + availH * 0.5 + 8,
+      centerX,
+      centerY: topY + arenaH * 0.5,
+      topY,
+      arenaW,
+      arenaH,
+      scaleXBase,
+      scaleY,
       scale,
+      leftPad,
+      rightPad,
     };
   }
 
   /**
-   * Projects world (wx, wy, wz) to isometric screen coordinates (sx, sy).
+   * Projects world (wx, wy, wz) to front-facing 2.5D rectangular screen coordinates.
+   * Returns { x, y, scale, scaleX, scaleY } so ground ellipses and sprites stay
+   * proportion-accurate with world-coordinate distances.
    */
   worldToScreen(wx, wy, canvasWidth, canvasHeight, wz = 0) {
-    const { centerX, centerY, scale } = this.getProjectionParams(canvasWidth, canvasHeight);
-    const cx = wx - this.worldWidth * 0.5;
-    const cy = wy - this.worldHeight * 0.5;
+    const params = this.getProjectionParams(canvasWidth, canvasHeight);
+    const v = wy / this.worldHeight;
+    const u = (wx - this.worldWidth * 0.5) / this.worldWidth;
+    const rowScale = Math.max(MIN_ROW_SCALE, 1 - PERSP_TAPER * (1 - v));
+    const scaleX = params.scaleXBase * rowScale;
+    const scaleY = params.scaleY;
+    const scale = Math.sqrt(scaleX * scaleY);
+
     return {
-      x: centerX + (cx * ISO_XX + cy * ISO_XY) * scale,
-      y: centerY + (cx * ISO_YX + cy * ISO_YY) * scale - wz * scale,
+      x: params.centerX + u * params.arenaW * rowScale,
+      y: params.topY + v * params.arenaH - wz * params.scale * rowScale,
       scale,
+      scaleX,
+      scaleY,
     };
   }
 
   /**
-   * Inverse projection: maps screen pointer (sx, sy) back to world (wx, wy).
+   * Exact analytical inverse projection: maps screen pointer (sx, sy) back to world (wx, wy).
    */
   screenToWorld(sx, sy, canvasWidth, canvasHeight) {
-    const { centerX, centerY, scale } = this.getProjectionParams(canvasWidth, canvasHeight);
-    const dx = (sx - centerX) / Math.max(0.0001, scale);
-    const dy = (sy - centerY) / Math.max(0.0001, scale);
-    const cx = (dx * ISO_YY - dy * ISO_XY) / ISO_DET;
-    const cy = (ISO_XX * dy - ISO_YX * dx) / ISO_DET;
+    const params = this.getProjectionParams(canvasWidth, canvasHeight);
+    const v = (sy - params.topY) / Math.max(0.0001, params.arenaH);
+    const rowScale = Math.max(MIN_ROW_SCALE, 1 - PERSP_TAPER * (1 - v));
+    const u = (sx - params.centerX) / Math.max(0.0001, params.arenaW * rowScale);
+
     return {
-      x: cx + this.worldWidth * 0.5,
-      y: cy + this.worldHeight * 0.5,
+      x: (u + 0.5) * this.worldWidth,
+      y: v * this.worldHeight,
     };
   }
 
   /**
-   * Isometric depth sort key (higher = closer to camera = rendered on top).
+   * Front-facing depth sort key (higher Y = closer to camera = rendered on top).
    */
   getDepth(wx, wy) {
-    return wx * ISO_YX + wy * ISO_YY;
+    return wy;
   }
 
   /**

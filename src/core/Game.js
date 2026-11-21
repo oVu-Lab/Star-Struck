@@ -23,6 +23,7 @@ import { CardSystem } from '../systems/CardSystem.js';
 import { EconomySystem } from '../systems/EconomySystem.js';
 import { ProgressionSystem } from '../systems/ProgressionSystem.js';
 import { GachaSystem } from '../systems/GachaSystem.js';
+import { MissionSystem } from '../systems/MissionSystem.js';
 
 import { UnitManager } from '../battle/UnitManager.js';
 import { TargetingSystem } from '../battle/TargetingSystem.js';
@@ -34,6 +35,7 @@ import { WaveManager } from '../battle/WaveManager.js';
 import { BattleManager } from '../battle/BattleManager.js';
 
 import { HomeScreen } from '../ui/HomeScreen.js';
+import { MissionsScreen } from '../ui/MissionsScreen.js';
 import { BattleScreen } from '../ui/BattleScreen.js';
 import { HeroScreen } from '../ui/HeroScreen.js';
 import { FormationScreen } from '../ui/FormationScreen.js';
@@ -120,6 +122,14 @@ export class Game {
         saveManager: this.saveManager,
         eventBus: this.eventBus,
       });
+      this.missionSystem = new MissionSystem({
+        dataRegistry: this.dataRegistry,
+        gameState: this.gameState,
+        economySystem: this.economySystem,
+        progressionSystem: this.progressionSystem,
+        saveManager: this.saveManager,
+        eventBus: this.eventBus,
+      });
 
       // 5. Battle simulation subsystems
       this.unitManager = new UnitManager({
@@ -191,6 +201,7 @@ export class Game {
         economySystem: this.economySystem,
         progressionSystem: this.progressionSystem,
         gachaSystem: this.gachaSystem,
+        missionSystem: this.missionSystem,
         battleManager: this.battleManager,
         notify: (message, level = 'info') => this.notify(message, level),
         confirmDialog: (opts) => this.confirmDialog(opts),
@@ -198,6 +209,7 @@ export class Game {
       };
 
       this.screenManager.register('home', new HomeScreen(sharedContext));
+      this.screenManager.register('missions', new MissionsScreen(sharedContext));
       this.screenManager.register('battle', new BattleScreen(sharedContext));
       this.screenManager.register('heroes', new HeroScreen(sharedContext));
       this.screenManager.register('formation', new FormationScreen(sharedContext));

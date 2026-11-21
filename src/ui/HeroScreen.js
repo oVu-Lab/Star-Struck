@@ -86,9 +86,9 @@ export class HeroScreen {
                     <div class="meta-line">
                       <span class="rarity-${selRarity}">${selectedHero.rarity}</span>
                       <span class="meta-sep" aria-hidden="true">·</span>
-                      <span style="color: var(--hero-accent); font-weight: 600;">${selectedHero.realm || selectedHero.faction}</span>
+                      <span style="color: var(--hero-accent-light); font-weight: 600;">${selectedHero.realm || selectedHero.faction}</span>
                     </div>
-                    <strong style="font-size: 1.15rem; font-family: var(--font-display); color: var(--celestial-ivory);">
+                    <strong style="font-size: 1.15rem; font-family: var(--font-display); color: var(--text-on-dark);">
                       ${selectedHero.title}
                     </strong>
                     ${
