@@ -192,6 +192,7 @@ export class BattleScreen {
 
         <div class="battle-command-dock" aria-label="Tactical Command Dock">
           <canvas id="merge-vfx-canvas" class="merge-vfx-canvas" aria-hidden="true"></canvas>
+          <canvas id="merge-vfx-fg-canvas" class="merge-vfx-canvas merge-vfx-canvas--fg" aria-hidden="true"></canvas>
           <div class="dock-energy-core">
             <div>
               <div class="dock-energy-core__kicker">Command Energy</div>
@@ -270,6 +271,7 @@ export class BattleScreen {
     );
     this._mergeVfxController = new CardMergeVfxController(
       container.querySelector('#merge-vfx-canvas'),
+      container.querySelector('#merge-vfx-fg-canvas'),
     );
 
     const avatarEl = container.querySelector('#battle-commander-avatar');
@@ -607,6 +609,7 @@ export class BattleScreen {
       outcomeSplash: q('#battle-outcome-splash'),
       resultsOverlay: q('#battle-results-overlay'),
       mergeVfxCanvas: q('#merge-vfx-canvas'),
+      mergeVfxFgCanvas: q('#merge-vfx-fg-canvas'),
     };
   }
 
@@ -806,7 +809,7 @@ export class BattleScreen {
       this._triggerSlotAnimation(sourceIndex, 'is-merge-departed', departMs);
     }
 
-    const targetDurMs = reducedMotion ? 320 : toTier >= 3 ? 1260 : 1080;
+    const targetDurMs = reducedMotion ? 320 : toTier >= 3 ? 1280 : 1100;
     this._triggerSlotAnimation(
       targetIndex,
       'is-just-merged',

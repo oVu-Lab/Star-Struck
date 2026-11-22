@@ -1070,13 +1070,13 @@
 .tactical-card.is-just-merged,
 .tactical-card.is-just-merged:hover,
 .tactical-card.is-just-merged.is-merge-ready {
-  animation: card-merge-evolve-t2 1080ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: card-merge-evolve-t2 1100ms cubic-bezier(0.22, 1, 0.36, 1) both;
   z-index: 10;
 }
 .tactical-card.is-just-merged.is-merge-tier-3,
 .tactical-card.is-just-merged.is-merge-tier-3:hover,
 .tactical-card.is-just-merged.is-merge-tier-3.is-merge-ready {
-  animation: card-merge-evolve-t3 1260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: card-merge-evolve-t3 1280ms cubic-bezier(0.22, 1, 0.36, 1) both;
   z-index: 11;
 }
 .tactical-card.is-merge-departed { animation: card-merge-depart 320ms var(--ease-tactical) both; }
@@ -1089,8 +1089,8 @@
 
 @keyframes card-merge-depart {
   0% {
-    box-shadow: 0 0 0 2.5px rgba(255, 248, 220, 0.96), 0 0 22px rgba(244, 198, 78, 0.78);
-    filter: brightness(1.24);
+    box-shadow: 0 0 0 1px #ffffff, 0 0 16px rgba(255, 232, 144, 0.72);
+    filter: brightness(1.18);
   }
   100% {
     box-shadow: none;
@@ -1098,52 +1098,52 @@
   }
 }
 
-/* Balanced Multi-Stage Card Evolution: Impact -> Upgrade Float -> Overshoot Return -> Final Glow Pulse (Lv.I -> Lv.II, 1080ms) */
+/* Luminous Multi-Stage Card Evolution: Crisp Impact + Airy White-Champagne Halo -> Float -> Final Flash (Lv.I -> Lv.II, 1100ms) */
 @keyframes card-merge-evolve-t2 {
   0% {
     transform: perspective(420px) translateY(0) scale(1) rotateZ(0deg);
     filter: brightness(1);
   }
-  16% {
-    transform: perspective(420px) translateY(-24px) scale(1.09) rotateZ(-3.2deg) rotateX(5deg);
+  14% {
+    transform: perspective(420px) translateY(-26px) scale(1.1) rotateZ(-3.6deg) rotateX(5deg);
     filter: brightness(1.16);
     box-shadow:
-      0 24px 36px rgba(20, 14, 6, 0.48),
-      0 0 0 3px #fffef5,
-      0 0 0 6px rgba(235, 174, 34, 0.88),
-      0 0 34px rgba(255, 206, 68, 0.98);
+      0 14px 22px rgba(24, 18, 8, 0.28),
+      0 0 0 1px rgba(255, 255, 255, 0.96),
+      0 0 18px rgba(255, 232, 146, 0.82),
+      0 0 32px rgba(255, 212, 88, 0.42);
   }
-  42% {
-    transform: perspective(420px) translateY(-16px) scale(1.06) rotateZ(1.6deg) rotateX(2deg);
-    filter: brightness(1.08);
+  40% {
+    transform: perspective(420px) translateY(-18px) scale(1.07) rotateZ(1.8deg) rotateX(2deg);
+    filter: brightness(1.09);
     box-shadow:
-      0 18px 28px rgba(20, 14, 6, 0.36),
-      0 0 0 2.5px #fff7d6,
-      0 0 0 5px rgba(238, 180, 44, 0.72),
-      0 0 26px rgba(255, 208, 72, 0.88);
+      0 12px 18px rgba(24, 18, 8, 0.24),
+      0 0 0 1px rgba(255, 252, 236, 0.88),
+      0 0 14px rgba(255, 232, 148, 0.65),
+      0 0 24px rgba(255, 214, 92, 0.32);
   }
-  64% {
-    transform: perspective(420px) translateY(3px) scale(0.98) rotateZ(-0.6deg);
-    filter: brightness(1.03);
+  62% {
+    transform: perspective(420px) translateY(3px) scale(0.975) rotateZ(-0.6deg);
+    filter: brightness(1.04);
     box-shadow:
-      0 6px 14px rgba(20, 14, 6, 0.24),
-      0 0 0 1.5px rgba(244, 198, 78, 0.52);
+      0 6px 12px rgba(24, 18, 8, 0.18),
+      0 0 10px rgba(255, 232, 150, 0.35);
   }
-  74% {
+  72% {
     transform: perspective(420px) translateY(0) scale(1) rotateZ(0deg);
     filter: brightness(1.02);
     box-shadow:
-      0 6px 14px rgba(20, 14, 6, 0.24),
-      0 0 0 1.5px rgba(244, 198, 78, 0.45);
+      0 6px 12px rgba(24, 18, 8, 0.18),
+      0 0 8px rgba(255, 232, 150, 0.28);
   }
-  84% {
-    transform: perspective(420px) translateY(-4px) scale(1.035) rotateZ(0deg);
-    filter: brightness(1.14);
+  83% {
+    transform: perspective(420px) translateY(-5px) scale(1.045) rotateZ(0deg);
+    filter: brightness(1.2);
     box-shadow:
-      0 14px 24px rgba(20, 14, 6, 0.34),
-      0 0 0 3px #fffbe8,
-      0 0 0 5.5px rgba(245, 188, 42, 0.76),
-      0 0 30px rgba(255, 212, 74, 0.96);
+      0 10px 18px rgba(24, 18, 8, 0.24),
+      0 0 0 1.5px #ffffff,
+      0 0 22px rgba(255, 236, 156, 0.92),
+      0 0 38px rgba(255, 214, 92, 0.48);
   }
   100% {
     transform: perspective(420px) translateY(0) scale(1) rotateZ(0deg);
@@ -1151,52 +1151,52 @@
   }
 }
 
-/* Balanced Apex Card Evolution: Stronger Lift + Scale + Double Edge Outline -> Float -> Overshoot -> Prominent Pulse (Lv.II -> Lv.III, 1260ms) */
+/* Apex Luminous Card Evolution: Brighter Lift + Airy Radiance + Impressive Final Flash (Lv.II -> Lv.III, 1280ms) */
 @keyframes card-merge-evolve-t3 {
   0% {
     transform: perspective(420px) translateY(0) scale(1) rotateZ(0deg);
     filter: brightness(1);
   }
-  15% {
-    transform: perspective(420px) translateY(-30px) scale(1.12) rotateZ(-4deg) rotateX(6deg);
+  14% {
+    transform: perspective(420px) translateY(-32px) scale(1.14) rotateZ(-4.4deg) rotateX(6deg);
     filter: brightness(1.22);
     box-shadow:
-      0 28px 42px rgba(18, 12, 4, 0.54),
-      0 0 0 3.5px #ffffff,
-      0 0 0 7.5px rgba(244, 180, 28, 0.94),
-      0 0 46px rgba(255, 212, 64, 1);
+      0 16px 24px rgba(24, 18, 8, 0.3),
+      0 0 0 1.5px #ffffff,
+      0 0 24px rgba(255, 238, 160, 0.92),
+      0 0 42px rgba(255, 216, 94, 0.52);
   }
-  42% {
-    transform: perspective(420px) translateY(-20px) scale(1.08) rotateZ(2.2deg) rotateX(2.5deg);
+  40% {
+    transform: perspective(420px) translateY(-22px) scale(1.09) rotateZ(2.4deg) rotateX(2.5deg);
     filter: brightness(1.12);
     box-shadow:
-      0 20px 32px rgba(18, 12, 4, 0.42),
-      0 0 0 3px #fff8d6,
-      0 0 0 6px rgba(248, 190, 42, 0.84),
-      0 0 34px rgba(255, 212, 72, 0.94);
+      0 14px 20px rgba(24, 18, 8, 0.26),
+      0 0 0 1px rgba(255, 252, 236, 0.92),
+      0 0 18px rgba(255, 236, 156, 0.72),
+      0 0 30px rgba(255, 216, 94, 0.38);
   }
-  64% {
-    transform: perspective(420px) translateY(3px) scale(0.98) rotateZ(-0.6deg);
-    filter: brightness(1.04);
+  62% {
+    transform: perspective(420px) translateY(3px) scale(0.975) rotateZ(-0.6deg);
+    filter: brightness(1.05);
     box-shadow:
-      0 8px 16px rgba(18, 12, 4, 0.28),
-      0 0 0 2px rgba(255, 210, 82, 0.62);
+      0 6px 14px rgba(24, 18, 8, 0.2),
+      0 0 12px rgba(255, 234, 154, 0.42);
   }
-  74% {
+  72% {
     transform: perspective(420px) translateY(0) scale(1) rotateZ(0deg);
     filter: brightness(1.03);
     box-shadow:
-      0 8px 16px rgba(18, 12, 4, 0.28),
-      0 0 0 1.5px rgba(255, 210, 82, 0.55);
+      0 6px 14px rgba(24, 18, 8, 0.2),
+      0 0 10px rgba(255, 234, 154, 0.34);
   }
-  84% {
-    transform: perspective(420px) translateY(-5px) scale(1.048) rotateZ(0deg);
-    filter: brightness(1.18);
+  83% {
+    transform: perspective(420px) translateY(-7px) scale(1.06) rotateZ(0deg);
+    filter: brightness(1.26);
     box-shadow:
-      0 16px 30px rgba(18, 12, 4, 0.4),
-      0 0 0 3.5px #ffffff,
-      0 0 0 6.5px rgba(250, 192, 44, 0.86),
-      0 0 38px rgba(255, 216, 76, 1);
+      0 12px 20px rgba(24, 18, 8, 0.26),
+      0 0 0 2px #ffffff,
+      0 0 28px rgba(255, 244, 182, 0.98),
+      0 0 48px rgba(255, 216, 92, 0.62);
   }
   100% {
     transform: perspective(420px) translateY(0) scale(1) rotateZ(0deg);
@@ -1204,7 +1204,7 @@
   }
 }
 
-/* White-Gold Surface Impact Flash + Diagonal Light Sweep Across Card Artwork */
+/* Luminous Two-Layer White-Champagne Surface Flash + Flowing Light Sweep Across Card Artwork */
 .tactical-card__flash {
   position: absolute;
   inset: 0;
@@ -1221,66 +1221,131 @@
   inset: -45% -95%;
   background: linear-gradient(
     115deg,
-    transparent 34%,
-    rgba(255, 254, 248, 0.86) 47%,
-    rgba(255, 224, 124, 0.56) 55%,
-    transparent 68%
+    transparent 36%,
+    rgba(255, 212, 68, 0.46) 44%,
+    rgba(255, 255, 255, 0.96) 50%,
+    rgba(255, 224, 108, 0.5) 55%,
+    transparent 63%
   );
   transform: translateX(-75%);
 }
 
+.tactical-card__flash::after {
+  content: '';
+  position: absolute;
+  inset: -45% -95%;
+  background: linear-gradient(
+    115deg,
+    transparent 45%,
+    rgba(255, 226, 114, 0.52) 49%,
+    rgba(255, 255, 255, 0.94) 51%,
+    rgba(255, 214, 78, 0.44) 53.5%,
+    transparent 57%
+  );
+  transform: translateX(-82%);
+  opacity: 0;
+}
+
 .tactical-card.is-just-merged .tactical-card__flash {
-  animation: card-flash-opacity-t2 760ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: card-flash-opacity-t2 820ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .tactical-card.is-just-merged .tactical-card__flash::before {
   animation: card-flash-sweep 760ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+.tactical-card.is-just-merged .tactical-card__flash::after {
+  animation: card-flash-secondary-sweep 640ms cubic-bezier(0.22, 1, 0.36, 1) 220ms both;
+}
+
 .tactical-card.is-just-merged.is-merge-tier-3 .tactical-card__flash {
-  animation: card-flash-opacity-t3 860ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: card-flash-opacity-t3 920ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .tactical-card.is-just-merged.is-merge-tier-3 .tactical-card__flash::before {
-  background: linear-gradient(
-    115deg,
-    transparent 32%,
-    rgba(255, 255, 255, 0.92) 47%,
-    rgba(255, 218, 96, 0.68) 56%,
-    transparent 70%
-  );
+  background:
+    linear-gradient(
+      115deg,
+      transparent 59%,
+      rgba(255, 252, 238, 0.78) 61.5%,
+      rgba(255, 234, 152, 0.42) 63.5%,
+      transparent 65%
+    ),
+    linear-gradient(
+      115deg,
+      transparent 35%,
+      rgba(255, 232, 144, 0.55) 43%,
+      rgba(255, 255, 255, 0.98) 50%,
+      rgba(255, 240, 174, 0.62) 55%,
+      transparent 62%
+    );
   animation: card-flash-sweep 860ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+.tactical-card.is-just-merged.is-merge-tier-3 .tactical-card__flash::after {
+  background:
+    linear-gradient(
+      115deg,
+      transparent 38%,
+      rgba(255, 255, 255, 0.88) 40%,
+      rgba(255, 236, 160, 0.52) 42%,
+      transparent 44.5%
+    ),
+    linear-gradient(
+      115deg,
+      transparent 47%,
+      rgba(255, 244, 194, 0.68) 50.5%,
+      rgba(255, 255, 255, 0.98) 52.8%,
+      rgba(255, 232, 148, 0.48) 55.5%,
+      transparent 59%
+    );
+  animation: card-flash-secondary-sweep 720ms cubic-bezier(0.22, 1, 0.36, 1) 220ms both;
+}
+
 @keyframes card-flash-opacity-t2 {
-  0% { opacity: 0; background: transparent; }
-  12% { opacity: 0.95; background: rgba(255, 252, 236, 0.28); }
-  28% { opacity: 0.82; background: transparent; }
-  78% { opacity: 0.72; background: transparent; }
-  100% { opacity: 0; background: transparent; }
+  0% { opacity: 0; background: transparent; box-shadow: none; }
+  10% {
+    opacity: 0.98;
+    background: rgba(255, 253, 240, 0.34);
+    box-shadow: inset 0 0 10px rgba(255, 244, 196, 0.55);
+  }
+  26% { opacity: 0.92; background: transparent; box-shadow: inset 0 0 8px rgba(255, 244, 196, 0.36); }
+  80% { opacity: 0.78; background: transparent; box-shadow: none; }
+  100% { opacity: 0; background: transparent; box-shadow: none; }
 }
 
 @keyframes card-flash-opacity-t3 {
-  0% { opacity: 0; background: transparent; }
-  12% { opacity: 1; background: rgba(255, 254, 244, 0.36); }
-  28% { opacity: 0.88; background: transparent; }
-  80% { opacity: 0.78; background: transparent; }
-  100% { opacity: 0; background: transparent; }
+  0% { opacity: 0; background: transparent; box-shadow: none; }
+  10% {
+    opacity: 1;
+    background: rgba(255, 253, 240, 0.44);
+    box-shadow: inset 0 0 12px rgba(255, 248, 212, 0.68);
+  }
+  26% { opacity: 0.95; background: transparent; box-shadow: inset 0 0 10px rgba(255, 244, 196, 0.45); }
+  82% { opacity: 0.84; background: transparent; box-shadow: none; }
+  100% { opacity: 0; background: transparent; box-shadow: none; }
 }
 
 @keyframes card-flash-sweep {
   0% { transform: translateX(-75%); }
-  28% { transform: translateX(-48%); }
+  28% { transform: translateX(-44%); }
   82% { transform: translateX(74%); }
-  100% { transform: translateX(85%); }
+  100% { transform: translateX(86%); }
 }
 
-/* Bold, High-Contrast LEVEL UP Label Above Target Card (920ms / 1080ms) */
+@keyframes card-flash-secondary-sweep {
+  0% { opacity: 0; transform: translateX(-80%); }
+  16% { opacity: 0.96; }
+  85% { opacity: 0.82; transform: translateX(76%); }
+  100% { opacity: 0; transform: translateX(90%); }
+}
+
+/* Luminous LEVEL UP Pill Above Target Card (940ms / 1100ms) */
 .tactical-card__levelup {
   position: absolute;
   top: -36px;
   left: 50%;
-  transform: translateX(-50%) scale(0.75);
+  transform: translateX(-50%) scale(0.72);
   z-index: 16;
   display: inline-flex;
   align-items: center;
@@ -1291,12 +1356,27 @@
   line-height: 1.25;
   white-space: nowrap;
   pointer-events: none;
-  background: linear-gradient(180deg, #332512 0%, #1d1409 100%);
-  border: 1.5px solid #ffd870;
+  overflow: hidden;
+  background: linear-gradient(180deg, #342613 0%, #1c1409 100%);
+  border: 1px solid #fff0b8;
   box-shadow:
-    0 6px 16px rgba(12, 8, 2, 0.58),
-    0 0 18px rgba(255, 206, 68, 0.86);
+    0 4px 12px rgba(12, 8, 2, 0.42),
+    0 0 16px rgba(255, 230, 134, 0.68);
   opacity: 0;
+}
+
+.tactical-card__levelup::after {
+  content: '';
+  position: absolute;
+  inset: -40% -60%;
+  background: linear-gradient(
+    112deg,
+    transparent 38%,
+    rgba(255, 250, 224, 0.56) 50%,
+    transparent 62%
+  );
+  transform: translateX(-95%);
+  pointer-events: none;
 }
 
 .tactical-card__levelup[hidden] {
@@ -1304,6 +1384,8 @@
 }
 
 .tactical-card__levelup-main {
+  position: relative;
+  z-index: 1;
   font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.09em;
@@ -1312,6 +1394,8 @@
 }
 
 .tactical-card__levelup-tier {
+  position: relative;
+  z-index: 1;
   padding: 1px 6px;
   border-radius: 999px;
   font-family: var(--font-ui);
@@ -1319,49 +1403,59 @@
   font-weight: 800;
   letter-spacing: 0.04em;
   color: #1f1406;
-  background: linear-gradient(180deg, #fff5c8 0%, #f2bd3e 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #ffe694 100%);
 }
 
 .tactical-card__levelup.is-visible {
-  animation: card-levelup-pop 920ms cubic-bezier(0.22, 1, 0.36, 1) 120ms both;
+  animation: card-levelup-pop 940ms cubic-bezier(0.22, 1, 0.36, 1) 100ms both;
+}
+
+.tactical-card__levelup.is-visible::after {
+  animation: card-levelup-sheen 620ms ease-out 180ms both;
 }
 
 .tactical-card__levelup.is-visible.is-tier-3 {
   padding: 4px 12px;
-  border-color: #fff6cf;
-  background: linear-gradient(180deg, #422e12 0%, #241808 100%);
+  border-color: #fff8dc;
+  background: linear-gradient(180deg, #3e2c12 0%, #221708 100%);
   box-shadow:
-    0 7px 20px rgba(12, 8, 2, 0.66),
-    0 0 26px rgba(255, 212, 72, 0.98);
-  animation-duration: 1080ms;
-  animation-delay: 120ms;
+    0 4px 14px rgba(12, 8, 2, 0.46),
+    0 0 22px rgba(255, 238, 158, 0.85),
+    inset 0 0 8px rgba(255, 246, 204, 0.25);
+  animation-duration: 1100ms;
+  animation-delay: 100ms;
 }
 
 .tactical-card__levelup.is-visible.is-tier-3 .tactical-card__levelup-tier {
-  background: linear-gradient(180deg, #ffffff 0%, #ffe070 55%, #de9b22 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #ffea9c 65%, #f5cd58 100%);
 }
 
 @keyframes card-levelup-pop {
   0% {
     opacity: 0;
-    transform: translate(-50%, 6px) scale(0.74);
+    transform: translate(-50%, 6px) scale(0.72);
   }
   16% {
     opacity: 1;
-    transform: translate(-50%, -8px) scale(1.14);
+    transform: translate(-50%, -8px) scale(1.1);
   }
   30% {
     opacity: 1;
-    transform: translate(-50%, -10px) scale(1.03);
+    transform: translate(-50%, -10px) scale(1.0);
   }
-  78% {
+  84% {
     opacity: 1;
     transform: translate(-50%, -12px) scale(1);
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, -18px) scale(0.95);
+    transform: translate(-50%, -18px) scale(0.94);
   }
+}
+
+@keyframes card-levelup-sheen {
+  0% { transform: translateX(-95%); }
+  100% { transform: translateX(95%); }
 }
 
 @keyframes card-invalid-shake {
@@ -2804,6 +2898,10 @@
   pointer-events: none;
 }
 
+.merge-vfx-canvas--fg {
+  z-index: 14;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .tactical-card.is-just-merged,
   .tactical-card.is-just-merged:hover,
@@ -2814,6 +2912,8 @@
   }
   .tactical-card__flash,
   .tactical-card__flash::before,
+  .tactical-card__flash::after,
+  .tactical-card__levelup::after,
   .tactical-card__tier.is-tier-evolving,
   .tactical-card__tier.is-tier-evolving::before {
     animation: none;
