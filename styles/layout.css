@@ -84,7 +84,9 @@
   min-height: 40px;
   padding: 0 14px 0 4px;
   position: relative;
-  transition: opacity var(--duration-fast) var(--ease-tactical);
+  transition:
+    color var(--dur-hover) var(--ease-tactical),
+    transform var(--dur-press) var(--ease-tactical);
 }
 
 .brand-mark::after {
@@ -97,10 +99,19 @@
   height: 22px;
   background: var(--border-strong);
   opacity: 0.55;
+  transition: opacity var(--dur-hover) var(--ease-tactical);
 }
 
-.brand-mark:hover {
-  opacity: 0.86;
+.brand-mark:hover .brand-name {
+  color: var(--accent-gold-deep);
+}
+
+.brand-mark:hover::after {
+  opacity: 0.85;
+}
+
+.brand-mark:active {
+  transform: translateY(1px);
 }
 
 /* Layered Four-Pointed Astral Diamond Emblem */
@@ -113,12 +124,16 @@
   position: relative;
   flex-shrink: 0;
   box-shadow: 0 2px 8px rgba(166, 124, 46, 0.18);
-  transition: transform var(--duration-base) var(--ease-tactical), border-color var(--duration-fast);
+  transition:
+    transform var(--dur-select) var(--ease-tactical),
+    border-color var(--dur-hover) var(--ease-tactical),
+    box-shadow var(--dur-hover) var(--ease-tactical);
 }
 
 .brand-mark:hover .brand-emblem {
   border-color: var(--accent-gold-deep);
-  transform: rotate(135deg);
+  transform: rotate(135deg) scale(1.04);
+  box-shadow: 0 3px 12px rgba(166, 124, 46, 0.28);
 }
 
 .brand-emblem::before {
@@ -127,6 +142,11 @@
   inset: -4px;
   border: 1px solid rgba(182, 136, 42, 0.34);
   pointer-events: none;
+  transition: border-color var(--dur-hover) var(--ease-tactical);
+}
+
+.brand-mark:hover .brand-emblem::before {
+  border-color: rgba(182, 136, 42, 0.62);
 }
 
 .brand-emblem::after {
@@ -143,9 +163,11 @@
   letter-spacing: 0.15em;
   text-transform: uppercase;
   color: var(--text-primary);
+  transition: color var(--dur-hover) var(--ease-tactical);
 }
 
 .primary-nav {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 2px;
@@ -155,6 +177,48 @@
 
 .primary-nav::-webkit-scrollbar {
   display: none;
+}
+
+/* Smooth Gliding Star-Rail Gold Active Indicator */
+.nav-active-indicator {
+  position: absolute;
+  left: 0;
+  bottom: 2px;
+  height: 2.5px;
+  width: 0;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 2;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--accent-yellow-bar) 16%,
+    var(--accent-gold) 50%,
+    var(--accent-yellow-bar) 84%,
+    transparent 100%
+  );
+  transform: translate3d(0, 0, 0);
+  transition:
+    transform 240ms var(--ease-tactical),
+    width 240ms var(--ease-tactical),
+    opacity 160ms var(--ease-tactical);
+}
+
+.nav-active-indicator::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -1px;
+  width: 5px;
+  height: 5px;
+  transform: translateX(-50%) rotate(45deg);
+  background: var(--accent-yellow-bar);
+  border: 1px solid #ffffff;
+  box-shadow: 0 0 6px rgba(182, 136, 42, 0.45);
+}
+
+.nav-active-indicator.is-visible {
+  opacity: 1;
 }
 
 .nav-link {
@@ -170,29 +234,56 @@
   white-space: nowrap;
   flex-shrink: 0;
   transition:
-    color var(--duration-fast) var(--ease-tactical),
-    background-color var(--duration-fast) var(--ease-tactical);
+    color var(--dur-hover) var(--ease-tactical),
+    background-color var(--dur-hover) var(--ease-tactical),
+    transform var(--dur-press) var(--ease-tactical);
 }
 
-.nav-link:hover {
+/* Subtle hover underline preview for inactive nav links */
+.nav-link::after {
+  content: '';
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(212, 166, 58, 0.55), transparent);
+  transform: scaleX(0);
+  opacity: 0;
+  transform-origin: center;
+  transition:
+    transform var(--dur-hover) var(--ease-tactical),
+    opacity var(--dur-hover) var(--ease-tactical);
+  pointer-events: none;
+}
+
+.nav-link:hover:not(.is-active):not(:disabled) {
   color: var(--text-primary);
-  background: linear-gradient(180deg, transparent 0%, rgba(212, 166, 58, 0.09) 100%);
+  background: linear-gradient(180deg, transparent 0%, rgba(212, 166, 58, 0.08) 100%);
+}
+
+.nav-link:hover:not(.is-active):not(:disabled)::after {
+  transform: scaleX(1);
+  opacity: 1;
+}
+
+.nav-link:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .nav-link.is-active {
   color: var(--accent-gold-deep);
   font-weight: 700;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.3) 0%, rgba(212, 166, 58, 0.14) 100%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.35) 0%, rgba(212, 166, 58, 0.13) 100%);
 }
 
-/* Star-Rail Inspired Stepped Yellow-Gold Active Underline + Center Diamond Pip */
-.nav-link.is-active::after {
-  content: '';
-  position: absolute;
+/* Static fallback active bar when sliding indicator is not initialized */
+.primary-nav:not(.has-sliding-indicator) .nav-link.is-active::after {
   left: 8px;
   right: 8px;
-  bottom: 0;
   height: 2.5px;
+  opacity: 1;
+  transform: scaleX(1);
   background: linear-gradient(
     90deg,
     transparent 0%,
@@ -203,7 +294,7 @@
   );
 }
 
-.nav-link.is-active::before {
+.primary-nav:not(.has-sliding-indicator) .nav-link.is-active::before {
   content: '';
   position: absolute;
   left: 50%;
@@ -214,6 +305,11 @@
   background: var(--accent-yellow-bar);
   border: 1px solid #ffffff;
   box-shadow: 0 0 6px rgba(182, 136, 42, 0.42);
+}
+
+.primary-nav.has-sliding-indicator .nav-link.is-active::after {
+  opacity: 0;
+  transform: scaleX(0);
 }
 
 .header-resources {
@@ -232,9 +328,12 @@
   white-space: nowrap;
   padding: 4px 11px;
   background: linear-gradient(180deg, #ffffff 0%, #f6f0e4 100%);
-  border: 1px solid rgba(138, 114, 78, 0.26);
+  border: 1px solid rgba(138, 114, 78, 0.24);
   clip-path: polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px);
-  transition: background-color 220ms var(--ease-tactical), transform 180ms var(--ease-tactical);
+  transition:
+    background-color 220ms var(--ease-tactical),
+    border-color 220ms var(--ease-tactical),
+    transform 200ms var(--ease-tactical);
 }
 
 .resource-readout::before {
@@ -248,8 +347,39 @@
 }
 
 .resource-readout.is-gained {
-  background: rgba(212, 166, 58, 0.18);
-  transform: scale(1.04);
+  background: rgba(212, 166, 58, 0.22);
+  border-color: rgba(182, 136, 42, 0.72);
+  animation: resource-tick-gain 340ms var(--ease-tactical);
+}
+
+.resource-readout.is-spent {
+  background: rgba(162, 126, 66, 0.14);
+  border-color: rgba(162, 126, 66, 0.52);
+  animation: resource-tick-spend 280ms var(--ease-tactical);
+}
+
+@keyframes resource-tick-gain {
+  0% {
+    transform: scale(1);
+  }
+  38% {
+    transform: scale(1.045);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes resource-tick-spend {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(0.97);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .resource-readout--gold {
@@ -262,7 +392,7 @@
 }
 
 .resource-readout--gold.is-gained {
-  background: rgba(212, 166, 58, 0.26);
+  background: rgba(212, 166, 58, 0.28);
 }
 
 .resource-label {
@@ -277,6 +407,7 @@
   font-size: 0.86rem;
   font-weight: 700;
   color: var(--text-primary);
+  transition: color 200ms var(--ease-tactical);
 }
 
 .resource-readout--gold .resource-value {
@@ -297,9 +428,10 @@
   color: var(--text-secondary);
   flex-shrink: 0;
   transition:
-    color var(--duration-fast) var(--ease-tactical),
-    background-color var(--duration-fast) var(--ease-tactical),
-    transform var(--duration-fast) var(--ease-tactical);
+    color var(--dur-hover) var(--ease-tactical),
+    background-color var(--dur-hover) var(--ease-tactical),
+    transform var(--dur-press) var(--ease-tactical),
+    filter var(--dur-hover) var(--ease-tactical);
 }
 
 .audio-toggle-btn::before {
@@ -309,12 +441,14 @@
   z-index: -1;
   background: #fcfaf5;
   clip-path: polygon(5px 0, calc(100% - 5px) 0, 100% 5px, 100% calc(100% - 5px), calc(100% - 5px) 100%, 5px 100%, 0 calc(100% - 5px), 0 5px);
-  transition: background-color var(--duration-fast) var(--ease-tactical);
+  transition: background-color var(--dur-hover) var(--ease-tactical);
 }
 
 .audio-toggle-btn:hover {
   color: var(--accent-gold-deep);
   background: var(--accent-gold);
+  transform: translateY(-1px);
+  filter: drop-shadow(0 3px 6px rgba(148, 105, 26, 0.16));
 }
 
 .audio-toggle-btn:hover::before {
@@ -322,12 +456,18 @@
 }
 
 .audio-toggle-btn:active {
-  transform: scale(0.95);
+  transform: translateY(0) scale(0.95);
+  filter: none;
 }
 
 .audio-toggle-btn__icon {
   width: 17px;
   height: 17px;
+  transition: transform var(--dur-hover) var(--ease-tactical);
+}
+
+.audio-toggle-btn:hover .audio-toggle-btn__icon {
+  transform: scale(1.06);
 }
 
 .audio-toggle-btn .audio-slash {
@@ -352,8 +492,10 @@
   display: block;
 }
 
-/* Main Screen Viewport — Viewport-Locked Desktop Frame */
+/* Main Screen Viewport — Viewport-Locked Desktop Frame with Transition Stage */
 .screen-viewport {
+  position: relative;
+  isolation: isolate;
   flex: 1;
   width: 100%;
   max-width: var(--content-max-width);
@@ -376,22 +518,177 @@
 }
 
 .screen-frame {
+  position: relative;
+  z-index: 2;
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  animation: screen-enter var(--duration-base) var(--ease-tactical) both;
+  animation: screen-enter-fade var(--dur-screen) var(--ease-tactical) both;
 }
 
-@keyframes screen-enter {
+.screen-viewport[data-nav-dir='forward'] > .screen-frame {
+  animation: screen-enter-forward var(--dur-screen) var(--ease-tactical) both;
+}
+
+.screen-viewport[data-nav-dir='backward'] > .screen-frame {
+  animation: screen-enter-backward var(--dur-screen) var(--ease-tactical) both;
+}
+
+.screen-viewport[data-nav-dir='fade'] > .screen-frame {
+  animation: screen-enter-fade 240ms var(--ease-tactical) both;
+}
+
+/* Suppress full-screen entrance replay during in-screen re-renders */
+.screen-frame.is-settled,
+.screen-viewport[data-nav-dir] > .screen-frame.is-settled {
+  animation: none;
+}
+
+/* Inert Outgoing Screen Snapshot Layer (never intercepts pointer input) */
+.screen-transition-exit {
+  position: absolute;
+  inset: 16px 24px 18px;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+  user-select: none;
+  overflow: hidden;
+  will-change: transform, opacity;
+}
+
+.screen-viewport.is-battle-mode .screen-transition-exit {
+  inset: 0;
+}
+
+.screen-transition-exit .screen-frame {
+  animation: none !important;
+}
+
+.screen-transition-exit--forward {
+  animation: screen-exit-forward 200ms var(--ease-in-out) forwards;
+}
+
+.screen-transition-exit--backward {
+  animation: screen-exit-backward 200ms var(--ease-in-out) forwards;
+}
+
+.screen-transition-exit--fade {
+  animation: screen-exit-fade 190ms var(--ease-in-out) forwards;
+}
+
+@keyframes screen-enter-fade {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translate3d(0, 7px, 0);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes screen-enter-forward {
+  from {
+    opacity: 0;
+    transform: translate3d(16px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes screen-enter-backward {
+  from {
+    opacity: 0;
+    transform: translate3d(-16px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes screen-exit-fade {
+  from {
+    opacity: 0.92;
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(0, -5px, 0);
+  }
+}
+
+@keyframes screen-exit-forward {
+  from {
+    opacity: 0.92;
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(-14px, 0, 0);
+  }
+}
+
+@keyframes screen-exit-backward {
+  from {
+    opacity: 0.92;
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(14px, 0, 0);
+  }
+}
+
+/* Purposeful Sub-View Transitions (Tab Switches, Selected Detail Changes, Commit Pulses) */
+.motion-tab-enter {
+  animation: motion-tab-in var(--dur-select) var(--ease-tactical) both;
+}
+
+.motion-detail-enter {
+  animation: motion-detail-in 190ms var(--ease-tactical) both;
+}
+
+.motion-pulse-commit {
+  animation: motion-commit-pulse 320ms var(--ease-tactical);
+}
+
+@keyframes motion-tab-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 6px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes motion-detail-in {
+  from {
+    opacity: 0;
+    transform: translate3d(8px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes motion-commit-pulse {
+  0% {
+    filter: brightness(1);
+  }
+  40% {
+    filter: brightness(1.06) drop-shadow(0 0 8px rgba(212, 166, 58, 0.34));
+  }
+  100% {
+    filter: brightness(1);
   }
 }
 
@@ -401,7 +698,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
-  padding: 0 0 12px 2px;
+  padding: 0 0 11px 2px;
   border-bottom: 1px solid var(--border-subtle);
   flex-shrink: 0;
   position: relative;
@@ -444,7 +741,7 @@
   align-items: center;
   gap: 10px;
   font-family: var(--font-display);
-  font-size: clamp(1.22rem, 1.72vw, 1.54rem);
+  font-size: clamp(1.2rem, 1.65vw, 1.48rem);
   font-weight: 700;
   letter-spacing: 0.05em;
   color: var(--text-primary);
@@ -462,7 +759,7 @@
 }
 
 .screen-subtitle {
-  font-size: 0.84rem;
+  font-size: 0.83rem;
   color: var(--text-secondary);
   padding-left: 12px;
   border-left: 1px solid var(--border-subtle);
@@ -518,6 +815,10 @@
     min-height: calc(100vh - var(--topbar-height));
     overflow: visible;
     padding: 14px 16px 24px;
+  }
+
+  .screen-transition-exit {
+    inset: 14px 16px 24px;
   }
 
   .scroll-pane {

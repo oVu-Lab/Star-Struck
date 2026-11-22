@@ -285,6 +285,7 @@ export class Game {
   _bindGlobalChrome() {
     const brandBtn = document.getElementById('brand-home-btn');
     brandBtn?.addEventListener('click', () => {
+      if (this.screenManager?.getActiveScreenId() === 'home') return;
       this.audioManager?.playClick();
       this.screenManager.navigate('home');
     });
@@ -294,7 +295,7 @@ export class Game {
       const target = event.target.closest('[data-screen]');
       if (!target) return;
       const screenId = target.getAttribute('data-screen');
-      if (screenId) {
+      if (screenId && screenId !== this.screenManager?.getActiveScreenId()) {
         this.audioManager?.playClick();
         this.screenManager.navigate(screenId);
       }
@@ -342,26 +343,64 @@ export class Game {
 
     if (lv) lv.textContent = String(this.gameState.player.level);
     if (cr) {
-      cr.textContent = formatNumber(curCredits);
-      if (this._prevHeaderResources && curCredits > this._prevHeaderResources.credits) {
-        this._flashResource(cr.parentElement);
+      const prevCredits = this._prevHeaderResources?.credits ?? curCredits;
+      if (prevCredits !== curCredits) {
+        this._animateResourceValue('credits', cr, prevCredits, curCredits);
+        this._flashResource(cr.parentElement, curCredits > prevCredits ? 'gain' : 'spend');
+      } else {
+        cr.textContent = formatNumber(curCredits);
       }
     }
     if (as) {
-      as.textContent = formatNumber(curAstrite);
-      if (this._prevHeaderResources && curAstrite > this._prevHeaderResources.astrite) {
-        this._flashResource(as.parentElement);
+      const prevAstrite = this._prevHeaderResources?.astrite ?? curAstrite;
+      if (prevAstrite !== curAstrite) {
+        this._animateResourceValue('astrite', as, prevAstrite, curAstrite);
+        this._flashResource(as.parentElement, curAstrite > prevAstrite ? 'gain' : 'spend');
+      } else {
+        as.textContent = formatNumber(curAstrite);
       }
     }
     this._prevHeaderResources = { credits: curCredits, astrite: curAstrite };
   }
 
-  _flashResource(el) {
+  _animateResourceValue(key, el, fromVal, toVal) {
+    if (!this._resourceAnimFrames) this._resourceAnimFrames = new Map();
+    const prevRaf = this._resourceAnimFrames.get(key);
+    if (prevRaf) cancelAnimationFrame(prevRaf);
+
+    const reducedMotion =
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (reducedMotion || typeof requestAnimationFrame !== 'function') {
+      el.textContent = formatNumber(toVal);
+      return;
+    }
+
+    const duration = 260;
+    const start = performance.now();
+    const step = (now) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const val = Math.round(fromVal + (toVal - fromVal) * eased);
+      el.textContent = formatNumber(val);
+      if (t < 1) {
+        this._resourceAnimFrames.set(key, requestAnimationFrame(step));
+      } else {
+        this._resourceAnimFrames.delete(key);
+      }
+    };
+    this._resourceAnimFrames.set(key, requestAnimationFrame(step));
+  }
+
+  _flashResource(el, mode = 'gain') {
     if (!el) return;
-    el.classList.remove('is-gained');
+    const cls = mode === 'spend' ? 'is-spent' : 'is-gained';
+    el.classList.remove('is-gained', 'is-spent');
     void el.offsetWidth;
-    el.classList.add('is-gained');
-    setTimeout(() => el.classList.remove('is-gained'), 600);
+    el.classList.add(cls);
+    setTimeout(() => el.classList.remove(cls), 420);
   }
 
   notify(message, level = 'info') {
@@ -381,12 +420,73 @@ export class Game {
     }, 2900);
   }
 
+  _openModalShell(modalRoot, html) {
+    if (this._modalCloseTimer) {
+      clearTimeout(this._modalCloseTimer);
+      this._modalCloseTimer = null;
+    }
+    if (this._activeModalCleanup) {
+      this._activeModalCleanup();
+      this._activeModalCleanup = null;
+    }
+
+    modalRoot.classList.remove('is-closing');
+    modalRoot.hidden = false;
+    modalRoot.innerHTML = html;
+
+    let closed = false;
+    const onKeyDown = (ev) => {
+      if (ev.key === 'Escape') close();
+    };
+    const onBackdropClick = (ev) => {
+      if (ev.target === modalRoot) close();
+    };
+
+    const cleanupListeners = () => {
+      window.removeEventListener('keydown', onKeyDown);
+      modalRoot.removeEventListener('click', onBackdropClick);
+    };
+
+    const close = ({ immediate = false } = {}) => {
+      if (closed) return;
+      closed = true;
+      cleanupListeners();
+      this._activeModalCleanup = null;
+
+      const reducedMotion =
+        typeof window !== 'undefined' &&
+        typeof window.matchMedia === 'function' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      if (immediate || reducedMotion) {
+        modalRoot.classList.remove('is-closing');
+        modalRoot.hidden = true;
+        modalRoot.innerHTML = '';
+        return;
+      }
+
+      modalRoot.classList.add('is-closing');
+      this._modalCloseTimer = setTimeout(() => {
+        this._modalCloseTimer = null;
+        modalRoot.classList.remove('is-closing');
+        modalRoot.hidden = true;
+        modalRoot.innerHTML = '';
+      }, 165);
+    };
+
+    this._activeModalCleanup = cleanupListeners;
+    window.addEventListener('keydown', onKeyDown);
+    modalRoot.addEventListener('click', onBackdropClick);
+    return close;
+  }
+
   confirmDialog({ title, message, confirmLabel = 'Confirm', onConfirm }) {
     const modalRoot = document.getElementById('modal-root');
     if (!modalRoot) return;
 
-    modalRoot.hidden = false;
-    modalRoot.innerHTML = `
+    const close = this._openModalShell(
+      modalRoot,
+      `
       <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="modal-title">
         <h2 id="modal-title" class="modal-dialog__title">${title}</h2>
         <p class="modal-dialog__message">${message}</p>
@@ -395,19 +495,9 @@ export class Game {
           <button type="button" id="modal-confirm" class="btn btn-danger btn-sm">${confirmLabel}</button>
         </div>
       </div>
-    `;
+    `,
+    );
 
-    const onKeyDown = (ev) => {
-      if (ev.key === 'Escape') close();
-    };
-
-    const close = () => {
-      window.removeEventListener('keydown', onKeyDown);
-      modalRoot.hidden = true;
-      modalRoot.innerHTML = '';
-    };
-
-    window.addEventListener('keydown', onKeyDown);
     modalRoot.querySelector('#modal-cancel')?.addEventListener('click', () => {
       this.audioManager?.playClick();
       close();
@@ -417,21 +507,15 @@ export class Game {
       close();
       if (typeof onConfirm === 'function') onConfirm();
     });
-    modalRoot.addEventListener(
-      'click',
-      (ev) => {
-        if (ev.target === modalRoot) close();
-      },
-      { once: true },
-    );
   }
 
   openGuide() {
     const modalRoot = document.getElementById('modal-root');
     if (!modalRoot) return;
 
-    modalRoot.hidden = false;
-    modalRoot.innerHTML = `
+    const close = this._openModalShell(
+      modalRoot,
+      `
       <div class="modal-dialog guide-modal" role="dialog" aria-modal="true" aria-labelledby="guide-modal-title">
         <div class="guide-modal__head">
           <div>
@@ -484,22 +568,12 @@ export class Game {
           <button type="button" id="guide-close-btn" class="btn btn-primary btn-sm">Got It</button>
         </div>
       </div>
-    `;
+    `,
+    );
 
-    const onKeyDown = (ev) => {
-      if (ev.key === 'Escape') close();
-    };
-
-    const close = () => {
-      window.removeEventListener('keydown', onKeyDown);
-      modalRoot.hidden = true;
-      modalRoot.innerHTML = '';
-    };
-
-    window.addEventListener('keydown', onKeyDown);
     modalRoot.querySelector('#btn-guide-replay-tutorial')?.addEventListener('click', () => {
       this.audioManager?.playClick();
-      close();
+      close({ immediate: true });
       this.screenManager?.navigate('battle', { tutorial: true, replay: true });
     });
     modalRoot.querySelector('#guide-close-x')?.addEventListener('click', () => {
@@ -510,12 +584,5 @@ export class Game {
       this.audioManager?.playClick();
       close();
     });
-    modalRoot.addEventListener(
-      'click',
-      (ev) => {
-        if (ev.target === modalRoot) close();
-      },
-      { once: true },
-    );
   }
 }

@@ -114,21 +114,64 @@ export class SummonScreen {
     this._ctx = ctx;
     this._unsubs = [];
     this._overlayMode = null; // null | 'history' | 'results'
+    this._overlayCloseTimer = null;
+    this._hasRendered = false;
+    this._lastBannerId = null;
     this._astraCards = new AstraCardRegistry({
       maxInstances: 6,
       CardClass: ctx?.AstraCardClass,
     });
     this._onKeyDown = (event) => {
       if (event.key === 'Escape' && this._overlayMode) {
-        this._overlayMode = null;
-        this.render();
+        this._closeOverlay();
       }
     };
   }
 
+  _clearOverlayTimer() {
+    if (this._overlayCloseTimer) {
+      clearTimeout(this._overlayCloseTimer);
+      this._overlayCloseTimer = null;
+    }
+  }
+
+  _closeOverlay({ immediate = false } = {}) {
+    this._clearOverlayTimer();
+    const overlay = this._container?.querySelector('.summon-overlay');
+    const reducedMotion =
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const canAnimate =
+      !immediate &&
+      Boolean(
+        overlay &&
+          overlay.isConnected &&
+          typeof overlay.getBoundingClientRect === 'function' &&
+          overlay.classList &&
+          !reducedMotion,
+      );
+
+    if (canAnimate) {
+      overlay.classList.add('is-closing');
+      this._overlayCloseTimer = setTimeout(() => {
+        this._overlayCloseTimer = null;
+        this._overlayMode = null;
+        this.render();
+      }, 155);
+      return;
+    }
+
+    this._overlayMode = null;
+    this.render();
+  }
+
   mount(container) {
     this._container = container;
+    this._clearOverlayTimer();
     this._overlayMode = null;
+    this._hasRendered = false;
+    this._lastBannerId = null;
     this.render();
     this._unsubs.push(
       this._ctx.eventBus.on('state:changed', () => this.render()),
@@ -139,6 +182,7 @@ export class SummonScreen {
   }
 
   unmount() {
+    this._clearOverlayTimer();
     this._astraCards.destroyAll();
     for (const unsub of this._unsubs) unsub();
     this._unsubs = [];
@@ -146,6 +190,8 @@ export class SummonScreen {
       window.removeEventListener('keydown', this._onKeyDown);
     }
     this._overlayMode = null;
+    this._hasRendered = false;
+    this._lastBannerId = null;
     this._container = null;
   }
 
@@ -202,8 +248,13 @@ export class SummonScreen {
           ? `Need ${formatNumber(tenCost - balance)} more ${currencyLabel} for 10x Pull`
           : '';
 
+    const settledClass = this._hasRendered ? ' is-settled' : '';
+    const bannerChanged =
+      this._hasRendered &&
+      Boolean(banner?.id && this._lastBannerId && banner.id !== this._lastBannerId);
+
     this._container.innerHTML = `
-      <section class="screen-frame summon-screen" aria-label="Summon and Recruitment">
+      <section class="screen-frame summon-screen${settledClass}" aria-label="Summon and Recruitment">
         <div class="screen-bar">
           <div class="screen-bar__lead">
             <h1 class="screen-title">Summon</h1>
@@ -265,12 +316,12 @@ export class SummonScreen {
 
           <!-- RIGHT: Dominant Main Banner Presentation Stage -->
           <div class="summon-stage${isExpired ? ' is-expired' : ''}" aria-label="Banner Presentation">
-            <div class="summon-stage__media">
+            <div class="summon-stage__media${bannerChanged ? ' is-switching' : ''}">
               <img id="banner-featured-img" alt="${banner?.name || 'Featured Banner'}" />
               <div class="summon-stage__scrim"></div>
             </div>
 
-            <div class="summon-stage__content">
+            <div class="summon-stage__content${bannerChanged ? ' motion-detail-enter' : ''}">
               <div class="summon-stage__top">
                 <div class="summon-stage__eyebrow">
                   <span class="summon-stage__kicker">
@@ -469,6 +520,7 @@ export class SummonScreen {
 
     // Pulling History button
     this._container.querySelector('#btn-summon-history')?.addEventListener('click', () => {
+      this._clearOverlayTimer();
       audioManager.playClick();
       gameState.setUI({ summonSideTab: 'history' });
       this._overlayMode = 'history';
@@ -482,6 +534,7 @@ export class SummonScreen {
         this._ctx.notify('This banner has expired.', 'warn');
         return;
       }
+      this._clearOverlayTimer();
       const res = gachaSystem.pull(count);
       if (!res.ok) {
         audioManager.playInvalid();
@@ -511,8 +564,7 @@ export class SummonScreen {
     for (const closeBtn of this._container.querySelectorAll('[data-close-overlay]')) {
       closeBtn.addEventListener('click', () => {
         audioManager.playClick();
-        this._overlayMode = null;
-        this.render();
+        this._closeOverlay();
       });
     }
 
@@ -521,13 +573,13 @@ export class SummonScreen {
       overlayBackdrop.addEventListener('click', (event) => {
         if (event.target === overlayBackdrop) {
           audioManager.playClick();
-          this._overlayMode = null;
-          this.render();
+          this._closeOverlay();
         }
       });
     }
 
     this._container.querySelector('[data-open-history]')?.addEventListener('click', () => {
+      this._clearOverlayTimer();
       audioManager.playClick();
       gameState.setUI({ summonSideTab: 'history' });
       this._overlayMode = 'history';
@@ -539,6 +591,7 @@ export class SummonScreen {
       const inspectType = cardEl.getAttribute('data-inspect-type');
       const inspectId = cardEl.getAttribute('data-inspect-id');
       if (!inspectId) return;
+      this._clearOverlayTimer();
       audioManager.playClick();
       this._overlayMode = null;
       this._astraCards.destroyAll();
@@ -569,6 +622,9 @@ export class SummonScreen {
         });
       }
     }
+
+    this._lastBannerId = banner?.id || null;
+    this._hasRendered = true;
   }
 
   _renderOverlay({ banner, isTactical, pity, results, dataRegistry }) {

@@ -189,11 +189,11 @@
     0 var(--btn-cut)
   );
   transition:
-    transform var(--duration-fast) var(--ease-tactical),
-    background-color var(--duration-fast) var(--ease-tactical),
-    color var(--duration-fast) var(--ease-tactical),
-    filter var(--duration-fast) var(--ease-tactical),
-    opacity var(--duration-fast) var(--ease-tactical);
+    transform var(--dur-press) var(--ease-tactical),
+    background-color var(--dur-hover) var(--ease-tactical),
+    color var(--dur-hover) var(--ease-tactical),
+    filter var(--dur-hover) var(--ease-tactical),
+    opacity var(--dur-hover) var(--ease-tactical);
 }
 
 .btn::before {
@@ -209,22 +209,28 @@
     0 100%,
     0 var(--btn-cut-in)
   );
-  transition: background var(--duration-fast) var(--ease-tactical), opacity var(--duration-fast) var(--ease-tactical);
+  transition: background var(--dur-hover) var(--ease-tactical), opacity var(--dur-hover) var(--ease-tactical);
 }
 
 .btn:hover:not(:disabled) {
-  transform: translateY(-1px);
+  transform: translateY(-1.5px);
 }
 
 .btn:active:not(:disabled) {
-  transform: translateY(1px) scale(0.985);
+  transform: translateY(1px) scale(0.982);
+}
+
+.btn:disabled {
+  opacity: 0.48;
+  filter: saturate(0.6);
+  cursor: not-allowed;
 }
 
 /* Primary Action — Deep Charcoal-Espresso Confirm Plate with Yellow-Gold Rim & White Label */
 .btn-primary {
   background: linear-gradient(135deg, #e5c368 0%, #ba8d32 55%, #8f6517 100%);
   color: var(--text-on-dark);
-  filter: drop-shadow(0 4px 10px rgba(42, 34, 24, 0.18));
+  filter: drop-shadow(0 4px 10px rgba(42, 34, 24, 0.16));
 }
 
 .btn-primary::before {
@@ -243,16 +249,22 @@
   background: #f0cf78;
   opacity: 0.92;
   pointer-events: none;
+  transition: transform var(--dur-select) var(--ease-tactical), background-color var(--dur-hover) var(--ease-tactical);
 }
 
 .btn-primary:hover:not(:disabled) {
   background: linear-gradient(135deg, #f5da8c 0%, #d4a63a 55%, #a17424 100%);
   color: #ffffff;
-  filter: drop-shadow(0 6px 14px rgba(166, 124, 46, 0.26));
+  filter: drop-shadow(0 6px 14px rgba(166, 124, 46, 0.28));
 }
 
 .btn-primary:hover:not(:disabled)::before {
-  background: linear-gradient(180deg, #494139 0%, #312a25 100%);
+  background: linear-gradient(180deg, #4b423a 0%, #312a24 100%);
+}
+
+.btn-primary:hover:not(:disabled)::after {
+  transform: translateY(-50%) rotate(135deg) scale(1.1);
+  background: #fff1c2;
 }
 
 /* Prestige / Special Action (Summon x10, Upgrade, Next Stage) — Sunlit Yellow-Gold Plate with Espresso Ink */
@@ -278,15 +290,21 @@
   background: #6b490e;
   opacity: 0.82;
   pointer-events: none;
+  transition: transform var(--dur-select) var(--ease-tactical), opacity var(--dur-hover) var(--ease-tactical);
 }
 
 .btn-gold:hover:not(:disabled) {
   background: linear-gradient(135deg, #deb14d 0%, #b3832a 55%, #8c6318 100%);
-  filter: drop-shadow(0 6px 16px rgba(166, 124, 46, 0.32));
+  filter: drop-shadow(0 7px 16px rgba(166, 124, 46, 0.34));
 }
 
 .btn-gold:hover:not(:disabled)::before {
   background: linear-gradient(180deg, #fff6d9 0%, #f0d27f 100%);
+}
+
+.btn-gold:hover:not(:disabled)::after {
+  transform: translateY(-50%) rotate(135deg) scale(1.1);
+  opacity: 1;
 }
 
 /* Secondary Action — Crisp Warm White Plate with Antique-Gold Rim & Dark Ink */
@@ -417,14 +435,19 @@
   flex-shrink: 0;
   clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
   transition:
-    background-color var(--duration-fast) var(--ease-tactical),
-    color var(--duration-fast) var(--ease-tactical),
-    box-shadow var(--duration-fast) var(--ease-tactical);
+    background-color var(--dur-hover) var(--ease-tactical),
+    color var(--dur-hover) var(--ease-tactical),
+    box-shadow var(--dur-select) var(--ease-tactical),
+    transform var(--dur-press) var(--ease-tactical);
 }
 
-.segmented-btn:hover {
+.segmented-btn:hover:not(.is-active) {
   color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.65);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.segmented-btn:active {
+  transform: scale(0.975);
 }
 
 .segmented-btn.is-active {
@@ -456,7 +479,7 @@
 .progress-fill {
   height: 100%;
   background: linear-gradient(90deg, #1b5f8f 0%, #3d90c7 100%);
-  transition: width var(--duration-base) var(--ease-tactical);
+  transition: width 360ms var(--ease-tactical);
 }
 
 .progress-fill--gold {
@@ -507,8 +530,8 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1.72fr) minmax(316px, 0.88fr);
-  gap: 20px;
+  grid-template-columns: minmax(0, 1.66fr) minmax(328px, 0.92fr);
+  gap: 18px;
   align-items: stretch;
 }
 
@@ -517,7 +540,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   grid-template-rows: repeat(2, minmax(0, 1fr));
-  gap: 18px;
+  gap: 16px;
   min-height: 0;
 }
 
@@ -546,15 +569,17 @@
     0 calc(100% - 14px)
   );
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.96);
+  filter: drop-shadow(0 3px 8px rgba(46, 36, 24, 0.05));
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   gap: 12px;
   cursor: pointer;
   transition:
-    border-color var(--duration-fast) var(--ease-tactical),
-    background var(--duration-fast) var(--ease-tactical),
-    transform var(--duration-fast) var(--ease-tactical);
+    border-color var(--dur-hover) var(--ease-tactical),
+    background var(--dur-hover) var(--ease-tactical),
+    transform var(--dur-hover) var(--ease-tactical),
+    filter var(--dur-hover) var(--ease-tactical);
 }
 
 .home-nav-card::before {
@@ -565,7 +590,7 @@
   width: 42%;
   height: 1.5px;
   background: var(--panel-corner-accent);
-  transition: width var(--duration-base) var(--ease-tactical), opacity var(--duration-base) var(--ease-tactical);
+  transition: width var(--dur-select) var(--ease-tactical), opacity var(--dur-select) var(--ease-tactical);
   z-index: 2;
 }
 
@@ -583,7 +608,7 @@
     0 calc(100% - 10px)
   );
   pointer-events: none;
-  transition: border-color var(--duration-fast) var(--ease-tactical);
+  transition: border-color var(--dur-hover) var(--ease-tactical);
 }
 
 .home-nav-card--missions::before {
@@ -609,26 +634,29 @@
   background:
     linear-gradient(-135deg, var(--card-border) 0 13.5px, transparent 13.8px) top right / 24px 24px no-repeat,
     linear-gradient(45deg, var(--card-border) 0 10.5px, transparent 10.8px) bottom left / 20px 20px no-repeat,
-    radial-gradient(ellipse 80% 70% at 50% 35%, rgba(212, 166, 58, 0.12), transparent 68%),
+    radial-gradient(ellipse 80% 70% at 50% 35%, rgba(212, 166, 58, 0.14), transparent 68%),
     linear-gradient(168deg, #ffffff 0%, #fcf8ef 60%, #f5eddc 100%);
   transform: translateY(-3px);
+  filter: drop-shadow(0 10px 20px rgba(46, 36, 24, 0.11));
 }
 
 .home-nav-card:hover::before {
-  width: 66%;
+  width: 68%;
   background: var(--panel-corner-accent-strong);
 }
 
 .home-nav-card:hover::after {
-  border-color: rgba(182, 136, 42, 0.34);
+  border-color: rgba(182, 136, 42, 0.36);
 }
 
 .home-nav-card--gold:hover {
   --card-border: var(--accent-gold-deep);
+  filter: drop-shadow(0 12px 22px rgba(154, 114, 38, 0.16));
 }
 
 .home-nav-card:active {
-  transform: translateY(0) scale(0.99);
+  transform: translateY(0) scale(0.992);
+  filter: drop-shadow(0 3px 8px rgba(46, 36, 24, 0.08));
 }
 
 .home-nav-card:focus-visible {
@@ -718,11 +746,11 @@
   height: auto;
   object-fit: contain;
   filter: drop-shadow(0 8px 16px rgba(42, 34, 24, 0.18));
-  transition: transform 260ms var(--ease-tactical);
+  transition: transform 240ms var(--ease-tactical);
 }
 
 .home-nav-card:hover .home-nav-card__art img {
-  transform: scale(1.06);
+  transform: scale(1.045);
 }
 
 .home-nav-card__art--gold {
@@ -906,7 +934,7 @@
   content: '';
   position: absolute;
   inset: 7px;
-  border: 1px solid rgba(235, 208, 140, 0.34);
+  border: 1px solid rgba(235, 208, 140, 0.32);
   clip-path: polygon(
     0 0,
     calc(100% - 15px) 0,
@@ -917,6 +945,11 @@
   );
   pointer-events: none;
   z-index: 3;
+  transition: border-color var(--dur-select) var(--ease-tactical);
+}
+
+.home-commander-stage:hover::before {
+  border-color: rgba(242, 214, 140, 0.56);
 }
 
 .home-commander-stage__art {
@@ -926,7 +959,7 @@
   height: 100%;
   object-fit: cover;
   object-position: center 14%;
-  transition: transform 360ms var(--ease-tactical);
+  transition: transform 380ms var(--ease-tactical);
 }
 
 .home-commander-stage:hover .home-commander-stage__art {
@@ -1035,8 +1068,8 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 276px minmax(280px, 0.92fr) minmax(348px, 1.05fr);
-  gap: 16px;
+  grid-template-columns: 272px minmax(300px, 0.98fr) minmax(356px, 1.02fr);
+  gap: 18px;
   align-items: stretch;
 }
 
@@ -1063,10 +1096,11 @@
   border: 1px solid rgba(138, 114, 78, 0.26);
   clip-path: polygon(0 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%);
   transition:
-    border-color var(--duration-fast) var(--ease-tactical),
-    background-color var(--duration-fast) var(--ease-tactical),
-    transform var(--duration-fast) var(--ease-tactical),
-    box-shadow var(--duration-fast) var(--ease-tactical);
+    border-color var(--dur-hover) var(--ease-tactical),
+    background-color var(--dur-hover) var(--ease-tactical),
+    transform var(--dur-hover) var(--ease-tactical),
+    box-shadow var(--dur-select) var(--ease-tactical),
+    filter var(--dur-hover) var(--ease-tactical);
 }
 
 .hero-rail-item::before {
@@ -1077,13 +1111,18 @@
   bottom: 0;
   width: 3px;
   background: transparent;
-  transition: background-color var(--duration-fast) var(--ease-tactical);
+  transition: background-color var(--dur-select) var(--ease-tactical);
 }
 
 .hero-rail-item:hover {
   border-color: var(--hero-accent, var(--border-strong));
   background: #ffffff;
   transform: translateX(3px);
+  filter: drop-shadow(0 4px 10px rgba(46, 36, 24, 0.08));
+}
+
+.hero-rail-item:active {
+  transform: translateX(1px) scale(0.992);
 }
 
 .hero-rail-item.is-selected {
@@ -1093,6 +1132,7 @@
     radial-gradient(ellipse 85% 100% at 0% 50%, var(--hero-glow), transparent 72%),
     #ffffff;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.96);
+  filter: drop-shadow(0 4px 12px rgba(154, 114, 38, 0.12));
 }
 
 .hero-rail-item.is-selected::before {
@@ -1129,6 +1169,11 @@
   height: 100%;
   object-fit: cover;
   object-position: center 18%;
+  transition: transform 220ms var(--ease-tactical);
+}
+
+.hero-rail-item:hover .hero-rail-item__thumb img {
+  transform: scale(1.06);
 }
 
 .hero-rail-item__info {
@@ -1226,50 +1271,51 @@
 
 /* Right Tactical Dossier */
 .hero-dossier {
-  padding: 20px 22px;
+  padding: 20px 24px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 13px;
   min-height: 0;
   overflow-y: auto;
 }
 
 .hero-dossier__name {
   font-family: var(--font-display);
-  font-size: 1.5rem;
+  font-size: 1.54rem;
   font-weight: 700;
   letter-spacing: 0.03em;
+  line-height: 1.16;
   color: var(--text-primary);
 }
 
 .hero-dossier__bio {
-  font-size: 0.87rem;
+  font-size: 0.86rem;
   color: var(--text-secondary);
   line-height: 1.56;
   padding-bottom: 10px;
-  border-bottom: 1px solid rgba(138, 114, 78, 0.18);
+  border-bottom: 1px solid rgba(138, 114, 78, 0.16);
 }
 
 .dossier-skill {
   position: relative;
-  padding: 12px 15px 13px 16px;
+  padding: 11px 15px 12px 16px;
   background:
-    linear-gradient(-135deg, rgba(138, 114, 78, 0.24) 0 7px, transparent 7.3px) top right / 14px 14px no-repeat,
-    linear-gradient(180deg, #faf6ee 0%, #f1eadc 100%);
-  border: 1px solid rgba(138, 114, 78, 0.24);
+    linear-gradient(-135deg, rgba(138, 114, 78, 0.2) 0 7px, transparent 7.3px) top right / 14px 14px no-repeat,
+    linear-gradient(180deg, #fcfaf4 0%, #f4ede0 100%);
+  border: 1px solid rgba(138, 114, 78, 0.2);
   clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
-  box-shadow: inset 3px 0 0 rgba(162, 126, 66, 0.45);
+  box-shadow: inset 3px 0 0 rgba(162, 126, 66, 0.42);
   display: flex;
   flex-direction: column;
   gap: 5px;
 }
 
 .dossier-skill--ultimate {
-  border-color: rgba(166, 124, 46, 0.54);
+  border-color: rgba(166, 124, 46, 0.46);
   background:
-    linear-gradient(-135deg, rgba(166, 124, 46, 0.5) 0 7px, transparent 7.3px) top right / 14px 14px no-repeat,
+    linear-gradient(-135deg, rgba(166, 124, 46, 0.44) 0 7px, transparent 7.3px) top right / 14px 14px no-repeat,
     radial-gradient(ellipse 90% 80% at 100% 0%, var(--hero-glow), transparent 65%),
-    linear-gradient(180deg, #fffdf8 0%, #f7eedb 100%);
+    linear-gradient(180deg, #fffdf8 0%, #f8efde 100%);
   box-shadow: inset 3.5px 0 0 var(--accent-yellow-bar);
 }
 
@@ -1279,7 +1325,7 @@
   justify-content: space-between;
   gap: 8px;
   padding-bottom: 5px;
-  border-bottom: 1px solid rgba(138, 114, 78, 0.14);
+  border-bottom: 1px solid rgba(138, 114, 78, 0.12);
 }
 
 .dossier-skill__name {
@@ -1568,10 +1614,11 @@
   border: 1px solid rgba(138, 114, 78, 0.28);
   clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
   transition:
-    border-color var(--duration-fast) var(--ease-tactical),
-    background-color var(--duration-fast) var(--ease-tactical),
-    box-shadow var(--duration-fast) var(--ease-tactical),
-    transform var(--duration-fast) var(--ease-tactical);
+    border-color var(--dur-hover) var(--ease-tactical),
+    background-color var(--dur-hover) var(--ease-tactical),
+    box-shadow var(--dur-select) var(--ease-tactical),
+    transform var(--dur-hover) var(--ease-tactical),
+    filter var(--dur-hover) var(--ease-tactical);
 }
 
 .squad-slot::before {
@@ -1582,7 +1629,7 @@
   bottom: 8px;
   width: 3px;
   background: rgba(162, 126, 66, 0.26);
-  transition: background-color var(--duration-fast);
+  transition: background-color var(--dur-select) var(--ease-tactical);
 }
 
 .squad-slot:hover {
@@ -1590,7 +1637,12 @@
   background:
     linear-gradient(-135deg, rgba(162, 126, 66, 0.5) 0 7.5px, transparent 7.8px) top right / 14px 14px no-repeat,
     #ffffff;
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  filter: drop-shadow(0 6px 14px rgba(46, 36, 24, 0.09));
+}
+
+.squad-slot:active {
+  transform: translateY(0) scale(0.992);
 }
 
 .squad-slot.is-selected {
@@ -1599,6 +1651,7 @@
     linear-gradient(-135deg, var(--accent-gold) 0 8px, transparent 8.3px) top right / 15px 15px no-repeat,
     linear-gradient(180deg, #ffffff 0%, #f9f1dc 100%);
   box-shadow: var(--fp-select-ring);
+  filter: drop-shadow(0 5px 12px rgba(154, 114, 38, 0.14));
 }
 
 .squad-slot.is-selected::before {
@@ -1617,6 +1670,12 @@
   justify-content: center;
   padding: 4px;
   flex-shrink: 0;
+  transition: border-color var(--dur-hover) var(--ease-tactical);
+}
+
+.squad-slot:hover .squad-slot__art,
+.squad-slot.is-selected .squad-slot__art {
+  border-color: rgba(182, 136, 42, 0.48);
 }
 
 .squad-slot__art img {
@@ -1624,6 +1683,11 @@
   width: auto;
   object-fit: contain;
   filter: drop-shadow(0 3px 5px rgba(42, 34, 24, 0.2));
+  transition: transform 200ms var(--ease-tactical);
+}
+
+.squad-slot:hover .squad-slot__art img {
+  transform: scale(1.06);
 }
 
 .squad-slot__index {
@@ -1641,6 +1705,7 @@
   font-weight: 700;
   color: var(--text-on-dark);
   background: var(--surface-dark-2);
+  transition: background-color var(--dur-select) var(--ease-tactical), color var(--dur-select) var(--ease-tactical);
 }
 
 .squad-slot.is-selected .squad-slot__index {
@@ -1733,9 +1798,11 @@
   color: var(--text-muted);
   opacity: 0.78;
   transition:
-    border-color var(--duration-fast) var(--ease-tactical),
-    color var(--duration-fast) var(--ease-tactical),
-    opacity var(--duration-fast) var(--ease-tactical);
+    border-color var(--dur-hover) var(--ease-tactical),
+    color var(--dur-hover) var(--ease-tactical),
+    background-color var(--dur-hover) var(--ease-tactical),
+    transform var(--dur-press) var(--ease-tactical),
+    opacity var(--dur-hover) var(--ease-tactical);
 }
 
 .squad-slot:hover .squad-swap-btn,
@@ -1748,6 +1815,10 @@
   border-color: var(--accent-gold);
   color: var(--accent-gold-deep);
   background: #ffffff;
+}
+
+.squad-swap-btn:active {
+  transform: scale(0.94);
 }
 
 /* Commander switcher — compact vertical sidebar list directly below Commander display */
@@ -1787,15 +1858,22 @@
   color: var(--text-secondary);
   text-align: left;
   transition:
-    border-color var(--duration-fast) var(--ease-tactical),
-    background-color var(--duration-fast) var(--ease-tactical),
-    color var(--duration-fast) var(--ease-tactical);
+    border-color var(--dur-hover) var(--ease-tactical),
+    background-color var(--dur-hover) var(--ease-tactical),
+    color var(--dur-hover) var(--ease-tactical),
+    transform var(--dur-hover) var(--ease-tactical),
+    box-shadow var(--dur-select) var(--ease-tactical);
 }
 
 .commander-option:hover {
   border-color: var(--border-subtle);
   background: #ffffff;
   color: var(--text-primary);
+  transform: translateX(2px);
+}
+
+.commander-option:active {
+  transform: translateX(1px) scale(0.985);
 }
 
 .commander-option.is-active {
@@ -1814,12 +1892,16 @@
   transform: rotate(45deg);
   flex-shrink: 0;
   background: var(--border-strong);
-  transition: background-color var(--duration-fast), transform var(--duration-fast);
+  transition: background-color var(--dur-select) var(--ease-tactical), transform var(--dur-select) var(--ease-tactical);
+}
+
+.commander-option:hover .commander-option__indicator {
+  background: var(--accent-gold);
 }
 
 .commander-option.is-active .commander-option__indicator {
   background: var(--accent-yellow-bar);
-  transform: rotate(45deg) scale(1.15);
+  transform: rotate(135deg) scale(1.15);
 }
 
 .commander-option__name {
@@ -1860,9 +1942,10 @@
   flex-direction: column;
   gap: 3px;
   transition:
-    border-color var(--duration-fast) var(--ease-tactical),
-    background-color var(--duration-fast) var(--ease-tactical),
-    transform var(--duration-fast) var(--ease-tactical);
+    border-color var(--dur-hover) var(--ease-tactical),
+    background-color var(--dur-hover) var(--ease-tactical),
+    transform var(--dur-hover) var(--ease-tactical),
+    filter var(--dur-hover) var(--ease-tactical);
 }
 
 .unit-tile--sr { border-top: 2.5px solid var(--rarity-sr); }
@@ -1873,6 +1956,11 @@
   border-color: var(--border-strong);
   background: #ffffff;
   transform: translateY(-2px);
+  filter: drop-shadow(0 6px 12px rgba(46, 36, 24, 0.09));
+}
+
+.unit-tile:active {
+  transform: translateY(0) scale(0.985);
 }
 
 .unit-tile.is-selected {
@@ -1881,11 +1969,17 @@
     linear-gradient(-135deg, var(--accent-gold) 0 7.5px, transparent 7.8px) top right / 14px 14px no-repeat,
     linear-gradient(180deg, #ffffff 0%, #f9f0d8 100%);
   box-shadow: var(--fp-select-ring);
+  filter: drop-shadow(0 4px 10px rgba(154, 114, 38, 0.14));
 }
 
 .unit-tile.is-locked {
   opacity: 0.56;
   filter: saturate(0.45);
+}
+
+.unit-tile.is-locked:hover {
+  transform: translateY(-1px);
+  filter: saturate(0.65);
 }
 
 .unit-tile__top {
@@ -1928,6 +2022,11 @@
   max-height: 44px;
   width: auto;
   filter: drop-shadow(0 3px 5px rgba(42, 34, 24, 0.22));
+  transition: transform 200ms var(--ease-tactical);
+}
+
+.unit-tile:hover .unit-tile__art img {
+  transform: scale(1.07);
 }
 
 .unit-tile__name {
@@ -2093,11 +2192,12 @@
   clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
   box-shadow: inset 3.5px 0 0 var(--row-accent);
   transition:
-    border-color var(--duration-fast) var(--ease-tactical),
-    background-color var(--duration-fast) var(--ease-tactical),
-    box-shadow var(--duration-fast) var(--ease-tactical),
-    transform var(--duration-fast) var(--ease-tactical),
-    opacity var(--duration-fast) var(--ease-tactical);
+    border-color var(--dur-hover) var(--ease-tactical),
+    background-color var(--dur-hover) var(--ease-tactical),
+    box-shadow var(--dur-select) var(--ease-tactical),
+    transform var(--dur-hover) var(--ease-tactical),
+    filter var(--dur-hover) var(--ease-tactical),
+    opacity var(--dur-hover) var(--ease-tactical);
 }
 
 .deck-card-row--unit { --row-accent: var(--cat-unit); }
@@ -2110,7 +2210,8 @@
   background:
     linear-gradient(-135deg, rgba(162, 126, 66, 0.45) 0 7px, transparent 7.3px) top right / 14px 14px no-repeat,
     #ffffff;
-  transform: translateY(-1px);
+  transform: translateY(-1.5px);
+  filter: drop-shadow(0 5px 11px rgba(46, 36, 24, 0.08));
 }
 
 .deck-card-row.is-in-deck {
@@ -2122,11 +2223,12 @@
 }
 
 .deck-card-row.is-unavailable {
-  opacity: 0.58;
+  opacity: 0.54;
 }
 
 .deck-card-row.is-unavailable:hover {
   transform: none;
+  filter: none;
 }
 
 .deck-card-row__icon {
@@ -2145,6 +2247,11 @@
 .deck-card-row__icon img {
   max-height: 28px;
   width: auto;
+  transition: transform 200ms var(--ease-tactical);
+}
+
+.deck-card-row:hover:not(.is-unavailable) .deck-card-row__icon img {
+  transform: scale(1.08);
 }
 
 .deck-card-row__body {
@@ -2307,9 +2414,10 @@
   box-shadow: inset 3.5px 0 0 var(--row-accent);
   text-align: left;
   transition:
-    border-color var(--duration-fast) var(--ease-tactical),
-    background-color var(--duration-fast) var(--ease-tactical),
-    transform var(--duration-fast) var(--ease-tactical);
+    border-color var(--dur-hover) var(--ease-tactical),
+    background-color var(--dur-hover) var(--ease-tactical),
+    transform var(--dur-hover) var(--ease-tactical),
+    filter var(--dur-hover) var(--ease-tactical);
 }
 
 .deck-slot--unit { --row-accent: var(--cat-unit); }
@@ -2318,9 +2426,16 @@
 .deck-slot--support { --row-accent: var(--cat-support); }
 
 button.deck-slot:hover {
-  border-color: rgba(184, 50, 62, 0.56);
-  background: #ffffff;
-  transform: translateY(-1px);
+  border-color: rgba(184, 50, 62, 0.58);
+  background:
+    linear-gradient(-135deg, rgba(184, 50, 62, 0.45) 0 6.5px, transparent 6.8px) top right / 13px 13px no-repeat,
+    linear-gradient(180deg, #ffffff 0%, #fcf4f4 100%);
+  transform: translateY(-1.5px);
+  filter: drop-shadow(0 4px 10px rgba(184, 50, 62, 0.1));
+}
+
+button.deck-slot:active {
+  transform: translateY(0) scale(0.985);
 }
 
 .deck-slot__icon {
@@ -2573,15 +2688,21 @@ button.deck-slot:focus-visible .deck-slot__remove {
   flex-direction: column;
   gap: 5px;
   transition:
-    border-color var(--duration-fast) var(--ease-tactical),
-    background-color var(--duration-fast) var(--ease-tactical),
-    transform var(--duration-fast) var(--ease-tactical);
+    border-color var(--dur-hover) var(--ease-tactical),
+    background-color var(--dur-hover) var(--ease-tactical),
+    transform var(--dur-hover) var(--ease-tactical),
+    filter var(--dur-hover) var(--ease-tactical);
 }
 
 .stage-card:hover:not(:disabled) {
   border-color: var(--accent-gold);
   background: #ffffff;
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  filter: drop-shadow(0 6px 12px rgba(46, 36, 24, 0.09));
+}
+
+.stage-card:active:not(:disabled) {
+  transform: translateY(0) scale(0.99);
 }
 
 .stage-card.is-selected {
@@ -2591,6 +2712,7 @@ button.deck-slot:focus-visible .deck-slot__remove {
     radial-gradient(ellipse 80% 70% at 100% 0%, rgba(212, 166, 58, 0.16), transparent 65%),
     #ffffff;
   box-shadow: inset 3px 0 0 var(--accent-yellow-bar);
+  filter: drop-shadow(0 4px 10px rgba(154, 114, 38, 0.14));
 }
 
 .stage-card.is-locked {
@@ -2667,9 +2789,10 @@ button.deck-slot:focus-visible .deck-slot__remove {
     linear-gradient(180deg, #ffffff 0%, #f7f1e5 100%);
   cursor: pointer;
   transition:
-    border-color var(--duration-fast) var(--ease-tactical),
-    background-color var(--duration-fast) var(--ease-tactical),
-    transform var(--duration-fast) var(--ease-tactical);
+    border-color var(--dur-hover) var(--ease-tactical),
+    background-color var(--dur-hover) var(--ease-tactical),
+    transform var(--dur-hover) var(--ease-tactical),
+    filter var(--dur-hover) var(--ease-tactical);
 }
 
 .summon-banner-item::before {
@@ -2680,7 +2803,7 @@ button.deck-slot:focus-visible .deck-slot__remove {
   bottom: 7px;
   width: 3.5px;
   background: transparent;
-  transition: background-color var(--duration-fast) var(--ease-tactical);
+  transition: background-color var(--dur-select) var(--ease-tactical);
 }
 
 .summon-banner-item:hover {
@@ -2689,6 +2812,11 @@ button.deck-slot:focus-visible .deck-slot__remove {
     linear-gradient(-135deg, var(--accent-gold) 0 8px, transparent 8.3px) top right / 15px 15px no-repeat,
     #ffffff;
   transform: translateX(3px);
+  filter: drop-shadow(0 4px 10px rgba(46, 36, 24, 0.08));
+}
+
+.summon-banner-item:active {
+  transform: translateX(1px) scale(0.99);
 }
 
 .summon-banner-item.is-selected,
@@ -2698,6 +2826,7 @@ button.deck-slot:focus-visible .deck-slot__remove {
     linear-gradient(-135deg, var(--accent-gold) 0 8.5px, transparent 8.8px) top right / 16px 16px no-repeat,
     radial-gradient(ellipse 90% 80% at 100% 0%, rgba(212, 166, 58, 0.2), transparent 68%),
     linear-gradient(180deg, #fffdf7 0%, #f6ecd4 100%);
+  filter: drop-shadow(0 4px 12px rgba(154, 114, 38, 0.14));
 }
 
 .summon-banner-item.is-selected::before,
@@ -2730,6 +2859,11 @@ button.deck-slot:focus-visible .deck-slot__remove {
   height: 100%;
   object-fit: cover;
   object-position: center 14%;
+  transition: transform 220ms var(--ease-tactical);
+}
+
+.summon-banner-item:hover .summon-banner-item__thumb img {
+  transform: scale(1.06);
 }
 
 .summon-banner-item__body {
@@ -2855,6 +2989,21 @@ button.deck-slot:focus-visible .deck-slot__remove {
   object-fit: cover;
   object-position: 74% 16%;
   transition: transform 420ms var(--ease-tactical), filter 260ms ease;
+}
+
+.summon-stage__media.is-switching img {
+  animation: summon-media-reveal 280ms var(--ease-tactical) both;
+}
+
+@keyframes summon-media-reveal {
+  from {
+    opacity: 0.35;
+    transform: scale(1.03);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .summon-stage__scrim {
@@ -3017,6 +3166,13 @@ button.deck-slot:focus-visible .deck-slot__remove {
   background: rgba(24, 20, 17, 0.78);
   backdrop-filter: blur(6px);
   max-width: 240px;
+  transition: border-color var(--dur-hover) var(--ease-tactical), background-color var(--dur-hover) var(--ease-tactical), transform var(--dur-hover) var(--ease-tactical);
+}
+
+.summon-featured-chip:hover {
+  background: rgba(34, 28, 22, 0.9);
+  border-color: rgba(244, 214, 137, 0.76);
+  transform: translateY(-1px);
 }
 
 .summon-featured-chip.is-ssr {
@@ -3279,12 +3435,23 @@ button.deck-slot:focus-visible .deck-slot__remove {
   align-items: center;
   justify-content: center;
   padding: var(--space-4);
+  animation: modal-backdrop-in 190ms var(--ease-out) both;
+}
+
+.summon-overlay.is-closing {
+  pointer-events: none;
+  animation: modal-backdrop-out var(--dur-modal-out) var(--ease-in) forwards;
 }
 
 .summon-overlay__dialog {
   max-height: min(84vh, 720px);
   width: 100%;
   overflow: hidden;
+  animation: modal-dialog-in var(--dur-modal) var(--ease-tactical) both;
+}
+
+.summon-overlay.is-closing .summon-overlay__dialog {
+  animation: modal-dialog-out var(--dur-modal-out) var(--ease-in) forwards;
 }
 
 .summon-overlay__dialog--history {
@@ -3418,19 +3585,29 @@ button.deck-slot:focus-visible .deck-slot__remove {
   display: flex;
   flex-direction: column;
   gap: 5px;
-  transition: border-color var(--duration-fast), background-color var(--duration-fast), transform var(--duration-fast);
+  transition:
+    border-color var(--dur-hover) var(--ease-tactical),
+    background-color var(--dur-hover) var(--ease-tactical),
+    transform var(--dur-hover) var(--ease-tactical),
+    filter var(--dur-hover) var(--ease-tactical);
 }
 
 .item-tile:hover {
   border-color: var(--border-strong);
   background: #ffffff;
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  filter: drop-shadow(0 6px 12px rgba(46, 36, 24, 0.08));
+}
+
+.item-tile:active {
+  transform: translateY(0) scale(0.99);
 }
 
 .item-tile.is-selected {
   border-color: var(--accent-gold);
   background: linear-gradient(180deg, #ffffff 0%, #f8f0dd 100%);
   box-shadow: inset 3px 0 0 var(--accent-yellow-bar);
+  filter: drop-shadow(0 4px 10px rgba(154, 114, 38, 0.13));
 }
 
 .item-tile__qty {
@@ -3457,18 +3634,29 @@ button.deck-slot:focus-visible .deck-slot__remove {
   display: flex;
   align-items: center;
   gap: 10px;
-  transition: border-color var(--duration-fast), transform var(--duration-fast);
+  transition:
+    border-color var(--dur-hover) var(--ease-tactical),
+    background-color var(--dur-hover) var(--ease-tactical),
+    transform var(--dur-hover) var(--ease-tactical),
+    filter var(--dur-hover) var(--ease-tactical);
 }
 
 .armory-card-tile:hover {
   transform: translateY(-2px);
   border-color: var(--border-strong);
+  background: #ffffff;
+  filter: drop-shadow(0 6px 12px rgba(46, 36, 24, 0.08));
+}
+
+.armory-card-tile:active {
+  transform: translateY(0) scale(0.985);
 }
 
 .armory-card-tile.is-selected {
   border-color: var(--accent-gold);
   background: linear-gradient(180deg, #ffffff 0%, #f8efd8 100%);
   box-shadow: inset 3px 0 0 var(--accent-yellow-bar);
+  filter: drop-shadow(0 4px 10px rgba(154, 114, 38, 0.13));
 }
 
 .armory-card-tile--unit { border-top: 2.5px solid var(--cat-unit); }
@@ -3588,16 +3776,28 @@ button.deck-slot:focus-visible .deck-slot__remove {
   border: 1px solid var(--border-strong);
   clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
   box-shadow: inset 3px 0 0 var(--accent-yellow-bar);
+  filter: drop-shadow(0 8px 18px rgba(32, 24, 16, 0.14));
   color: var(--text-primary);
   font-size: 0.85rem;
   font-weight: 500;
-  animation: screen-enter var(--duration-fast) var(--ease-tactical) both;
-  transition: opacity 200ms ease, transform 200ms ease;
+  animation: toast-enter 200ms var(--ease-tactical) both;
+  transition: opacity 180ms var(--ease-in), transform 180ms var(--ease-in);
+}
+
+@keyframes toast-enter {
+  from {
+    opacity: 0;
+    transform: translate3d(14px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
 }
 
 .toast.is-exiting {
   opacity: 0;
-  transform: translateY(-4px);
+  transform: translate3d(10px, -4px, 0);
 }
 
 .toast--success { border-color: var(--state-ally); background: #f4fbf7; box-shadow: inset 3px 0 0 var(--state-ally); }
@@ -3608,15 +3808,22 @@ button.deck-slot:focus-visible .deck-slot__remove {
   position: fixed;
   inset: 0;
   z-index: 90;
-  background: rgba(28, 23, 18, 0.56);
+  background: rgba(28, 23, 18, 0.58);
+  backdrop-filter: blur(3px);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: var(--space-4);
+  animation: modal-backdrop-in 190ms var(--ease-out) both;
 }
 
 .modal-root[hidden] {
   display: none;
+}
+
+.modal-root.is-closing {
+  pointer-events: none;
+  animation: modal-backdrop-out var(--dur-modal-out) var(--ease-in) forwards;
 }
 
 .modal-dialog {
@@ -3634,7 +3841,44 @@ button.deck-slot:focus-visible .deck-slot__remove {
   flex-direction: column;
   gap: var(--space-4);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.96);
-  animation: screen-enter var(--duration-fast) var(--ease-tactical) both;
+  filter: drop-shadow(0 18px 36px rgba(18, 14, 10, 0.28));
+  animation: modal-dialog-in var(--dur-modal) var(--ease-tactical) both;
+}
+
+.modal-root.is-closing .modal-dialog {
+  animation: modal-dialog-out var(--dur-modal-out) var(--ease-in) forwards;
+}
+
+@keyframes modal-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modal-backdrop-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes modal-dialog-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0) scale(0.965);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes modal-dialog-out {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(0, 6px, 0) scale(0.97);
+  }
 }
 
 .modal-dialog::before {
@@ -3873,12 +4117,21 @@ button.summon-result-card {
   width: 100%;
   text-align: left;
   cursor: pointer;
-  transition: transform 140ms var(--ease-tactical), border-color 140ms ease, background 140ms ease;
+  transition:
+    transform var(--dur-hover) var(--ease-tactical),
+    border-color var(--dur-hover) var(--ease-tactical),
+    background var(--dur-hover) var(--ease-tactical),
+    filter var(--dur-hover) var(--ease-tactical);
 }
 
 button.summon-result-card:hover {
   transform: translateY(-2px);
   border-color: var(--accent-gold);
+  filter: drop-shadow(0 6px 12px rgba(46, 36, 24, 0.1));
+}
+
+button.summon-result-card:active {
+  transform: translateY(0) scale(0.988);
 }
 
 .summon-result-card__head {
@@ -3984,15 +4237,22 @@ button.summon-result-card:hover {
   background: rgba(255, 255, 255, 0.72);
   cursor: pointer;
   transition:
-    border-color var(--duration-fast) var(--ease-tactical),
-    background-color var(--duration-fast) var(--ease-tactical),
-    transform var(--duration-fast) var(--ease-tactical);
+    border-color var(--dur-hover) var(--ease-tactical),
+    background-color var(--dur-hover) var(--ease-tactical),
+    transform var(--dur-hover) var(--ease-tactical),
+    box-shadow var(--dur-select) var(--ease-tactical),
+    filter var(--dur-hover) var(--ease-tactical);
 }
 
 .missions-category-btn:hover {
   background: #ffffff;
   border-color: var(--border-strong);
-  transform: translateX(2px);
+  transform: translateX(3px);
+  filter: drop-shadow(0 4px 10px rgba(46, 36, 24, 0.08));
+}
+
+.missions-category-btn:active {
+  transform: translateX(1px) scale(0.99);
 }
 
 .missions-category-btn.is-active {
@@ -4001,6 +4261,7 @@ button.summon-result-card:hover {
     #ffffff;
   border-color: var(--accent-gold);
   box-shadow: inset 3.5px 0 0 var(--accent-yellow-bar);
+  filter: drop-shadow(0 4px 10px rgba(154, 114, 38, 0.12));
 }
 
 .missions-category-btn__top {
@@ -4164,7 +4425,18 @@ button.summon-result-card:hover {
     linear-gradient(180deg, #ffffff 0%, #f7f1e5 100%);
   border: 1px solid rgba(138, 114, 78, 0.26);
   clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%);
-  transition: border-color var(--duration-fast);
+  transition:
+    border-color var(--dur-hover) var(--ease-tactical),
+    background-color var(--dur-hover) var(--ease-tactical),
+    box-shadow var(--dur-select) var(--ease-tactical),
+    opacity var(--dur-select) var(--ease-tactical);
+}
+
+.mission-row-card:not(.is-claimed):hover {
+  border-color: rgba(166, 124, 46, 0.55);
+  background:
+    linear-gradient(-135deg, rgba(166, 124, 46, 0.42) 0 6.5px, transparent 6.8px) top right / 13px 13px no-repeat,
+    #ffffff;
 }
 
 .mission-row-card.is-claimable {
@@ -4174,6 +4446,14 @@ button.summon-result-card:hover {
     radial-gradient(ellipse 70% 100% at 100% 50%, rgba(212, 166, 58, 0.16), transparent 68%),
     linear-gradient(180deg, #ffffff 0%, #fbf5e6 100%);
   box-shadow: inset 3px 0 0 var(--accent-yellow-bar);
+}
+
+.mission-row-card.is-claimable:hover {
+  border-color: var(--accent-gold-deep);
+  background:
+    linear-gradient(-135deg, var(--accent-gold-deep) 0 7px, transparent 7.3px) top right / 14px 14px no-repeat,
+    radial-gradient(ellipse 74% 100% at 100% 50%, rgba(212, 166, 58, 0.22), transparent 70%),
+    #ffffff;
 }
 
 .mission-row-card.is-claimed {
@@ -4494,13 +4774,26 @@ button.summon-result-card:hover {
   background: linear-gradient(180deg, #ffffff 0%, #f6f0e4 100%);
   border: 1px solid var(--border-subtle);
   clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
-  transition: border-color var(--duration-fast), background var(--duration-fast), transform var(--duration-fast);
+  transition:
+    border-color var(--dur-hover) var(--ease-tactical),
+    background var(--dur-hover) var(--ease-tactical),
+    transform var(--dur-hover) var(--ease-tactical),
+    filter var(--dur-hover) var(--ease-tactical);
 }
 
 .chapter-node:hover .chapter-node__card {
   border-color: var(--accent-gold);
   background: #ffffff;
-  transform: translateX(2px);
+  transform: translateX(3px);
+  filter: drop-shadow(0 4px 10px rgba(46, 36, 24, 0.08));
+}
+
+.chapter-node:hover .chapter-node__marker {
+  transform: scale(1.1);
+}
+
+.chapter-node:active .chapter-node__card {
+  transform: translateX(1px) scale(0.99);
 }
 
 .chapter-node.is-selected .chapter-node__card {
@@ -4509,6 +4802,7 @@ button.summon-result-card:hover {
     radial-gradient(ellipse 85% 95% at 100% 0%, rgba(212, 166, 58, 0.16), transparent 68%),
     #ffffff;
   box-shadow: inset 3px 0 0 var(--accent-yellow-bar);
+  filter: drop-shadow(0 4px 10px rgba(154, 114, 38, 0.12));
 }
 
 .chapter-node.is-locked .chapter-node__card {
@@ -4693,7 +4987,11 @@ button.summon-result-card:hover {
   flex-direction: column;
   gap: 4px;
   cursor: pointer;
-  transition: border-color var(--duration-fast), background var(--duration-fast), transform var(--duration-fast);
+  transition:
+    border-color var(--dur-hover) var(--ease-tactical),
+    background var(--dur-hover) var(--ease-tactical),
+    transform var(--dur-hover) var(--ease-tactical),
+    filter var(--dur-hover) var(--ease-tactical);
 }
 
 .mission-stage-card::before {
@@ -4718,6 +5016,11 @@ button.summon-result-card:hover {
   border-color: var(--accent-gold);
   background: #ffffff;
   transform: translateY(-2px);
+  filter: drop-shadow(0 6px 12px rgba(46, 36, 24, 0.09));
+}
+
+.mission-stage-card:active {
+  transform: translateY(0) scale(0.99);
 }
 
 .mission-stage-card.is-current {
@@ -4730,6 +5033,7 @@ button.summon-result-card:hover {
 .mission-stage-card.is-selected {
   border-color: var(--accent-gold);
   box-shadow: inset 3px 0 0 var(--accent-yellow-bar);
+  filter: drop-shadow(0 5px 12px rgba(154, 114, 38, 0.14));
 }
 
 .mission-stage-card.is-locked {
@@ -5089,6 +5393,16 @@ button.summon-result-card:hover {
   border: none;
   box-shadow: none;
   cursor: pointer;
+  transition: transform var(--dur-select) var(--ease-tactical), filter var(--dur-select) var(--ease-tactical);
+}
+
+.hero-art-stage__collectible-slot:hover {
+  transform: translateY(-2px);
+  filter: drop-shadow(0 16px 28px rgba(34, 24, 14, 0.22));
+}
+
+.hero-art-stage__collectible-slot:active {
+  transform: translateY(0) scale(0.992);
 }
 
 /* Reusable Commander Interactive Card Preview Modal */
@@ -5100,7 +5414,12 @@ button.summon-result-card:hover {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  animation: card-preview-fade-in 180ms ease-out;
+  animation: modal-backdrop-in 190ms var(--ease-out) both;
+}
+
+.card-preview-modal.is-closing {
+  pointer-events: none;
+  animation: modal-backdrop-out var(--dur-modal-out) var(--ease-in) forwards;
 }
 
 .card-preview-modal__backdrop {
@@ -5123,6 +5442,11 @@ button.summon-result-card:hover {
   max-width: 100%;
   max-height: 100%;
   pointer-events: none;
+  animation: card-preview-stage-in var(--dur-modal) var(--ease-tactical) both;
+}
+
+.card-preview-modal.is-closing .card-preview-modal__stage {
+  animation: card-preview-stage-out var(--dur-modal-out) var(--ease-in) forwards;
 }
 
 .card-preview-modal__close {
@@ -5142,7 +5466,10 @@ button.summon-result-card:hover {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: border-color 140ms ease, background-color 140ms ease, transform 140ms ease;
+  transition:
+    border-color var(--dur-hover) var(--ease-tactical),
+    background-color var(--dur-hover) var(--ease-tactical),
+    transform var(--dur-press) var(--ease-tactical);
 }
 
 .card-preview-modal__close:hover,
@@ -5151,6 +5478,10 @@ button.summon-result-card:hover {
   background: rgba(24, 30, 62, 0.96);
   transform: translateY(-1px);
   outline: none;
+}
+
+.card-preview-modal__close:active {
+  transform: translateY(0) scale(0.97);
 }
 
 .card-preview-modal__card-slot {
@@ -5172,12 +5503,25 @@ button.summon-result-card:hover {
   text-align: center;
 }
 
-@keyframes card-preview-fade-in {
+@keyframes card-preview-stage-in {
   from {
     opacity: 0;
+    transform: translate3d(0, 10px, 0) scale(0.94);
   }
   to {
     opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes card-preview-stage-out {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(0, 6px, 0) scale(0.95);
   }
 }
 

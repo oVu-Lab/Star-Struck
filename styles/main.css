@@ -126,12 +126,21 @@
   --space-6: 24px;
   --space-8: 32px;
 
-  /* Motion */
+  /* Motion — Cohesive Tactical Timing & Compositor-Friendly Curves */
   --ease-tactical: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-snap: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-press: 110ms;
+  --dur-hover: 150ms;
+  --dur-select: 200ms;
+  --dur-modal: 220ms;
+  --dur-modal-out: 160ms;
+  --dur-screen: 260ms;
   --duration-fast: 140ms;
-  --duration-base: 190ms;
-  --duration-reveal: 300ms;
+  --duration-base: 200ms;
+  --duration-reveal: 280ms;
 
   /* Layout Metrics */
   --topbar-height: 56px;

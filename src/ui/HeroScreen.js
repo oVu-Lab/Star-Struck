@@ -20,10 +20,17 @@ export class HeroScreen {
     this._previewModalEl = null;
     this._previewHeroId = null;
     this._previewKeyHandler = null;
+    this._previewCloseTimer = null;
+    this._hasRendered = false;
+    this._lastHeroId = null;
+    this._railScrollTop = 0;
   }
 
   mount(container) {
     this._container = container;
+    this._hasRendered = false;
+    this._lastHeroId = null;
+    this._railScrollTop = 0;
     this.render();
     this._unsubs.push(
       this._ctx.eventBus.on('state:changed', () => this.render()),
@@ -31,10 +38,13 @@ export class HeroScreen {
   }
 
   unmount() {
-    this._closeCardPreview({ resumeStage: false });
+    this._closeCardPreview({ resumeStage: false, immediate: true });
     this._astraCards.destroyAll();
     for (const unsub of this._unsubs) unsub();
     this._unsubs = [];
+    this._hasRendered = false;
+    this._lastHeroId = null;
+    this._railScrollTop = 0;
     this._container = null;
   }
 
@@ -42,7 +52,7 @@ export class HeroScreen {
     if (!hero || !hasCollectibleCommanderCard(hero) || !this._container) return;
     if (typeof document === 'undefined' || typeof document.createElement !== 'function') return;
 
-    this._closeCardPreview({ resumeStage: false });
+    this._closeCardPreview({ resumeStage: false, immediate: true });
 
     const { assetManager, audioManager, formationSystem } = this._ctx;
     audioManager?.playClick?.();
@@ -117,8 +127,11 @@ export class HeroScreen {
     }
   }
 
-  _closeCardPreview({ resumeStage = true } = {}) {
-    this._previewCards.destroyAll();
+  _closeCardPreview({ resumeStage = true, immediate = false } = {}) {
+    if (this._previewCloseTimer) {
+      clearTimeout(this._previewCloseTimer);
+      this._previewCloseTimer = null;
+    }
 
     if (
       this._previewKeyHandler &&
@@ -129,26 +142,60 @@ export class HeroScreen {
     }
     this._previewKeyHandler = null;
 
-    if (this._previewModalEl) {
-      if (typeof this._previewModalEl.remove === 'function') {
-        this._previewModalEl.remove();
-      } else if (this._container?.children) {
-        const idx = this._container.children.indexOf(this._previewModalEl);
-        if (idx !== -1) this._container.children.splice(idx, 1);
+    const finishClose = (targetModal) => {
+      this._previewCards.destroyAll();
+      if (targetModal) {
+        if (typeof targetModal.remove === 'function') {
+          targetModal.remove();
+        } else if (this._container?.children) {
+          const idx = this._container.children.indexOf(targetModal);
+          if (idx !== -1) this._container.children.splice(idx, 1);
+        }
       }
-      this._previewModalEl = null;
+      if (this._previewModalEl === targetModal) {
+        this._previewModalEl = null;
+      }
+      this._previewHeroId = null;
+      if (resumeStage) {
+        this._astraCards.resumeAll({ restoreStatic: true });
+      }
+    };
+
+    const modal = this._previewModalEl;
+    const reducedMotion =
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const canAnimate =
+      !immediate &&
+      Boolean(
+        modal &&
+          modal.isConnected &&
+          typeof modal.getBoundingClientRect === 'function' &&
+          modal.classList &&
+          !reducedMotion,
+      );
+
+    if (canAnimate) {
+      modal.classList.add('is-closing');
+      this._previewCloseTimer = setTimeout(() => {
+        this._previewCloseTimer = null;
+        finishClose(modal);
+      }, 155);
+      return;
     }
 
-    this._previewHeroId = null;
-
-    if (resumeStage) {
-      this._astraCards.resumeAll({ restoreStatic: true });
-    }
+    finishClose(modal);
   }
 
   render() {
     if (!this._container) return;
-    this._closeCardPreview({ resumeStage: false });
+    const prevRail = this._container.querySelector('.hero-rail');
+    if (prevRail && typeof prevRail.scrollTop === 'number') {
+      this._railScrollTop = prevRail.scrollTop;
+    }
+
+    this._closeCardPreview({ resumeStage: false, immediate: true });
     this._astraCards.destroyAll();
 
     const { heroSystem, formationSystem, gameState, assetManager, audioManager, screenManager } =
@@ -170,9 +217,14 @@ export class HeroScreen {
     const selRarity = (selectedHero?.rarity || 'SSR').toLowerCase();
 
     const hasCollectibleCard = hasCollectibleCommanderCard(selectedHero);
+    const settledClass = this._hasRendered ? ' is-settled' : '';
+    const heroChanged =
+      this._hasRendered &&
+      Boolean(selectedHero?.id && this._lastHeroId && selectedHero.id !== this._lastHeroId);
+    const detailMotionClass = heroChanged ? ' motion-detail-enter' : '';
 
     this._container.innerHTML = `
-      <section class="screen-frame" aria-label="Commander Heroes">
+      <section class="screen-frame${settledClass}" aria-label="Commander Heroes">
         <div class="screen-bar">
           <div class="screen-bar__lead">
             <h1 class="screen-title">Commanders</h1>
@@ -212,7 +264,7 @@ export class HeroScreen {
                   hasCollectibleCard
                     ? `
                       <div
-                        class="hero-art-stage hero-art-stage--collectible ${selTheme}"
+                        class="hero-art-stage hero-art-stage--collectible ${selTheme}${detailMotionClass}"
                         aria-label="${selectedHero.name} Collectible Commander Card"
                       >
                         <div
@@ -225,7 +277,7 @@ export class HeroScreen {
                       </div>
                     `
                     : `
-                      <div class="hero-art-stage hero-art-stage--${selRarity} ${selTheme}" aria-label="Commander Portrait">
+                      <div class="hero-art-stage hero-art-stage--${selRarity} ${selTheme}${detailMotionClass}" aria-label="Commander Portrait">
                         <img id="hero-detail-img" alt="${selectedHero.name}" />
                         <div class="hero-art-stage__scrim">
                           <div class="meta-line">
@@ -246,7 +298,7 @@ export class HeroScreen {
                     `
                 }
 
-                <aside class="surface surface--celestial hero-dossier ${selTheme}" aria-label="Commander Dossier">
+                <aside class="surface surface--celestial hero-dossier ${selTheme}${detailMotionClass}" aria-label="Commander Dossier">
                   <div>
                     <div class="section-kicker section-kicker--gold">${selectedHero.role} · ${selectedHero.faction}</div>
                     <h2 class="hero-dossier__name" style="margin-top: 3px;">${selectedHero.name}</h2>
@@ -413,6 +465,10 @@ export class HeroScreen {
       rail.appendChild(item);
     }
 
+    if (rail && typeof this._railScrollTop === 'number') {
+      rail.scrollTop = this._railScrollTop;
+    }
+
     if (hasCollectibleCard && selectedHero) {
       const cardSlot = this._container.querySelector('#hero-collectible-card-slot');
       const mountedCard = this._astraCards.mount(cardSlot, {
@@ -469,5 +525,8 @@ export class HeroScreen {
       audioManager.playClick();
       screenManager.navigate('summon');
     });
+
+    this._lastHeroId = selectedHero?.id || null;
+    this._hasRendered = true;
   }
 }

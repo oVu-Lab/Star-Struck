@@ -31,11 +31,25 @@ export class FormationScreen {
     this._unsubs = [];
     this._draftDeck = null;
     this._astraCards = new AstraCardRegistry({ CardClass: ctx?.AstraCardClass });
+    this._hasRendered = false;
+    this._lastTab = null;
+    this._lastUnitId = null;
+    this._lastStageId = null;
+    this._pulseSlotIdx = null;
+    this._pulseDeckCardId = null;
+    this._scrollTopByTab = { squad: 0, deck: 0, stages: 0 };
   }
 
   mount(container) {
     this._container = container;
     this._draftDeck = [...this._ctx.cardSystem.getCustomDeck()];
+    this._hasRendered = false;
+    this._lastTab = null;
+    this._lastUnitId = null;
+    this._lastStageId = null;
+    this._pulseSlotIdx = null;
+    this._pulseDeckCardId = null;
+    this._scrollTopByTab = { squad: 0, deck: 0, stages: 0 };
     this.render();
     this._unsubs.push(
       this._ctx.eventBus.on('state:changed', () => this.render()),
@@ -48,6 +62,12 @@ export class FormationScreen {
     this._unsubs = [];
     this._container = null;
     this._draftDeck = null;
+    this._hasRendered = false;
+    this._lastTab = null;
+    this._lastUnitId = null;
+    this._lastStageId = null;
+    this._pulseSlotIdx = null;
+    this._pulseDeckCardId = null;
   }
 
   _hasInDraft(cardId) {
@@ -68,6 +88,13 @@ export class FormationScreen {
 
   render() {
     if (!this._container) return;
+    if (this._lastTab) {
+      const prevScroll = this._container.querySelector('.formation-pane__scroll, .formation-workspace--stages .scroll-pane');
+      if (prevScroll && typeof prevScroll.scrollTop === 'number') {
+        this._scrollTopByTab[this._lastTab] = prevScroll.scrollTop;
+      }
+    }
+
     this._astraCards.destroyAll();
     const {
       heroSystem,
@@ -98,8 +125,12 @@ export class FormationScreen {
       savedDeck.every((id, idx) => id === this._draftDeck[idx])
     );
 
+    const settledClass = this._hasRendered ? ' is-settled' : '';
+    const tabChanged =
+      this._hasRendered && Boolean(this._lastTab && this._lastTab !== activeTab);
+
     this._container.innerHTML = `
-      <section class="screen-frame screen-frame--formation" aria-label="Formation Configuration">
+      <section class="screen-frame screen-frame--formation${settledClass}" aria-label="Formation Configuration">
         <div class="screen-bar">
           <div class="screen-bar__lead">
             <h1 class="screen-title">Formation &amp; Deck</h1>
@@ -126,17 +157,17 @@ export class FormationScreen {
           </div>
         </div>
 
-        <div id="formation-workspace-body" style="flex: 1; min-height: 0; display: flex; flex-direction: column;"></div>
+        <div id="formation-workspace-body" class="${tabChanged ? 'motion-tab-enter' : ''}" style="flex: 1; min-height: 0; display: flex; flex-direction: column;"></div>
       </section>
     `;
 
     const bodyEl = this._container.querySelector('#formation-workspace-body');
     if (activeTab === 'deck') {
-      this._renderDeckTab(bodyEl);
+      this._renderDeckTab(bodyEl, tabChanged);
     } else if (activeTab === 'stages') {
-      this._renderStagesTab(bodyEl);
+      this._renderStagesTab(bodyEl, tabChanged);
     } else {
-      this._renderSquadTab(bodyEl);
+      this._renderSquadTab(bodyEl, tabChanged);
     }
 
     for (const tabBtn of this._container.querySelectorAll('[data-form-tab]')) {
@@ -159,9 +190,12 @@ export class FormationScreen {
       audioManager.playClick();
       screenManager.navigate('battle');
     });
+
+    this._lastTab = activeTab;
+    this._hasRendered = true;
   }
 
-  _renderSquadTab(bodyEl) {
+  _renderSquadTab(bodyEl, tabChanged = false) {
     const {
       heroSystem,
       formationSystem,
@@ -259,9 +293,10 @@ export class FormationScreen {
       const meta = slotMeta[idx] || { pos: `Slot ${idx + 1}` };
       const rLower = (u?.rarity || 'R').toLowerCase();
       const unitName = u?.name || slot?.unitId || 'Empty';
+      const pulseClass = idx === this._pulseSlotIdx ? ' motion-pulse-commit' : '';
       return `
         <div
-          class="squad-slot ${isSel ? 'is-selected' : ''}"
+          class="squad-slot ${isSel ? 'is-selected' : ''}${pulseClass}"
           data-select-slot="${idx}"
           role="button"
           tabindex="0"
@@ -442,7 +477,14 @@ export class FormationScreen {
           ${
             selectedUnit
               ? `
-                <div class="unit-detail-dock" aria-label="Selected Unit Details">
+                <div class="unit-detail-dock${
+                  this._hasRendered &&
+                  !tabChanged &&
+                  this._lastUnitId &&
+                  selectedUnit.id !== this._lastUnitId
+                    ? ' motion-detail-enter'
+                    : ''
+                }" aria-label="Selected Unit Details">
                   <div class="unit-detail-dock__head">
                     <div class="unit-detail-dock__art">
                       <img data-unit-art="${selectedUnit.spriteAssetId}" alt="${escAttr(selectedUnit.name)}" />
@@ -537,6 +579,15 @@ export class FormationScreen {
       </div>
     `;
 
+    this._pulseSlotIdx = null;
+    this._lastUnitId = selectedUnit?.id || null;
+    if (!tabChanged) {
+      const scrollEl = bodyEl.querySelector('.formation-pane__scroll');
+      if (scrollEl && typeof this._scrollTopByTab.squad === 'number') {
+        scrollEl.scrollTop = this._scrollTopByTab.squad;
+      }
+    }
+
     for (const imgEl of bodyEl.querySelectorAll('[data-cmd-portrait]')) {
       const aid = imgEl.getAttribute('data-cmd-portrait');
       if (aid) assetManager.bindImageElement(imgEl, aid);
@@ -595,8 +646,10 @@ export class FormationScreen {
       btn.addEventListener('click', (ev) => {
         ev.stopPropagation();
         const idx = Number(btn.getAttribute('data-swap-left'));
+        const nextIdx = Math.max(0, idx - 1);
+        this._pulseSlotIdx = nextIdx;
         formationSystem.swapUnitSlots(idx, idx - 1);
-        gameState.setUI({ selectedSquadSlot: Math.max(0, idx - 1) });
+        gameState.setUI({ selectedSquadSlot: nextIdx });
         audioManager.playClick();
       });
     }
@@ -605,8 +658,10 @@ export class FormationScreen {
       btn.addEventListener('click', (ev) => {
         ev.stopPropagation();
         const idx = Number(btn.getAttribute('data-swap-right'));
+        const nextIdx = Math.min(3, idx + 1);
+        this._pulseSlotIdx = nextIdx;
         formationSystem.swapUnitSlots(idx, idx + 1);
-        gameState.setUI({ selectedSquadSlot: Math.min(3, idx + 1) });
+        gameState.setUI({ selectedSquadSlot: nextIdx });
         audioManager.playClick();
       });
     }
@@ -620,28 +675,36 @@ export class FormationScreen {
       });
       tile.addEventListener('dblclick', () => {
         const uid = tile.getAttribute('data-select-unit');
+        this._pulseSlotIdx = selectedSlotIdx;
         const res = formationSystem.setUnitSlot(selectedSlotIdx, uid);
         if (res.ok) {
           audioManager.playDeploy();
           const unitDef = formationSystem.getUnitProgress(uid);
           this._ctx.notify(`${unitDef?.name || uid} assigned to Slot ${selectedSlotIdx + 1}.`, 'success');
-        } else if (res.reason) {
-          audioManager.playInvalid();
-          this._ctx.notify(res.reason, 'warn');
+        } else {
+          this._pulseSlotIdx = null;
+          if (res.reason) {
+            audioManager.playInvalid();
+            this._ctx.notify(res.reason, 'warn');
+          }
         }
       });
     }
 
     bodyEl.querySelector('[data-assign-unit]')?.addEventListener('click', (ev) => {
       const uid = ev.currentTarget.getAttribute('data-assign-unit');
+      this._pulseSlotIdx = selectedSlotIdx;
       const res = formationSystem.setUnitSlot(selectedSlotIdx, uid);
       if (res.ok) {
         audioManager.playDeploy();
         const unitDef = formationSystem.getUnitProgress(uid);
         this._ctx.notify(`${unitDef?.name || uid} assigned to Slot ${selectedSlotIdx + 1}.`, 'success');
-      } else if (res.reason) {
-        audioManager.playInvalid();
-        this._ctx.notify(res.reason, 'warn');
+      } else {
+        this._pulseSlotIdx = null;
+        if (res.reason) {
+          audioManager.playInvalid();
+          this._ctx.notify(res.reason, 'warn');
+        }
       }
     });
 
@@ -670,7 +733,7 @@ export class FormationScreen {
     }
   }
 
-  _renderDeckTab(bodyEl) {
+  _renderDeckTab(bodyEl, tabChanged = false) {
     const { cardSystem, dataRegistry, gameState, assetManager, audioManager } = this._ctx;
     const savedDeck = cardSystem.getCustomDeck();
     const deckSize = cardSystem.getDeckSize();
@@ -852,8 +915,9 @@ export class FormationScreen {
               }
               const card = dataRegistry.cardsById.get(cid);
               const cat = card?.category || 'unit';
+              const pulseClass = cid === this._pulseDeckCardId ? ' motion-pulse-commit' : '';
               return `
-                <button type="button" class="deck-slot deck-slot--${cat}" data-deck-remove="${cid}" title="Remove ${escAttr(card?.name || cid)}">
+                <button type="button" class="deck-slot deck-slot--${cat}${pulseClass}" data-deck-remove="${cid}" title="Remove ${escAttr(card?.name || cid)}">
                   <span class="deck-slot__icon">
                     <img data-deck-icon="${card?.iconAssetId || ''}" alt="" />
                   </span>
@@ -892,6 +956,14 @@ export class FormationScreen {
       </div>
     `;
 
+    this._pulseDeckCardId = null;
+    if (!tabChanged) {
+      const scrollEl = bodyEl.querySelector('.formation-pane__scroll');
+      if (scrollEl && typeof this._scrollTopByTab.deck === 'number') {
+        scrollEl.scrollTop = this._scrollTopByTab.deck;
+      }
+    }
+
     for (const imgEl of bodyEl.querySelectorAll('[data-deck-icon]')) {
       const assetId = imgEl.getAttribute('data-deck-icon');
       if (assetId) assetManager.bindImageElement(imgEl, assetId);
@@ -923,6 +995,7 @@ export class FormationScreen {
           return;
         }
         this._draftDeck.push(cid);
+        this._pulseDeckCardId = cid;
         audioManager.playCardSelect();
         this.render();
       });
@@ -971,7 +1044,7 @@ export class FormationScreen {
     });
   }
 
-  _renderStagesTab(bodyEl) {
+  _renderStagesTab(bodyEl, tabChanged = false) {
     const { progressionSystem, dataRegistry, gameState, audioManager, screenManager } = this._ctx;
     const stages = progressionSystem.getStages();
     const selectedStage = progressionSystem.getSelectedStage();
@@ -1064,7 +1137,15 @@ export class FormationScreen {
           </div>
         </div>
 
-        <aside class="surface surface--celestial workspace-pane" aria-label="Selected Stage Briefing">
+        <aside class="surface surface--celestial workspace-pane${
+          this._hasRendered &&
+          !tabChanged &&
+          this._lastStageId &&
+          selectedStage?.id &&
+          this._lastStageId !== selectedStage.id
+            ? ' motion-detail-enter'
+            : ''
+        }" aria-label="Selected Stage Briefing">
           <div>
             <div class="section-kicker section-kicker--gold">Battle Briefing</div>
             <h2 class="section-heading" style="font-size: 1.28rem; margin-top: 4px;">
@@ -1166,5 +1247,12 @@ export class FormationScreen {
       audioManager.playClick();
       screenManager.navigate('battle');
     });
+    if (!tabChanged) {
+      const scrollEl = bodyEl.querySelector('.scroll-pane');
+      if (scrollEl && typeof this._scrollTopByTab.stages === 'number') {
+        scrollEl.scrollTop = this._scrollTopByTab.stages;
+      }
+    }
+    this._lastStageId = selectedStage?.id || null;
   }
 }

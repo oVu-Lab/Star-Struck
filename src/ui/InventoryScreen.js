@@ -18,10 +18,18 @@ export class InventoryScreen {
   constructor(ctx) {
     this._ctx = ctx;
     this._unsubs = [];
+    this._hasRendered = false;
+    this._lastFilterKey = null;
+    this._lastSelectedId = null;
+    this._gridScrollTop = 0;
   }
 
   mount(container) {
     this._container = container;
+    this._hasRendered = false;
+    this._lastFilterKey = null;
+    this._lastSelectedId = null;
+    this._gridScrollTop = 0;
     this.render();
     this._unsubs.push(
       this._ctx.eventBus.on('state:changed', () => this.render()),
@@ -31,11 +39,20 @@ export class InventoryScreen {
   unmount() {
     for (const unsub of this._unsubs) unsub();
     this._unsubs = [];
+    this._hasRendered = false;
+    this._lastFilterKey = null;
+    this._lastSelectedId = null;
+    this._gridScrollTop = 0;
     this._container = null;
   }
 
   render() {
     if (!this._container) return;
+    const prevScroll = this._container.querySelector('.inventory-workspace .scroll-pane');
+    if (prevScroll && typeof prevScroll.scrollTop === 'number') {
+      this._gridScrollTop = prevScroll.scrollTop;
+    }
+
     const { gameState, cardSystem, dataRegistry, assetManager, audioManager, screenManager } =
       this._ctx;
     const filter = gameState.ui.inventoryFilter || 'all';
@@ -87,8 +104,18 @@ export class InventoryScreen {
       ? visibleItems.find((i) => i.id === selectedId) || visibleItems[0] || null
       : null;
 
+    const settledClass = this._hasRendered ? ' is-settled' : '';
+    const filterKey = `${filter}:${isCardsView ? cardSubCat : 'all'}`;
+    const filterChanged =
+      this._hasRendered && Boolean(this._lastFilterKey && this._lastFilterKey !== filterKey);
+    const currentSelectedId = isCardsView ? selectedCard?.id || null : selectedItem?.id || null;
+    const selectionChanged =
+      this._hasRendered &&
+      !filterChanged &&
+      Boolean(currentSelectedId && this._lastSelectedId && currentSelectedId !== this._lastSelectedId);
+
     this._container.innerHTML = `
-      <section class="screen-frame" aria-label="Inventory and Card Collection">
+      <section class="screen-frame${settledClass}" aria-label="Inventory and Card Collection">
         <div class="screen-bar">
           <div class="screen-bar__lead">
             <h1 class="screen-title">Inventory &amp; Armory</h1>
@@ -124,7 +151,7 @@ export class InventoryScreen {
           </div>
         </div>
 
-        <div class="inventory-workspace">
+        <div class="inventory-workspace${filterChanged ? ' motion-tab-enter' : ''}">
           <div class="surface workspace-pane">
             <div class="workspace-pane__head">
               <div>
@@ -231,7 +258,7 @@ export class InventoryScreen {
             </div>
           </div>
 
-          <aside class="surface workspace-pane" aria-label="Selected Item Inspector">
+          <aside class="surface workspace-pane${selectionChanged ? ' motion-detail-enter' : ''}" aria-label="Selected Item Inspector">
             ${
               isCardsView && selectedCard
                 ? (() => {
@@ -394,5 +421,17 @@ export class InventoryScreen {
         }
       });
     }
+    if (!filterChanged) {
+      const scrollEl = this._container.querySelector('.inventory-workspace .scroll-pane');
+      if (scrollEl && typeof this._gridScrollTop === 'number') {
+        scrollEl.scrollTop = this._gridScrollTop;
+      }
+    } else {
+      this._gridScrollTop = 0;
+    }
+
+    this._lastFilterKey = filterKey;
+    this._lastSelectedId = currentSelectedId;
+    this._hasRendered = true;
   }
 }

@@ -8,10 +8,12 @@ export class SettingsScreen {
   constructor(ctx) {
     this._ctx = ctx;
     this._unsubs = [];
+    this._hasRendered = false;
   }
 
   mount(container) {
     this._container = container;
+    this._hasRendered = false;
     this.render();
     this._unsubs.push(
       this._ctx.eventBus.on('state:changed', () => this.render()),
@@ -22,6 +24,7 @@ export class SettingsScreen {
   unmount() {
     for (const unsub of this._unsubs) unsub();
     this._unsubs = [];
+    this._hasRendered = false;
     this._container = null;
   }
 
@@ -40,8 +43,10 @@ export class SettingsScreen {
     const isMusicMuted = Boolean(s.musicMuted);
     const isSfxMuted = Boolean(s.sfxMuted);
 
+    const settledClass = this._hasRendered ? ' is-settled' : '';
+
     this._container.innerHTML = `
-      <section class="screen-frame" aria-label="Settings">
+      <section class="screen-frame${settledClass}" aria-label="Settings">
         <div class="screen-bar">
           <div class="screen-bar__lead">
             <h1 class="screen-title">Settings</h1>
@@ -365,5 +370,7 @@ export class SettingsScreen {
         },
       });
     });
+
+    this._hasRendered = true;
   }
 }

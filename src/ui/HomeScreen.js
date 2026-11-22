@@ -13,10 +13,12 @@ export class HomeScreen {
     this._ctx = ctx;
     this._container = null;
     this._unsubs = [];
+    this._hasRendered = false;
   }
 
   mount(container) {
     this._container = container;
+    this._hasRendered = false;
     this._ctx.missionSystem?.ensureResets?.();
     this.render();
     this._unsubs.push(
@@ -29,6 +31,7 @@ export class HomeScreen {
   unmount() {
     for (const unsub of this._unsubs) unsub();
     this._unsubs = [];
+    this._hasRendered = false;
     this._container = null;
   }
 
@@ -79,8 +82,10 @@ export class HomeScreen {
       (dataRegistry.banners || []).find((b) => b.bannerType !== 'tactical') || dataRegistry.banners?.[0];
     const commanderHardPity = commanderBanner?.pityConfig?.ssrHardPity ?? 30;
 
+    const settledClass = this._hasRendered ? ' is-settled' : '';
+
     this._container.innerHTML = `
-      <section class="screen-frame" aria-label="Command Home">
+      <section class="screen-frame${settledClass}" aria-label="Command Home">
         <div class="home-bridge">
           <nav class="home-nav-stack" aria-label="Primary Feature Navigation">
             <button type="button" class="home-nav-card home-nav-card--missions" data-nav="missions">
@@ -279,5 +284,7 @@ export class HomeScreen {
         }
       });
     }
+
+    this._hasRendered = true;
   }
 }

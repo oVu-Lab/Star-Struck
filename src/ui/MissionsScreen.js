@@ -165,10 +165,18 @@ export class MissionsScreen {
     this._timelineScrollTop = 0;
     this._missionListScrollTop = 0;
     this._returnCategory = null;
+    this._hasRendered = false;
+    this._lastCategory = null;
+    this._lastChapter = null;
+    this._lastClaimedMissionId = null;
   }
 
   mount(container, params = {}) {
     this._container = container;
+    this._hasRendered = false;
+    this._lastCategory = null;
+    this._lastChapter = null;
+    this._lastClaimedMissionId = null;
     this._ctx.missionSystem?.ensureResets?.();
 
     let requested = 'daily';
@@ -215,6 +223,10 @@ export class MissionsScreen {
       clearInterval(this._countdownTimer);
       this._countdownTimer = null;
     }
+    this._hasRendered = false;
+    this._lastCategory = null;
+    this._lastChapter = null;
+    this._lastClaimedMissionId = null;
     this._container = null;
   }
 
@@ -363,8 +375,12 @@ export class MissionsScreen {
     const currentProgStage = progressionSystem.getCurrentProgressionStage();
     const allStages = progressionSystem.getStages();
 
+    const settledClass = this._hasRendered ? ' is-settled' : '';
+    const categoryChanged =
+      this._hasRendered && Boolean(this._lastCategory && this._lastCategory !== activeCategory);
+
     this._container.innerHTML = `
-      <section class="screen-frame" aria-label="Missions Center">
+      <section class="screen-frame${settledClass}" aria-label="Missions Center">
         <div class="screen-bar">
           <div class="screen-bar__lead">
             <h1 class="screen-title">Missions Center</h1>
@@ -419,7 +435,7 @@ export class MissionsScreen {
             </div>
           </aside>
 
-          <div id="missions-body" class="missions-detail-pane"></div>
+          <div id="missions-body" class="missions-detail-pane${categoryChanged ? ' motion-tab-enter' : ''}"></div>
         </div>
       </section>
     `;
@@ -432,13 +448,21 @@ export class MissionsScreen {
     }
 
     const bodyEl = this._container.querySelector('#missions-body');
-    if (!bodyEl) return;
+    const prevLastCategory = this._lastCategory;
+    this._lastCategory = activeCategory;
+    if (!bodyEl) {
+      this._hasRendered = true;
+      return;
+    }
 
     if (activeCategory === 'main') {
-      this._renderMainMissionView(bodyEl);
+      this._renderMainMissionView(bodyEl, categoryChanged);
     } else {
       this._renderMissionListView(bodyEl, activeCategory, summaries[activeCategory]);
     }
+
+    void prevLastCategory;
+    this._hasRendered = true;
   }
 
   _renderMissionListView(bodyEl, category, precomputedSummary = null) {
@@ -633,8 +657,10 @@ export class MissionsScreen {
                       `;
                     }
 
+                    const pulseClass =
+                      m.id === this._lastClaimedMissionId ? ' motion-pulse-commit' : '';
                     return `
-                      <article class="mission-row-card ${stateClass}" data-mission-id="${m.id}">
+                      <article class="mission-row-card ${stateClass}${pulseClass}" data-mission-id="${m.id}">
                         <div class="mission-row-card__main">
                           <div class="mission-row-card__head">
                             <div class="mission-row-card__title-group">
@@ -677,6 +703,8 @@ export class MissionsScreen {
       </div>
     `;
 
+    this._lastClaimedMissionId = null;
+
     const listScrollEl = bodyEl.querySelector('.missions-list-scroll');
     if (listScrollEl && typeof this._missionListScrollTop === 'number') {
       listScrollEl.scrollTop = this._missionListScrollTop;
@@ -696,6 +724,7 @@ export class MissionsScreen {
     for (const btn of bodyEl.querySelectorAll('[data-claim-mission]')) {
       btn.addEventListener('click', () => {
         const missionId = btn.getAttribute('data-claim-mission');
+        this._lastClaimedMissionId = missionId;
         const res = missionSystem.claimMission(category, missionId);
         if (res.ok) {
           audioManager?.playReward?.();
@@ -703,8 +732,9 @@ export class MissionsScreen {
             .map((r) => r.label)
             .join(' · ');
           notify?.(`Reward claimed: ${rewardText}`, 'success');
-        } else if (res.reason) {
-          notify?.(res.reason, 'warn');
+        } else {
+          this._lastClaimedMissionId = null;
+          if (res.reason) notify?.(res.reason, 'warn');
         }
       });
     }
@@ -719,7 +749,7 @@ export class MissionsScreen {
     }
   }
 
-  _renderMainMissionView(bodyEl) {
+  _renderMainMissionView(bodyEl, categoryChanged = false) {
     const {
       progressionSystem,
       gameState,
@@ -830,7 +860,15 @@ export class MissionsScreen {
           </div>
         </aside>
 
-        <section class="chapter-detail-pane" aria-label="Selected Chapter Stages">
+        <section class="chapter-detail-pane${
+          this._hasRendered &&
+          !categoryChanged &&
+          this._lastChapter !== null &&
+          selectedChapter &&
+          this._lastChapter !== selectedChapter.chapter
+            ? ' motion-detail-enter'
+            : ''
+        }" aria-label="Selected Chapter Stages">
           ${
             selectedChapter
               ? `
@@ -1091,5 +1129,7 @@ export class MissionsScreen {
       audioManager?.playClick?.();
       screenManager.navigate('battle');
     });
+
+    this._lastChapter = selectedChapter?.chapter ?? null;
   }
 }
