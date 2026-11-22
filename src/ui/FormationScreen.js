@@ -2,6 +2,10 @@
  * FormationScreen (P4 Structural Redesign) — 3-Tab Tactical Command Workspace
  * organizing Squad & Units, 6-Card Unique Battle Deck Builder, and 12-Stage
  * Campaign Operations into dedicated full-viewport 2-column tactical desks.
+ *
+ * Squad tab: a single formation board (Commander + Rearline + Frontline lanes)
+ * beside the unit collection. Deck tab: card pool beside the deck panel, with
+ * an explicit Saved / Unsaved / Incomplete status.
  */
 
 import { formatNumber } from '../utils/MathUtils.js';
@@ -14,6 +18,12 @@ const CATEGORY_LABELS = {
   tactic: 'Tactic',
   support: 'Support',
 };
+
+const escAttr = (value) =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;');
 
 export class FormationScreen {
   constructor(ctx) {
@@ -83,9 +93,13 @@ export class FormationScreen {
     if (!Array.isArray(this._draftDeck)) {
       this._draftDeck = [...savedDeck];
     }
+    const deckDirty = !(
+      savedDeck.length === this._draftDeck.length &&
+      savedDeck.every((id, idx) => id === this._draftDeck[idx])
+    );
 
     this._container.innerHTML = `
-      <section class="screen-frame" aria-label="Formation Configuration">
+      <section class="screen-frame screen-frame--formation" aria-label="Formation Configuration">
         <div class="screen-bar">
           <div class="screen-bar__lead">
             <h1 class="screen-title">Formation &amp; Deck</h1>
@@ -94,7 +108,7 @@ export class FormationScreen {
                 Squad &amp; Units
               </button>
               <button type="button" role="tab" aria-selected="${activeTab === 'deck'}" class="segmented-btn ${activeTab === 'deck' ? 'is-active' : ''}" data-form-tab="deck">
-                Battle Deck (${this._draftDeck.length}/${deckSize})
+                Battle Deck (${this._draftDeck.length}/${deckSize})${deckDirty ? '<span class="segmented-btn__dot" title="Unsaved deck changes" aria-label="Unsaved deck changes"></span>' : ''}
               </button>
               <button type="button" role="tab" aria-selected="${activeTab === 'stages'}" class="segmented-btn ${activeTab === 'stages' ? 'is-active' : ''}" data-form-tab="stages">
                 Campaign (${clearedCount}/${stages.length})
@@ -220,181 +234,180 @@ export class FormationScreen {
 
     const isAstraActive = isAstraHero(activeCommander);
 
-    bodyEl.innerHTML = `
-      <div class="formation-workspace formation-workspace--squad">
-        <div class="surface surface--celestial workspace-pane ${activeTheme}">
-          <div class="formation-commander-banner">
-            <div class="formation-commander-card-wrap">
-              ${
-                isAstraActive
-                  ? `<div id="formation-astra-card-slot" class="formation-commander-card-slot" data-astra-card-slot="formation-commander" title="Inspect ${activeCommander?.name || 'Astra Valen'} in Commanders"></div>`
-                  : `
-                    <button
-                      type="button"
-                      class="formation-commander-card-fallback"
-                      data-inspect-active-commander="${activeCommander?.id || ''}"
-                      title="Inspect ${activeCommander?.name || 'Active Commander'} in Commanders"
-                    >
-                      <img data-cmd-portrait="${activeCommander?.portraitAssetId || ''}" alt="${activeCommander?.name || 'Active Commander'}" />
-                    </button>
-                  `
-              }
-            </div>
+    const slotNumbersByUnit = new Map();
+    for (const s of unitSlots) {
+      if (!slotNumbersByUnit.has(s.unitId)) slotNumbersByUnit.set(s.unitId, []);
+      slotNumbersByUnit.get(s.unitId).push(s.slotIndex + 1);
+    }
+    const canPreviewNext =
+      selectedUnit && selectedUnit.unlocked && selectedUnit.level < selectedUnit.maxLevel;
+    const unitStatCells = selectedUnit
+      ? [
+          { label: 'HP', val: selectedUnit.scaledStats.maxHp, next: nextHp },
+          { label: detailRoleStat.label, val: detailRoleStat.val, next: detailRoleStat.nextVal },
+          { label: 'DEF', val: selectedUnit.scaledStats.defense, next: nextDef },
+          { label: 'RNG', val: selectedUnit.stats?.attackRange ?? 48, next: null },
+          { label: 'SPD', val: selectedUnit.stats?.moveSpeed ?? 85, next: null },
+        ]
+      : [];
+    const replacedUnitName = activeSlot?.unit?.name || activeSlot?.unitId || '';
 
-            <div class="formation-commander-banner__body">
-              <div class="workspace-pane__head">
-                <div>
-                  <div class="section-kicker section-kicker--gold">Active Commander &amp; Starting Formation</div>
-                  <h2 class="section-heading" style="margin-top: 2px;">${activeCommander?.name || 'Astra Valen'}</h2>
-                </div>
-                <span class="meta-line">
-                  <span>${activeCommander?.passiveSkill?.name || '—'}</span>
-                  <span class="meta-sep" aria-hidden="true">·</span>
-                  <span style="color: var(--hero-accent); font-weight: 600;">${activeCommander?.ultimateSkill?.name || '—'}</span>
-                </span>
-              </div>
-
-              <div class="commander-picker-strip" id="commander-selector-row">
-                ${ownedCommanders
-                  .map(
-                    (hero) => `
-                      <button
-                        type="button"
-                        class="commander-chip theme-${hero.id} ${hero.id === activeCommander?.id ? 'is-active' : ''}"
-                        data-commander-id="${hero.id}"
-                      >
-                        <img class="commander-chip__img" data-cmd-portrait="${hero.portraitAssetId}" alt="${hero.name}" />
-                        <span>${hero.name}</span>
-                        <span class="rarity-${(hero.rarity || 'R').toLowerCase()} tabular-nums">Lv.${hero.level}</span>
-                      </button>
-                    `,
-                  )
-                  .join('')}
-              </div>
-            </div>
+    const renderSlot = (idx) => {
+      const slot = unitSlots[idx];
+      const u = slot?.unit;
+      const isSel = idx === selectedSlotIdx;
+      const meta = slotMeta[idx] || { pos: `Slot ${idx + 1}` };
+      const rLower = (u?.rarity || 'R').toLowerCase();
+      const unitName = u?.name || slot?.unitId || 'Empty';
+      return `
+        <div
+          class="squad-slot ${isSel ? 'is-selected' : ''}"
+          data-select-slot="${idx}"
+          role="button"
+          tabindex="0"
+          aria-pressed="${isSel}"
+          aria-label="Slot ${idx + 1}, ${meta.pos}: ${escAttr(unitName)}"
+        >
+          <div class="squad-slot__art">
+            <span class="squad-slot__index tabular-nums" aria-hidden="true">${idx + 1}</span>
+            <img data-unit-art="${u?.spriteAssetId || ''}" alt="${escAttr(unitName)}" />
           </div>
-
-          <div class="formation-map" aria-label="Starting Battlefield Formation Preview">
-            <div class="formation-map__lane">
-              <span class="formation-map__lane-label">Rearline</span>
-              <div class="formation-map__nodes">
-                ${[2, 3]
-                  .map((idx) => {
-                    const s = unitSlots[idx];
-                    const isSel = idx === selectedSlotIdx;
-                    return `
-                      <button type="button" class="formation-node ${isSel ? 'is-selected' : ''}" data-select-slot="${idx}">
-                        <span class="formation-node__art">
-                          <img data-unit-art="${s?.unit?.spriteAssetId || ''}" alt="${s?.unit?.name || ''}" />
-                        </span>
-                        <span class="formation-node__info">
-                          <span class="formation-node__slot tabular-nums">Slot ${idx + 1}</span>
-                          <span class="formation-node__name">${s?.unit?.name || s?.unitId}</span>
-                        </span>
-                      </button>
-                    `;
-                  })
-                  .join('')}
-              </div>
+          <div class="squad-slot__body">
+            <div class="squad-slot__title">
+              <span class="squad-slot__name">${unitName}</span>
+              ${isSel ? '<span class="squad-slot__tag">Editing</span>' : ''}
             </div>
-
-            <div class="formation-map__divider" aria-hidden="true">
-              <span>ALLY ZONE</span>
+            <div class="squad-slot__meta tabular-nums">
+              <span class="rarity-${rLower}">${u?.rarity || 'R'}</span>
+              <span>Lv.${u?.level ?? 1}</span>
+              <span class="meta-sep" aria-hidden="true">·</span>
+              <span class="squad-slot__role">${u?.role || ''}</span>
             </div>
-
-            <div class="formation-map__lane">
-              <span class="formation-map__lane-label">Frontline</span>
-              <div class="formation-map__nodes">
-                ${[0, 1]
-                  .map((idx) => {
-                    const s = unitSlots[idx];
-                    const isSel = idx === selectedSlotIdx;
-                    return `
-                      <button type="button" class="formation-node ${isSel ? 'is-selected' : ''}" data-select-slot="${idx}">
-                        <span class="formation-node__art">
-                          <img data-unit-art="${s?.unit?.spriteAssetId || ''}" alt="${s?.unit?.name || ''}" />
-                        </span>
-                        <span class="formation-node__info">
-                          <span class="formation-node__slot tabular-nums">Slot ${idx + 1}</span>
-                          <span class="formation-node__name">${s?.unit?.name || s?.unitId}</span>
-                        </span>
-                      </button>
-                    `;
-                  })
-                  .join('')}
-              </div>
+            <div class="squad-slot__foot">
+              <span class="squad-slot__cost tabular-nums">${u?.cost ?? 20} E</span>
+              <span class="squad-slot__swap">
+                ${
+                  idx > 0
+                    ? `<button type="button" class="squad-swap-btn tabular-nums" data-swap-left="${idx}" title="Swap with Slot ${idx}" aria-label="Swap with Slot ${idx}">⇄ ${idx}</button>`
+                    : ''
+                }
+                ${
+                  idx < 3
+                    ? `<button type="button" class="squad-swap-btn tabular-nums" data-swap-right="${idx}" title="Swap with Slot ${idx + 2}" aria-label="Swap with Slot ${idx + 2}">⇄ ${idx + 2}</button>`
+                    : ''
+                }
+              </span>
             </div>
-          </div>
-
-          <div class="workspace-pane__head">
-            <span class="section-heading" style="font-size: 0.88rem;">
-              Starting Squad · Editing <span style="color: var(--accent-gold-bright);">Slot ${selectedSlotIdx + 1}</span>
-            </span>
-            <span class="meta-line" style="font-size: 0.74rem;">Select a slot, then assign a unit from the collection</span>
-          </div>
-
-          <div id="formation-unit-slots" class="squad-grid-2x2">
-            ${unitSlots
-              .map((slot) => {
-                const u = slot.unit;
-                const isSel = slot.slotIndex === selectedSlotIdx;
-                const meta = slotMeta[slot.slotIndex] || { pos: `Slot ${slot.slotIndex + 1}` };
-                return `
-                  <div class="squad-slot ${isSel ? 'is-selected' : ''}" data-select-slot="${slot.slotIndex}" role="button" tabindex="0" aria-pressed="${isSel}">
-                    <div class="squad-slot__top">
-                      <div class="squad-slot__art">
-                        <img data-unit-art="${u?.spriteAssetId || ''}" alt="${u?.name || slot.unitId}" />
-                      </div>
-                      <div style="min-width: 0; flex: 1;">
-                        <div class="meta-line tabular-nums" style="font-size: 0.7rem;">
-                          <span style="color: ${isSel ? 'var(--accent-gold-bright)' : 'var(--text-muted)'}; font-weight: 700;">Slot ${slot.slotIndex + 1}</span>
-                          <span class="meta-sep" aria-hidden="true">·</span>
-                          <span>${meta.shortPos}</span>
-                          <span class="meta-sep" aria-hidden="true">·</span>
-                          <span style="color: var(--accent-blue-bright);">${u?.cost ?? 20}E</span>
-                        </div>
-                        <div style="font-weight: 600; font-size: 0.88rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                          ${u?.name || slot.unitId}
-                        </div>
-                        <div class="meta-line tabular-nums" style="font-size: 0.72rem;">
-                          <span class="rarity-${(u?.rarity || 'R').toLowerCase()}">${u?.rarity || 'R'} · Lv.${u?.level ?? 1}</span>
-                          <span class="meta-sep" aria-hidden="true">·</span>
-                          <span>${u?.role || ''}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="squad-slot__footer">
-                      <span class="squad-slot__status">${isSel ? 'Target Slot' : 'Click to edit'}</span>
-                      <div class="btn-row" style="gap: 5px;">
-                        <button type="button" class="btn btn-ghost btn-xs" data-swap-left="${slot.slotIndex}" title="Move earlier" ${slot.slotIndex === 0 ? 'disabled' : ''}>←</button>
-                        <button type="button" class="btn btn-ghost btn-xs" data-swap-right="${slot.slotIndex}" title="Move later" ${slot.slotIndex === 3 ? 'disabled' : ''}>→</button>
-                      </div>
-                    </div>
-                  </div>
-                `;
-              })
-              .join('')}
           </div>
         </div>
+      `;
+    };
 
-        <div class="surface workspace-pane">
+    bodyEl.innerHTML = `
+      <div class="formation-workspace formation-workspace--squad">
+        <section class="surface surface--celestial workspace-pane formation-pane formation-board-pane ${activeTheme}" aria-label="Starting Formation">
+          <div class="workspace-pane__head">
+            <div>
+              <div class="section-kicker section-kicker--gold">Starting Formation</div>
+              <h2 class="section-heading">Squad Lineup</h2>
+            </div>
+            <span class="formation-pane__hint">
+              Editing <strong class="tabular-nums">Slot ${selectedSlotIdx + 1}</strong> · pick a unit from the collection
+            </span>
+          </div>
+
+          <div class="formation-board" aria-label="Starting Battlefield Formation Preview">
+            <aside class="formation-board__commander" aria-label="Active Commander and Selection">
+              <div class="formation-commander-display">
+                <div class="formation-commander-card-wrap">
+                  ${
+                    isAstraActive
+                      ? `<div id="formation-astra-card-slot" class="formation-commander-card-slot" data-astra-card-slot="formation-commander" title="Inspect ${escAttr(activeCommander?.name || 'Astra Valen')} in Commanders"></div>`
+                      : `
+                        <button
+                          type="button"
+                          class="formation-commander-card-fallback"
+                          data-inspect-active-commander="${activeCommander?.id || ''}"
+                          title="Inspect ${escAttr(activeCommander?.name || 'Active Commander')} in Commanders"
+                        >
+                          <img data-cmd-portrait="${activeCommander?.portraitAssetId || ''}" alt="${escAttr(activeCommander?.name || 'Active Commander')}" />
+                        </button>
+                      `
+                  }
+                </div>
+                <div class="formation-commander-meta">
+                  <span class="formation-lane__label">Commander</span>
+                  <strong class="formation-commander-meta__name">${activeCommander?.name || 'Astra Valen'}</strong>
+                  <span class="formation-commander-meta__skill">
+                    <span class="formation-commander-meta__skill-label">Passive</span>
+                    ${activeCommander?.passiveSkill?.name || '—'}
+                  </span>
+                  <span class="formation-commander-meta__skill is-ultimate">
+                    <span class="formation-commander-meta__skill-label">Ultimate</span>
+                    ${activeCommander?.ultimateSkill?.name || '—'}
+                  </span>
+                </div>
+              </div>
+
+              <div class="formation-commander-picker">
+                <span class="formation-pane__label">Select Commander</span>
+                <div class="commander-picker-list" id="commander-selector-row" role="listbox" aria-label="Owned Commanders">
+                  ${ownedCommanders
+                    .map(
+                      (hero) => `
+                        <button
+                          type="button"
+                          role="option"
+                          class="commander-option theme-${hero.id} ${hero.id === activeCommander?.id ? 'is-active' : ''}"
+                          data-commander-id="${hero.id}"
+                          aria-selected="${hero.id === activeCommander?.id}"
+                          aria-pressed="${hero.id === activeCommander?.id}"
+                        >
+                          <span class="commander-option__indicator" aria-hidden="true"></span>
+                          <span class="commander-option__name">${hero.name}</span>
+                          <span class="commander-option__level rarity-${(hero.rarity || 'R').toLowerCase()} tabular-nums">Lv.${hero.level}</span>
+                        </button>
+                      `,
+                    )
+                    .join('')}
+                </div>
+              </div>
+            </aside>
+
+            <div id="formation-unit-slots" class="formation-lanes">
+              <div class="formation-lane">
+                <div class="formation-lane__label">Rearline <small class="tabular-nums">Slots 3–4</small></div>
+                ${renderSlot(2)}
+                ${renderSlot(3)}
+              </div>
+              <div class="formation-lane formation-lane--front">
+                <div class="formation-lane__label">Frontline <small class="tabular-nums">Slots 1–2</small></div>
+                ${renderSlot(0)}
+                ${renderSlot(1)}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="surface workspace-pane formation-pane" aria-label="Unit Collection">
           <div class="workspace-pane__head">
             <div>
               <div class="section-kicker">Unit Collection</div>
-              <h2 class="section-heading" style="margin-top: 2px;">${unlockedUnits.length} / ${allUnits.length} Unlocked</h2>
+              <h2 class="section-heading tabular-nums">${unlockedUnits.length} / ${allUnits.length} Unlocked</h2>
             </div>
-            <span class="meta-line tabular-nums" style="font-size: 0.78rem;">
+            <span class="formation-pane__meta tabular-nums">
               <span>${formatNumber(gameState.resources.credits)} Cr</span>
               <span class="meta-sep" aria-hidden="true">·</span>
               <span style="color: var(--accent-blue-bright);">${formatNumber(xpChips)} XP Chips</span>
             </span>
           </div>
 
-          <div class="scroll-pane" style="flex: 1;">
+          <div class="scroll-pane formation-pane__scroll">
             <div id="formation-unit-roster" class="unit-collection-grid">
               ${allUnits
                 .map((u) => {
                   const isSel = selectedUnit?.id === u.id;
+                  const squadSlots = slotNumbersByUnit.get(u.id) || [];
                   const inSquad = inSquadIds.has(u.id);
                   const rLower = (u.rarity || 'R').toLowerCase();
                   return `
@@ -402,15 +415,20 @@ export class FormationScreen {
                       type="button"
                       class="unit-tile unit-tile--${rLower} ${isSel ? 'is-selected' : ''} ${u.unlocked ? '' : 'is-locked'}"
                       data-select-unit="${u.id}"
+                      aria-pressed="${isSel}"
                     >
                       <div class="unit-tile__top">
-                        <span class="rarity-${rLower} tabular-nums" style="font-size: 0.68rem;">
+                        <span class="rarity-${rLower} tabular-nums">
                           ${u.unlocked ? `${u.rarity} · Lv.${u.level}` : 'Locked'}
                         </span>
-                        ${inSquad ? '<span class="unit-tile__deployed" title="In starting squad">In Squad</span>' : ''}
+                        ${
+                          inSquad
+                            ? `<span class="unit-tile__deployed tabular-nums" title="In starting squad">Slot ${squadSlots.join(', ')}</span>`
+                            : ''
+                        }
                       </div>
                       <div class="unit-tile__art">
-                        <img data-unit-art="${u.spriteAssetId}" alt="${u.name}" />
+                        <img data-unit-art="${u.spriteAssetId}" alt="${escAttr(u.name)}" />
                       </div>
                       <div class="unit-tile__name">${u.name}</div>
                       <div class="unit-tile__role">${u.role}</div>
@@ -427,20 +445,16 @@ export class FormationScreen {
                 <div class="unit-detail-dock" aria-label="Selected Unit Details">
                   <div class="unit-detail-dock__head">
                     <div class="unit-detail-dock__art">
-                      <img data-unit-art="${selectedUnit.spriteAssetId}" alt="${selectedUnit.name}" />
+                      <img data-unit-art="${selectedUnit.spriteAssetId}" alt="${escAttr(selectedUnit.name)}" />
                     </div>
-                    <div style="min-width: 0; flex: 1;">
-                      <div class="workspace-pane__head" style="gap: 6px;">
-                        <strong style="font-size: 0.96rem; color: var(--text-primary);">${selectedUnit.name}</strong>
-                        <span class="meta-line tabular-nums" style="font-size: 0.76rem;">
-                          <span class="rarity-${(selectedUnit.rarity || 'R').toLowerCase()}">${selectedUnit.rarity}</span>
-                          <span class="meta-sep" aria-hidden="true">·</span>
-                          <span>${selectedUnit.unlocked ? `Lv.${selectedUnit.level}/${selectedUnit.maxLevel}` : 'Locked'}</span>
-                          <span class="meta-sep" aria-hidden="true">·</span>
-                          <span style="color: var(--accent-blue-bright);">${selectedUnit.cost} E</span>
-                        </span>
+                    <div class="unit-detail-dock__identity">
+                      <div class="unit-detail-dock__title">
+                        <strong>${selectedUnit.name}</strong>
+                        <span class="rarity-${(selectedUnit.rarity || 'R').toLowerCase()}">${selectedUnit.rarity}</span>
                       </div>
-                      <div class="meta-line" style="font-size: 0.74rem; margin-top: 2px;">
+                      <div class="meta-line tabular-nums unit-detail-dock__meta">
+                        <span>${selectedUnit.unlocked ? `Lv.${selectedUnit.level}/${selectedUnit.maxLevel}` : 'Locked'}</span>
+                        <span class="meta-sep" aria-hidden="true">·</span>
                         <span>${selectedUnit.role}</span>
                         ${
                           selectedUnit.realm
@@ -452,30 +466,35 @@ export class FormationScreen {
                             ? `<span class="meta-sep" aria-hidden="true">·</span><span style="color: var(--accent-gold-bright);">${selectedUnit.traitLabel}</span>`
                             : ''
                         }
+                        <span class="meta-sep" aria-hidden="true">·</span>
+                        <span style="color: var(--accent-blue-bright);">${selectedUnit.cost} E</span>
                       </div>
-                      <div class="unit-detail-dock__stats tabular-nums">
-                        <span><strong>HP</strong> ${selectedUnit.scaledStats.maxHp}</span>
-                        <span><strong>${detailRoleStat.label}</strong> ${detailRoleStat.val}</span>
-                        <span><strong>DEF</strong> ${selectedUnit.scaledStats.defense}</span>
-                        <span><strong>RNG</strong> ${selectedUnit.stats?.attackRange ?? 48}</span>
-                        <span><strong>SPD</strong> ${selectedUnit.stats?.moveSpeed ?? 85}</span>
-                      </div>
-                      ${
-                        selectedUnit.unlocked && selectedUnit.level < selectedUnit.maxLevel
-                          ? `
-                            <div class="unit-next-preview tabular-nums">
-                              <span>Lv.${selectedUnit.level + 1}:</span>
-                              <span>HP ${selectedUnit.scaledStats.maxHp}→<strong>${nextHp}</strong></span>
-                              <span>${detailRoleStat.label} ${detailRoleStat.val}→<strong>${detailRoleStat.nextVal}</strong></span>
-                              <span>DEF ${selectedUnit.scaledStats.defense}→<strong>${nextDef}</strong></span>
-                            </div>
-                          `
-                          : ''
-                      }
                     </div>
                   </div>
 
-                  <p class="unit-detail-dock__desc">${selectedUnit.description || ''}</p>
+                  <div class="unit-stat-row tabular-nums">
+                    ${unitStatCells
+                      .map(
+                        (cell) => `
+                          <div class="unit-stat">
+                            <span class="unit-stat__label">${cell.label}</span>
+                            <span class="unit-stat__value">${cell.val}</span>
+                            ${
+                              canPreviewNext && cell.next !== null
+                                ? `<span class="unit-stat__next" title="At Lv.${selectedUnit.level + 1}">→ ${cell.next}</span>`
+                                : ''
+                            }
+                          </div>
+                        `,
+                      )
+                      .join('')}
+                  </div>
+
+                  ${
+                    selectedUnit.description
+                      ? `<p class="unit-detail-dock__desc" title="${escAttr(selectedUnit.description)}">${selectedUnit.description}</p>`
+                      : ''
+                  }
 
                   <div class="unit-detail-dock__actions">
                     ${
@@ -501,15 +520,20 @@ export class FormationScreen {
                                 : `Upgrade → Lv.${selectedUnit.level + 1} (${selectedUnit.upgradeCreditCost} Cr · ${selectedUnit.upgradeChipCost} Chips)`
                             }
                           </button>
+                          ${
+                            !isAlreadyInSelectedSlot && replacedUnitName
+                              ? `<span class="unit-detail-dock__hint">Replaces ${replacedUnitName} · or double-click a unit</span>`
+                              : ''
+                          }
                         `
-                        : `<span class="meta-line" style="font-size: 0.78rem; color: var(--text-muted);">Unlock this unit via Campaign milestones or Armory Requisition.</span>`
+                        : `<span class="unit-detail-dock__hint">Unlock this unit via Campaign milestones or Armory Requisition.</span>`
                     }
                   </div>
                 </div>
               `
               : ''
           }
-        </div>
+        </section>
       </div>
     `;
 
@@ -680,17 +704,29 @@ export class FormationScreen {
         ? `Unlock at least ${deckSize} unique cards (${unlockedCards.length}/${deckSize} owned) to enter battle.`
         : draftValidation.ok
           ? isDraftMatchesSaved
-            ? `Ready for battle · Battle slots draw randomly with replacement (${refillSec}s refill).`
-            : 'Deck complete (6/6) · Click Save 6-Card Deck to apply.'
+            ? `Saved and ready · Battle slots draw randomly with replacement (${refillSec}s refill).`
+            : `Deck complete (${deckSize}/${deckSize}) · Save Deck to apply your changes.`
           : draftValidation.reason;
+
+    const categoryCounts = { all: unlockedCards.length, unit: 0, skill: 0, tactic: 0, support: 0 };
+    for (const c of unlockedCards) {
+      const cat = c.category || 'unit';
+      if (categoryCounts[cat] !== undefined) categoryCounts[cat] += 1;
+    }
+    const deckStatus = !draftValidation.ok
+      ? { key: 'incomplete', label: 'Incomplete' }
+      : isDraftMatchesSaved
+        ? { key: 'saved', label: 'Saved' }
+        : { key: 'dirty', label: 'Unsaved changes' };
 
     bodyEl.innerHTML = `
       <div class="formation-workspace formation-workspace--deck">
-        <div class="surface workspace-pane">
+        <section class="surface workspace-pane formation-pane" aria-label="Card Pool">
           <div class="workspace-pane__head">
             <div>
-              <div class="section-kicker">Unlocked Card Pool · Select ${deckSize} Unique Cards</div>
-              <h2 class="section-heading" style="margin-top: 2px;">Available Cards (${unlockedCards.length})</h2>
+              <div class="section-kicker">Card Pool</div>
+              <h2 class="section-heading">Available Cards</h2>
+              <div class="formation-pane__hint tabular-nums">${unlockedCards.length} unlocked · choose ${deckSize} unique cards</div>
             </div>
 
             <div class="segmented-bar" role="tablist" aria-label="Filter cards by category">
@@ -704,7 +740,7 @@ export class FormationScreen {
                       class="segmented-btn ${cardCatFilter === cat ? 'is-active' : ''}"
                       data-deck-cat="${cat}"
                     >
-                      ${label}
+                      ${label}<span class="segmented-btn__count tabular-nums">${categoryCounts[cat] ?? 0}</span>
                     </button>
                   `,
                 )
@@ -712,7 +748,7 @@ export class FormationScreen {
             </div>
           </div>
 
-          <div class="scroll-pane">
+          <div class="scroll-pane formation-pane__scroll">
             <div class="deck-builder-grid" id="deck-builder-grid">
               ${visibleCards
                 .map((card) => {
@@ -724,36 +760,33 @@ export class FormationScreen {
                   const cat = card.category || 'unit';
                   return `
                     <div
-                      class="deck-card-row deck-card-row--${cat} ${isSelected ? 'is-in-deck' : ''}"
+                      class="deck-card-row deck-card-row--${cat} ${isSelected ? 'is-in-deck' : ''} ${!isSelected && !canAdd ? 'is-unavailable' : ''}"
                       data-card-id="${card.id}"
-                      title="${[card.description, card.upgradeSummary].filter(Boolean).join(' · ')}"
+                      title="${escAttr([card.description, card.upgradeSummary].filter(Boolean).join(' · '))}"
                     >
-                      <div class="deck-card-row__main">
-                        <div class="deck-card-row__icon">
-                          <img data-deck-icon="${card.iconAssetId}" alt="${card.name}" />
+                      <div class="deck-card-row__icon">
+                        <img data-deck-icon="${card.iconAssetId}" alt="${escAttr(card.name)}" />
+                      </div>
+                      <div class="deck-card-row__body">
+                        <div class="deck-card-row__name">${card.name}</div>
+                        <div class="deck-card-row__meta tabular-nums">
+                          <span class="rarity-${(card.rarity || 'R').toLowerCase()}">${card.rarity || 'R'}</span>
+                          <span class="meta-sep" aria-hidden="true">·</span>
+                          <span class="cat-text-${cat}">${CATEGORY_LABELS[cat]}</span>
+                          <span class="meta-sep" aria-hidden="true">·</span>
+                          <span>${card.cost} E</span>
                         </div>
-                        <div style="min-width: 0;">
-                          <div style="font-weight: 600; font-size: 0.85rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                            ${card.name}
-                          </div>
-                          <div class="meta-line tabular-nums" style="font-size: 0.74rem;">
-                            <span class="rarity-${(card.rarity || 'R').toLowerCase()}">${card.rarity || 'R'}</span>
-                            <span class="meta-sep" aria-hidden="true">·</span>
-                            <span class="cat-text-${cat}">${CATEGORY_LABELS[cat]}</span>
-                            <span class="meta-sep" aria-hidden="true">·</span>
-                            <span>${card.cost} E</span>
-                          </div>
-                        </div>
+                        ${card.description ? `<div class="deck-card-row__desc">${card.description}</div>` : ''}
                       </div>
                       <div class="deck-stepper">
                         ${
                           isSelected
                             ? `
-                              <span class="deck-selected-badge">Selected</span>
+                              <span class="deck-selected-badge">✓ In Deck</span>
                               <button
                                 type="button"
                                 class="btn btn-secondary deck-stepper__btn"
-                                aria-label="Remove ${card.name}"
+                                aria-label="Remove ${escAttr(card.name)}"
                                 data-deck-remove="${card.id}"
                               >
                                 Remove
@@ -763,7 +796,7 @@ export class FormationScreen {
                               <button
                                 type="button"
                                 class="btn btn-primary deck-stepper__btn"
-                                aria-label="Add ${card.name}"
+                                aria-label="Add ${escAttr(card.name)}"
                                 data-deck-add="${card.id}"
                                 ${!canAdd ? 'disabled' : ''}
                               >
@@ -778,63 +811,73 @@ export class FormationScreen {
                 .join('')}
             </div>
           </div>
-        </div>
+        </section>
 
-        <aside class="surface workspace-pane" aria-label="Active Deck Composition">
+        <aside class="surface surface--celestial workspace-pane formation-pane deck-panel" aria-label="Active Deck Composition">
           <div class="workspace-pane__head">
             <div>
-              <div class="section-kicker section-kicker--gold">Battle Deck (${this._draftDeck.length}/${deckSize})</div>
-              <h2 class="section-heading" style="margin-top: 2px;">${savedValidation.ok ? '6-Card Pool Active' : 'Incomplete Deck'}</h2>
+              <div class="section-kicker section-kicker--gold">Battle Deck</div>
+              <h2 class="section-heading tabular-nums">${this._draftDeck.length} / ${deckSize} Cards</h2>
             </div>
-          </div>
-
-          <div class="meta-line tabular-nums" style="font-size: 0.78rem;">
-            <span class="cat-text-unit">Unit ${draftCounts.unit}</span>
-            <span class="meta-sep" aria-hidden="true">·</span>
-            <span class="cat-text-skill">Skill ${draftCounts.skill}</span>
-            <span class="meta-sep" aria-hidden="true">·</span>
-            <span class="cat-text-tactic">Tactic ${draftCounts.tactic}</span>
-            <span class="meta-sep" aria-hidden="true">·</span>
-            <span class="cat-text-support">Support ${draftCounts.support}</span>
+            <span class="deck-panel__status is-${deckStatus.key}">${deckStatus.label}</span>
           </div>
 
           <div class="progress-track">
-            <div class="progress-fill" style="width: ${Math.min(100, (this._draftDeck.length / deckSize) * 100)}%;"></div>
+            <div class="progress-fill progress-fill--gold" style="width: ${Math.min(100, (this._draftDeck.length / deckSize) * 100)}%;"></div>
           </div>
 
-          <p id="deck-validation-message" class="deck-validation-msg ${draftValidation.ok ? 'is-valid' : 'is-warn'}">
-            ${deckStatusMessage}
-          </p>
+          <div class="deck-mix tabular-nums" aria-label="Deck composition by category">
+            ${['unit', 'skill', 'tactic', 'support']
+              .map(
+                (cat) => `
+                  <div class="deck-mix__item deck-mix__item--${cat}">
+                    <span class="deck-mix__label">${CATEGORY_LABELS[cat]}</span>
+                    <span class="deck-mix__value">${draftCounts[cat]}</span>
+                  </div>
+                `,
+              )
+              .join('')}
+          </div>
 
           <div class="deck-draft-list" id="deck-draft-slots">
             ${Array.from({ length: deckSize }, (_, idx) => {
               const cid = this._draftDeck[idx];
               if (!cid) {
                 return `
-                  <div class="deck-draft-pill deck-draft-pill--empty">
-                    <span class="tabular-nums" style="color: var(--text-muted);">Slot ${idx + 1} · Empty</span>
-                    <span style="font-size: 0.74rem; color: var(--text-muted);">Select a card</span>
+                  <div class="deck-slot deck-slot--empty">
+                    <span class="tabular-nums">Slot ${idx + 1}</span>
+                    <span>Empty</span>
                   </div>
                 `;
               }
               const card = dataRegistry.cardsById.get(cid);
               const cat = card?.category || 'unit';
               return `
-                <button type="button" class="deck-draft-pill" data-deck-remove="${cid}" title="Click to remove ${card?.name || cid}">
-                  <span style="min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                    <span class="tabular-nums" style="color: var(--text-muted); margin-right: 6px;">${idx + 1}.</span>
-                    <span class="cat-text-${cat}" style="margin-right: 6px;">${CATEGORY_LABELS[cat]}</span>
-                    <strong style="color: var(--text-primary);">${card?.name || cid}</strong>
+                <button type="button" class="deck-slot deck-slot--${cat}" data-deck-remove="${cid}" title="Remove ${escAttr(card?.name || cid)}">
+                  <span class="deck-slot__icon">
+                    <img data-deck-icon="${card?.iconAssetId || ''}" alt="" />
                   </span>
-                  <span class="tabular-nums" style="color: var(--accent-gold-bright); font-weight: 700; flex-shrink: 0;">${card?.cost ?? 0}E · ×</span>
+                  <span class="deck-slot__body">
+                    <span class="deck-slot__name">${card?.name || cid}</span>
+                    <span class="deck-slot__meta tabular-nums">
+                      <span class="cat-text-${cat}">${CATEGORY_LABELS[cat]}</span>
+                      <span class="meta-sep" aria-hidden="true">·</span>
+                      <span>${card?.cost ?? 0} E</span>
+                    </span>
+                  </span>
+                  <span class="deck-slot__remove" aria-hidden="true">×</span>
                 </button>
               `;
             }).join('')}
           </div>
 
-          <div class="btn-row" style="margin-top: auto; justify-content: space-between;">
-            <button type="button" id="btn-deck-auto" class="btn btn-ghost btn-sm">
-              Auto-Fill 6 Cards
+          <p id="deck-validation-message" class="deck-validation-msg ${draftValidation.ok ? 'is-valid' : 'is-warn'}">
+            ${deckStatusMessage}
+          </p>
+
+          <div class="deck-panel__actions">
+            <button type="button" id="btn-deck-auto" class="btn btn-ghost btn-sm" title="Fill with a recommended ${deckSize}-card deck and save it">
+              Auto-Fill
             </button>
             <button
               type="button"
@@ -842,7 +885,7 @@ export class FormationScreen {
               class="btn btn-primary btn-sm"
               ${!draftValidation.ok ? 'disabled' : ''}
             >
-              Save 6-Card Deck
+              Save Deck
             </button>
           </div>
         </aside>

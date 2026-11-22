@@ -952,6 +952,97 @@ test('FormationScreen mounts static AstraCard for Active Commander Astra, handle
   assert.equal(thirdCard.destroyed, true, 'FormationScreen unmount must destroy AstraCard');
 });
 
+test('FormationScreen Squad tab places vertical scrollable Commander selector inside left sidebar and aligns board to top', async () => {
+  const registry = await loadRealRegistry();
+  const {
+    eventBus,
+    gameState,
+    heroSystem,
+    formationSystem,
+    cardSystem,
+    economySystem,
+    progressionSystem,
+  } = createSystems(registry);
+  const FakeCard = createFakeAstraCardClass();
+
+  heroSystem.grantHero('kael');
+  heroSystem.grantHero('lyra');
+
+  const screen = new FormationScreen({
+    eventBus,
+    gameState,
+    dataRegistry: registry,
+    heroSystem,
+    formationSystem,
+    cardSystem,
+    economySystem,
+    progressionSystem,
+    assetManager: createMockAssets(),
+    audioManager: createMockAudio(),
+    screenManager: { navigate() {} },
+    notify() {},
+    AstraCardClass: FakeCard,
+  });
+
+  const container = createMockElement('div');
+  gameState.setUI({ formationTab: 'squad' });
+  screen.mount(container);
+
+  // Verify commander selector is inside .formation-board__commander (left sidebar) and not a bottom strip
+  const bodyEl = container.querySelector('#formation-workspace-body');
+  const html = bodyEl?.innerHTML || '';
+  const sidebarStart = html.indexOf('class="formation-board__commander"');
+  const lanesStart = html.indexOf('id="formation-unit-slots"');
+  const selectorStart = html.indexOf('id="commander-selector-row"');
+  assert.ok(sidebarStart > -1 && lanesStart > -1 && selectorStart > -1);
+  assert.ok(
+    selectorStart > sidebarStart && selectorStart < lanesStart,
+    'Commander selector must be nested inside the left .formation-board__commander sidebar before .formation-lanes',
+  );
+  assert.equal(
+    container.querySelector('.commander-picker-strip'),
+    null,
+    'Old bottom horizontal .commander-picker-strip must be removed',
+  );
+
+  const options = container.querySelectorAll('.commander-option');
+  assert.equal(
+    options.length,
+    heroSystem.getOwnedHeroes().length,
+    'Expected vertical option row for each owned commander',
+  );
+  const astraOpt = container.querySelector('[data-commander-id="astra"]');
+  const kaelOpt = container.querySelector('[data-commander-id="kael"]');
+  assert.equal(astraOpt.classList.contains('is-active'), true);
+  assert.equal(astraOpt.getAttribute('aria-selected'), 'true');
+  assert.equal(kaelOpt.classList.contains('is-active'), false);
+
+  // Clicking a vertical commander option updates the active commander immediately
+  kaelOpt.click();
+  assert.equal(heroSystem.getActiveCommander().id, 'kael');
+  const updatedKaelOpt = container.querySelector('[data-commander-id="kael"]');
+  const updatedAstraOpt = container.querySelector('[data-commander-id="astra"]');
+  assert.equal(updatedKaelOpt.classList.contains('is-active'), true);
+  assert.equal(updatedKaelOpt.getAttribute('aria-selected'), 'true');
+  assert.equal(updatedAstraOpt.classList.contains('is-active'), false);
+
+  // Verify CSS layout rules enforce top alignment and vertical scrollable list
+  const css = await fs.readFile(path.join(ROOT, 'styles/components.css'), 'utf8');
+  assert.match(css, /\.formation-board\s*\{[^}]*align-items:\s*start;/, '.formation-board must top-align content');
+  assert.match(
+    css,
+    /\.formation-board__commander\s*\{[^}]*justify-content:\s*flex-start;/,
+    '.formation-board__commander must top-align sidebar content',
+  );
+  assert.match(
+    css,
+    /\.commander-picker-list\s*\{[^}]*flex-direction:\s*column;[^}]*overflow-y:\s*auto;/,
+    '.commander-picker-list must arrange commanders vertically with internal scrolling',
+  );
+
+  screen.unmount();
+});
+
 test('SummonScreen mounts static AstraCard only for Astra pull results, enforces WebGL cap, preserves click inspection, and cleans up', async () => {
   const registry = await loadRealRegistry();
   const {

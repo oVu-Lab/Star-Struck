@@ -1095,20 +1095,28 @@
    3. FORMATION & DECK SCREEN — 3-Tab Tactical Command Workspace
    ========================================================================== */
 
+.screen-frame--formation {
+  gap: 10px;
+}
+
+.screen-frame--formation .screen-bar {
+  padding-bottom: 8px;
+}
+
 .formation-workspace {
   flex: 1;
   min-height: 0;
   display: grid;
-  gap: 16px;
+  gap: 14px;
   align-items: stretch;
 }
 
 .formation-workspace--squad {
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
 }
 
 .formation-workspace--deck {
-  grid-template-columns: minmax(0, 1.55fr) minmax(300px, 0.72fr);
+  grid-template-columns: minmax(0, 1.6fr) minmax(320px, 0.78fr);
 }
 
 .formation-workspace--stages {
@@ -1133,227 +1141,238 @@
   flex-shrink: 0;
 }
 
-/* Compact Commander Bar inside Squad Pane */
-.commander-picker-strip {
+/* --------------------------------------------------------------------------
+   Formation & Deck shared pane rhythm
+   One spacing scale (8 / 12 / 16 / 20), one selection language
+   (gold hairline + soft gold lift) and one hover lift for every tile.
+   -------------------------------------------------------------------------- */
+.formation-pane {
+  --fp-select-ring: 0 0 0 1px rgba(166, 124, 46, 0.32), 0 6px 16px rgba(166, 124, 46, 0.16);
+  --fp-hover-shadow: 0 4px 12px rgba(46, 36, 24, 0.08);
+  padding: 12px 16px 14px;
+  gap: 10px;
+}
+
+.formation-pane .section-heading {
+  margin-top: 2px;
+}
+
+.formation-pane__hint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.formation-pane__hint strong {
+  color: var(--accent-gold-bright);
+  font-weight: 700;
+}
+
+.formation-pane__meta {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border-subtle);
-  flex-shrink: 0;
-}
-
-.commander-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 12px 5px 6px;
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
-  border: 1px solid var(--border-subtle);
-  font-family: var(--font-ui);
-  font-size: 0.8rem;
-  font-weight: 600;
+  gap: 7px;
+  font-size: 0.78rem;
   color: var(--text-secondary);
-  transition: border-color var(--duration-fast), background-color var(--duration-fast), color var(--duration-fast);
 }
 
-.commander-chip:hover {
-  border-color: var(--border-strong);
-  background: #ffffff;
-  color: var(--text-primary);
-}
-
-.commander-chip.is-active {
-  border-color: var(--hero-accent, var(--accent-gold));
-  background:
-    radial-gradient(ellipse 90% 100% at 0% 50%, var(--hero-glow), transparent 72%),
-    #ffffff;
-  color: var(--text-primary);
-  box-shadow: 0 2px 8px rgba(46, 36, 24, 0.08);
-}
-
-.commander-chip__img {
-  width: 26px;
-  height: 26px;
-  border-radius: 2px;
-  object-fit: cover;
-  object-position: center 18%;
-  border: 1px solid var(--border-strong);
-  background: #151c33;
-}
-
-/* Visual Battlefield Formation Preview Diagram */
-.formation-map {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: stretch;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  background:
-    linear-gradient(90deg, rgba(166, 124, 46, 0.07) 0%, #f1eadc 50%, rgba(34, 110, 163, 0.07) 100%);
-  border: 1px solid var(--border-subtle);
+.formation-pane__label {
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
   flex-shrink: 0;
 }
 
-.formation-map__lane {
+.formation-pane__scroll {
+  flex: 1;
+}
+
+.segmented-btn__count {
+  margin-left: 6px;
+  font-size: 0.66rem;
+  font-weight: 600;
+  opacity: 0.62;
+}
+
+.segmented-btn__dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 7px;
+  border-radius: 50%;
+  vertical-align: middle;
+  background: var(--state-warn);
+  box-shadow: 0 0 0 2px rgba(159, 103, 17, 0.18);
+}
+
+/* --------------------------------------------------------------------------
+   Formation Board — Left Commander Sidebar + Top-Aligned Rearline/Frontline
+   -------------------------------------------------------------------------- */
+.formation-board {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 184px minmax(0, 1fr);
+  align-items: start;
+  gap: 16px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(90deg, rgba(166, 124, 46, 0.06) 0%, rgba(255, 255, 255, 0.5) 45%, rgba(34, 110, 163, 0.07) 100%);
+  border: 1px solid rgba(138, 114, 78, 0.14);
+  overflow: hidden;
+}
+
+.formation-board__commander {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 10px;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  padding-right: 14px;
+  border-right: 1px solid var(--border-subtle);
+  align-self: stretch;
 }
 
-.formation-map__lane-label {
+.formation-commander-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.formation-commander-card-wrap {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.formation-commander-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-align: center;
+  min-width: 0;
+  width: 100%;
+}
+
+.formation-commander-meta__name {
+  font-family: var(--font-display);
+  font-size: 0.94rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.formation-commander-meta__skill {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  line-height: 1.25;
+}
+
+.formation-commander-meta__skill.is-ultimate {
+  color: var(--hero-accent);
+  font-weight: 600;
+}
+
+.formation-commander-meta__skill-label {
+  display: block;
   font-family: var(--font-mono);
-  font-size: 0.65rem;
+  font-size: 0.56rem;
   font-weight: 700;
   letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.formation-lanes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  min-width: 0;
+  align-self: start;
+  max-height: 100%;
+  overflow-y: auto;
+}
+
+.formation-lane {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.formation-lane__label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--accent-gold-bright);
 }
 
-.formation-map__nodes {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.formation-map__divider {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 5px;
-  border-left: 1px dashed rgba(154, 122, 68, 0.38);
-  border-right: 1px dashed rgba(154, 122, 68, 0.38);
-}
-
-.formation-map__divider span {
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  color: var(--accent-gold);
-}
-
-.formation-node {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  text-align: left;
-  padding: 5px 8px;
-  border-radius: 2px;
-  background: #fdfcf8;
-  border: 1px solid var(--border-subtle);
-  transition: border-color var(--duration-fast), background-color var(--duration-fast);
-}
-
-.formation-node:hover {
-  border-color: var(--accent-gold);
-  background: #ffffff;
-}
-
-.formation-node.is-selected {
-  border-color: var(--accent-gold);
-  background: #ffffff;
-  box-shadow: inset 0 0 0 1px rgba(166, 124, 46, 0.25);
-}
-
-.formation-node__art {
-  width: 28px;
-  height: 28px;
-  border-radius: 2px;
-  background: #ede6d8;
-  border: 1px solid var(--border-subtle);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2px;
-  flex-shrink: 0;
-}
-
-.formation-node__art img {
-  max-height: 22px;
-  width: auto;
-}
-
-.formation-node__info {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  line-height: 1.15;
-}
-
-.formation-node__slot {
-  font-size: 0.64rem;
+.formation-lane__label small {
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
   color: var(--text-muted);
-}
-
-.formation-node.is-selected .formation-node__slot {
-  color: var(--accent-gold-bright);
-  font-weight: 700;
-}
-
-.formation-node__name {
-  font-family: var(--font-ui);
-  font-size: 0.78rem;
   font-weight: 600;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-/* Starting 4-Slot Squad Grid (2x2 Interactive Cards) */
-.squad-grid-2x2 {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  align-content: start;
+.formation-lane--front .formation-lane__label small::after {
+  content: '  →';
+  color: var(--accent-blue);
 }
 
+/* Squad slot — the one place each squad member is shown */
 .squad-slot {
   cursor: pointer;
-  background: var(--surface-2);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 88px;
+  padding: 10px 12px;
+  background: var(--surface-1);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  padding: 10px 11px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  transition: border-color var(--duration-fast), background-color var(--duration-fast), box-shadow var(--duration-fast);
+  transition:
+    border-color var(--duration-fast) var(--ease-tactical),
+    background-color var(--duration-fast) var(--ease-tactical),
+    box-shadow var(--duration-fast) var(--ease-tactical),
+    transform var(--duration-fast) var(--ease-tactical);
 }
 
 .squad-slot:hover {
   border-color: var(--border-strong);
-  background: #faf6ed;
+  background: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: var(--fp-hover-shadow);
 }
 
 .squad-slot.is-selected {
   border-color: var(--accent-gold);
-  background: linear-gradient(180deg, #ffffff 0%, #f7f0e0 100%);
-  box-shadow:
-    0 4px 12px rgba(166, 124, 46, 0.14),
-    inset 0 0 0 1px rgba(166, 124, 46, 0.25);
-}
-
-.squad-slot__top {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8f1e1 100%);
+  box-shadow: var(--fp-select-ring);
 }
 
 .squad-slot__art {
-  width: 50px;
-  height: 50px;
-  border-radius: 2px;
-  background: radial-gradient(circle at 50% 60%, rgba(207, 160, 66, 0.16), #ebe3d3 76%);
+  position: relative;
+  width: 58px;
+  height: 58px;
+  border-radius: var(--radius-sm);
+  background: radial-gradient(circle at 50% 60%, rgba(207, 160, 66, 0.18), #ebe3d3 76%);
   border: 1px solid var(--border-subtle);
   display: flex;
   align-items: center;
@@ -1363,48 +1382,246 @@
 }
 
 .squad-slot__art img {
-  max-height: 40px;
+  max-height: 46px;
   width: auto;
   object-fit: contain;
+  filter: drop-shadow(0 3px 5px rgba(42, 34, 24, 0.2));
 }
 
-.squad-slot__footer {
+.squad-slot__index {
+  position: absolute;
+  top: -7px;
+  left: -7px;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  color: var(--text-on-dark);
+  background: var(--surface-dark-2);
+  box-shadow: 0 1px 3px rgba(24, 18, 12, 0.24);
+}
+
+.squad-slot.is-selected .squad-slot__index {
+  background: var(--accent-gold);
+}
+
+.squad-slot__body {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.squad-slot__title {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding-top: 6px;
-  border-top: 1px solid var(--border-subtle);
+  gap: 6px;
+  min-width: 0;
 }
 
-.squad-slot__status {
-  font-size: 0.71rem;
-  font-weight: 600;
-  color: var(--text-muted);
+.squad-slot__name {
+  font-family: var(--font-ui);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
-.squad-slot.is-selected .squad-slot__status {
+.squad-slot__tag {
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--accent-gold-bright);
 }
 
-/* Visual Unit Collection Grid + Compact Selected Unit Detail Panel */
+.squad-slot__meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  min-width: 0;
+}
+
+.squad-slot__role {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.squad-slot__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.squad-slot__cost {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--accent-blue-bright);
+}
+
+.squad-slot__swap {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.squad-swap-btn {
+  min-height: 22px;
+  padding: 0 7px;
+  border-radius: 2px;
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.6);
+  font-size: 0.64rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  opacity: 0.75;
+  transition:
+    border-color var(--duration-fast) var(--ease-tactical),
+    color var(--duration-fast) var(--ease-tactical),
+    opacity var(--duration-fast) var(--ease-tactical);
+}
+
+.squad-slot:hover .squad-swap-btn,
+.squad-slot.is-selected .squad-swap-btn,
+.squad-swap-btn:focus-visible {
+  opacity: 1;
+}
+
+.squad-swap-btn:hover {
+  border-color: var(--accent-gold);
+  color: var(--accent-gold-bright);
+  background: #ffffff;
+}
+
+/* Commander switcher — compact vertical sidebar list directly below Commander display */
+.formation-commander-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+  flex: 1;
+  min-height: 0;
+}
+
+.commander-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.commander-option {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 30px;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid transparent;
+  font-family: var(--font-ui);
+  font-size: 0.77rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-align: left;
+  transition:
+    border-color var(--duration-fast) var(--ease-tactical),
+    background-color var(--duration-fast) var(--ease-tactical),
+    color var(--duration-fast) var(--ease-tactical),
+    box-shadow var(--duration-fast) var(--ease-tactical);
+}
+
+.commander-option:hover {
+  border-color: var(--border-subtle);
+  background: #ffffff;
+  color: var(--text-primary);
+}
+
+.commander-option.is-active {
+  border-color: var(--hero-accent, var(--accent-gold));
+  background:
+    radial-gradient(ellipse 95% 100% at 0% 50%, var(--hero-glow), transparent 76%),
+    #ffffff;
+  color: var(--text-primary);
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(46, 36, 24, 0.08);
+}
+
+.commander-option__indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--border-strong);
+  transition: background-color var(--duration-fast), transform var(--duration-fast);
+}
+
+.commander-option.is-active .commander-option__indicator {
+  background: var(--hero-accent, var(--accent-gold));
+  transform: scale(1.2);
+  box-shadow: 0 0 0 2px var(--hero-glow);
+}
+
+.commander-option__name {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.commander-option__level {
+  flex-shrink: 0;
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+/* --------------------------------------------------------------------------
+   Unit Collection + Selected Unit Detail
+   -------------------------------------------------------------------------- */
 .unit-collection-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
+  gap: 10px;
   align-content: start;
+  padding: 2px;
 }
 
 .unit-tile {
   text-align: left;
-  background: linear-gradient(180deg, #ffffff 0%, #f4ede0 100%);
+  background: var(--surface-1);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  padding: 8px 9px;
+  padding: 9px 10px 10px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  transition: border-color var(--duration-fast), transform var(--duration-fast), box-shadow var(--duration-fast);
+  gap: 3px;
+  transition:
+    border-color var(--duration-fast) var(--ease-tactical),
+    background-color var(--duration-fast) var(--ease-tactical),
+    transform var(--duration-fast) var(--ease-tactical),
+    box-shadow var(--duration-fast) var(--ease-tactical);
 }
 
 .unit-tile--sr { border-top: 2px solid var(--rarity-sr); }
@@ -1413,16 +1630,15 @@
 
 .unit-tile:hover {
   border-color: var(--border-strong);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgba(46, 36, 24, 0.08);
+  background: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: var(--fp-hover-shadow);
 }
 
 .unit-tile.is-selected {
   border-color: var(--accent-gold);
-  background: linear-gradient(180deg, #ffffff 0%, #f8f0dc 100%);
-  box-shadow:
-    0 4px 12px rgba(166, 124, 46, 0.16),
-    inset 0 0 0 1px rgba(166, 124, 46, 0.25);
+  background: linear-gradient(180deg, #ffffff 0%, #f8f1e1 100%);
+  box-shadow: var(--fp-select-ring);
 }
 
 .unit-tile.is-locked {
@@ -1435,26 +1651,39 @@
   align-items: center;
   justify-content: space-between;
   gap: 4px;
+  font-size: 0.66rem;
+  min-height: 16px;
 }
 
 .unit-tile__deployed {
-  font-family: var(--font-mono);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 0.6rem;
   font-weight: 700;
   color: var(--state-ally);
   letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.unit-tile__deployed::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
 }
 
 .unit-tile__art {
-  height: 46px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 2px 0;
+  margin: 4px 0;
 }
 
 .unit-tile__art img {
-  max-height: 42px;
+  max-height: 44px;
   width: auto;
   filter: drop-shadow(0 3px 5px rgba(42, 34, 24, 0.22));
 }
@@ -1470,23 +1699,21 @@
 }
 
 .unit-tile__role {
-  font-size: 0.69rem;
-  color: var(--text-secondary);
+  font-size: 0.68rem;
+  color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Compact Selected Unit Detail Panel */
+/* Detail sits on the pane surface, separated by a hairline — no nested box */
 .unit-detail-dock {
   flex-shrink: 0;
-  padding: 12px 14px;
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
-  border: 1px solid var(--border-strong);
+  padding-top: 16px;
+  border-top: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
 .unit-detail-dock__head {
@@ -1496,11 +1723,11 @@
 }
 
 .unit-detail-dock__art {
-  width: 56px;
-  height: 56px;
-  border-radius: 2px;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-sm);
   background: radial-gradient(circle at 50% 60%, rgba(207, 160, 66, 0.18), #e9e1d2 76%);
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--border-subtle);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1509,76 +1736,330 @@
 }
 
 .unit-detail-dock__art img {
-  max-height: 46px;
+  max-height: 42px;
   width: auto;
 }
 
-.unit-detail-dock__stats {
+.unit-detail-dock__identity {
+  min-width: 0;
+  flex: 1;
   display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 4px;
-  font-size: 0.78rem;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.unit-detail-dock__title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.8rem;
+}
+
+.unit-detail-dock__title strong {
+  font-family: var(--font-display);
+  font-size: 1.02rem;
+  letter-spacing: 0.03em;
   color: var(--text-primary);
 }
 
-.unit-detail-dock__stats strong {
+.unit-detail-dock__meta {
+  font-size: 0.74rem;
+  gap: 6px;
+}
+
+.unit-stat-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.unit-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 9px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  min-width: 0;
+}
+
+.unit-stat__label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   color: var(--text-muted);
-  font-weight: 600;
-  margin-right: 3px;
+}
+
+.unit-stat__value {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.unit-stat__next {
+  font-size: 0.64rem;
+  font-weight: 700;
+  color: var(--accent-gold-bright);
 }
 
 .unit-detail-dock__desc {
   font-size: 0.78rem;
   color: var(--text-secondary);
-  line-height: 1.4;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .unit-detail-dock__actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 8px 10px;
 }
 
-/* Deck Builder Cards & Live Summary */
+.unit-detail-dock__hint {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   Deck Builder — Card Pool
+   -------------------------------------------------------------------------- */
 .deck-builder-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(238px, 1fr));
-  gap: 9px;
+  grid-template-columns: repeat(auto-fill, minmax(262px, 1fr));
+  gap: 10px;
   align-content: start;
+  padding: 2px;
 }
 
 .deck-card-row {
-  background: #fdfcf8;
+  --row-accent: var(--cat-unit);
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px 10px 14px;
+  background: var(--surface-1);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  padding: 8px 10px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  transition: border-color var(--duration-fast), background-color var(--duration-fast);
+  box-shadow: inset 3px 0 0 var(--row-accent);
+  transition:
+    border-color var(--duration-fast) var(--ease-tactical),
+    background-color var(--duration-fast) var(--ease-tactical),
+    box-shadow var(--duration-fast) var(--ease-tactical),
+    transform var(--duration-fast) var(--ease-tactical),
+    opacity var(--duration-fast) var(--ease-tactical);
 }
 
-.deck-card-row--unit { border-top: 2px solid var(--cat-unit); }
-.deck-card-row--skill { border-top: 2px solid var(--cat-skill); }
-.deck-card-row--tactic { border-top: 2px solid var(--cat-tactic); }
-.deck-card-row--support { border-top: 2px solid var(--cat-support); }
+.deck-card-row--unit { --row-accent: var(--cat-unit); }
+.deck-card-row--skill { --row-accent: var(--cat-skill); }
+.deck-card-row--tactic { --row-accent: var(--cat-tactic); }
+.deck-card-row--support { --row-accent: var(--cat-support); }
+
+.deck-card-row:hover {
+  border-color: var(--border-strong);
+  background: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: inset 3px 0 0 var(--row-accent), var(--fp-hover-shadow);
+}
 
 .deck-card-row.is-in-deck {
   border-color: var(--accent-gold);
-  background: #fbf6e8;
+  background: linear-gradient(180deg, #ffffff 0%, #f8f1e1 100%);
+  box-shadow: inset 3px 0 0 var(--row-accent), var(--fp-select-ring);
 }
 
-.deck-card-row__main {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  min-width: 0;
+.deck-card-row.is-unavailable {
+  opacity: 0.6;
+}
+
+.deck-card-row.is-unavailable:hover {
+  transform: none;
 }
 
 .deck-card-row__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  background: #ede6d8;
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  flex-shrink: 0;
+}
+
+.deck-card-row__icon img {
+  max-height: 28px;
+  width: auto;
+}
+
+.deck-card-row__body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.deck-card-row__name {
+  font-weight: 700;
+  font-size: 0.86rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.deck-card-row__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.deck-card-row__desc {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.deck-stepper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.deck-stepper__btn {
+  min-height: 30px;
+  min-width: 72px;
+  padding: 0 12px;
+  font-size: 0.7rem;
+}
+
+.deck-selected-badge {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--accent-gold-bright);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* --------------------------------------------------------------------------
+   Deck Builder — Active Deck Panel
+   -------------------------------------------------------------------------- */
+.deck-panel__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.deck-panel__status::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.deck-panel__status.is-saved { color: var(--state-ally); }
+.deck-panel__status.is-dirty { color: var(--state-warn); }
+.deck-panel__status.is-incomplete { color: var(--state-enemy); }
+
+.deck-mix {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.deck-mix__item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 9px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(138, 114, 78, 0.14);
+  border-top: 2px solid var(--cat-unit);
+  min-width: 0;
+}
+
+.deck-mix__item--skill { border-top-color: var(--cat-skill); }
+.deck-mix__item--tactic { border-top-color: var(--cat-tactic); }
+.deck-mix__item--support { border-top-color: var(--cat-support); }
+
+.deck-mix__label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.deck-mix__value {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.deck-draft-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  align-content: start;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.deck-slot {
+  --row-accent: var(--cat-unit);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 60px;
+  width: 100%;
+  padding: 8px 10px 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  border: 1px solid var(--border-subtle);
+  box-shadow: inset 3px 0 0 var(--row-accent);
+  text-align: left;
+  transition:
+    border-color var(--duration-fast) var(--ease-tactical),
+    background-color var(--duration-fast) var(--ease-tactical),
+    transform var(--duration-fast) var(--ease-tactical);
+}
+
+.deck-slot--unit { --row-accent: var(--cat-unit); }
+.deck-slot--skill { --row-accent: var(--cat-skill); }
+.deck-slot--tactic { --row-accent: var(--cat-tactic); }
+.deck-slot--support { --row-accent: var(--cat-support); }
+
+button.deck-slot:hover {
+  border-color: rgba(184, 50, 62, 0.5);
+  background: #ffffff;
+  transform: translateY(-1px);
+}
+
+.deck-slot__icon {
   width: 34px;
   height: 34px;
   border-radius: 2px;
@@ -1591,93 +2072,218 @@
   flex-shrink: 0;
 }
 
-.deck-card-row__icon img {
+.deck-slot__icon img {
   max-height: 24px;
   width: auto;
 }
 
-.deck-stepper {
-  display: inline-flex;
+.deck-slot__body {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.deck-slot__name {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.deck-slot__meta {
+  display: flex;
   align-items: center;
   gap: 5px;
+  font-size: 0.66rem;
+  color: var(--text-secondary);
+}
+
+.deck-slot__remove {
   flex-shrink: 0;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--text-muted);
+  opacity: 0.45;
+  transition: opacity var(--duration-fast), color var(--duration-fast);
 }
 
-.deck-stepper__btn {
-  min-height: 28px;
-  min-width: 28px;
-  padding: 0 8px;
+button.deck-slot:hover .deck-slot__remove,
+button.deck-slot:focus-visible .deck-slot__remove {
+  opacity: 1;
+  color: var(--state-enemy);
+}
+
+.deck-slot--empty {
+  flex-direction: column;
+  justify-content: center;
+  gap: 0;
+  border-style: dashed;
+  background: rgba(235, 227, 212, 0.4);
+  box-shadow: none;
   font-size: 0.72rem;
-}
-
-.deck-selected-badge {
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: var(--accent-gold-bright);
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+  color: var(--text-muted);
+  text-align: center;
 }
 
 .deck-validation-msg {
-  font-size: 0.78rem;
-  line-height: 1.35;
-  padding: 6px 8px;
-  border-radius: 2px;
+  font-size: 0.76rem;
+  line-height: 1.4;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border-subtle);
   background: var(--surface-2);
+  flex-shrink: 0;
 }
 
 .deck-validation-msg.is-valid {
   color: var(--cat-support);
-  border-color: rgba(28, 122, 86, 0.35);
-  background: rgba(28, 122, 86, 0.08);
+  border-color: rgba(28, 122, 86, 0.3);
+  background: rgba(28, 122, 86, 0.07);
 }
 
 .deck-validation-msg.is-warn {
   color: #a65c14;
-  border-color: rgba(186, 120, 26, 0.45);
-  background: rgba(186, 120, 26, 0.1);
+  border-color: rgba(186, 120, 26, 0.4);
+  background: rgba(186, 120, 26, 0.09);
 }
 
-.deck-draft-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding-right: 4px;
+.deck-panel__actions {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  flex-shrink: 0;
 }
 
-.deck-draft-pill {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 7px 10px;
-  border-radius: 2px;
-  background: var(--surface-2);
-  border: 1px solid var(--border-subtle);
-  font-size: 0.83rem;
-  text-align: left;
-  width: 100%;
-  transition: border-color var(--duration-fast), background-color var(--duration-fast);
+/* --------------------------------------------------------------------------
+   Formation & Deck responsive behaviour
+   -------------------------------------------------------------------------- */
+@media (max-height: 780px) {
+  .formation-pane {
+    padding: 10px 14px 12px;
+    gap: 8px;
+  }
+
+  .formation-board {
+    padding: 10px 12px;
+    gap: 12px;
+  }
+
+  .squad-slot {
+    min-height: 74px;
+    padding: 8px 10px;
+  }
+
+  .squad-slot__art {
+    width: 48px;
+    height: 48px;
+  }
+
+  .squad-slot__art img {
+    max-height: 38px;
+  }
+
+  .unit-detail-dock {
+    padding-top: 10px;
+    gap: 8px;
+  }
 }
 
-.deck-draft-pill:hover {
-  border-color: var(--state-enemy);
-  background: #fdf4f4;
+@media (max-width: 1280px) {
+  .formation-board {
+    grid-template-columns: 168px minmax(0, 1fr);
+    gap: 12px;
+    padding: 10px 12px;
+  }
+
+  .formation-board__commander {
+    padding-right: 12px;
+  }
+
+  .formation-lanes {
+    gap: 10px;
+  }
+
+  .squad-slot__art {
+    width: 48px;
+    height: 48px;
+  }
 }
 
-.deck-draft-pill--empty {
-  border-style: dashed;
-  background: rgba(235, 227, 212, 0.45);
-  cursor: default;
+@media (max-width: 1020px) {
+  .formation-board {
+    flex: none;
+    overflow: visible;
+  }
+
+  .commander-picker-list {
+    max-height: 180px;
+  }
+
+  .deck-draft-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    flex: none;
+    overflow: visible;
+  }
 }
 
-.deck-draft-pill--empty:hover {
-  border-color: var(--border-subtle);
-  background: rgba(235, 227, 212, 0.45);
+@media (max-width: 680px) {
+  .formation-board {
+    grid-template-columns: 1fr;
+  }
+
+  .formation-board__commander {
+    width: 100%;
+    height: auto;
+    padding-right: 0;
+    padding-bottom: 12px;
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .formation-commander-display {
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .formation-commander-meta {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .deck-draft-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .unit-stat-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .formation-lanes,
+  .deck-draft-list {
+    grid-template-columns: 1fr;
+  }
+
+  .deck-mix {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .deck-card-row {
+    grid-template-columns: 36px minmax(0, 1fr);
+  }
+
+  .deck-stepper {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    justify-content: flex-end;
+    align-items: center;
+  }
 }
 
 /* Campaign Stage Selector Grid & Briefing */
@@ -4088,21 +4694,12 @@ button.summon-result-card:hover {
     gap: 9px;
   }
 
-  .formation-map {
-    padding: 8px 10px;
-  }
-
   .unit-tile__art {
     height: 38px;
   }
 
   .unit-tile__art img {
     max-height: 34px;
-  }
-
-  .unit-detail-dock {
-    padding: 10px 12px;
-    gap: 6px;
   }
 
   .home-nav-card {
@@ -4155,8 +4752,6 @@ button.summon-result-card:hover {
 @media (max-width: 680px) {
   .home-nav-stack,
   .home-op-strip,
-  .squad-grid-2x2,
-  .formation-map,
   .summon-results-grid,
   .stage-briefing-meta-grid {
     grid-template-columns: 1fr;
@@ -4306,21 +4901,6 @@ button.summon-result-card:hover {
 }
 
 /* FormationScreen Squad Tab: Active Commander Collectible Card Strip */
-.formation-commander-banner {
-  display: flex;
-  align-items: stretch;
-  gap: 14px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border-subtle);
-  flex-shrink: 0;
-}
-
-.formation-commander-card-wrap {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-}
-
 .formation-commander-card-slot {
   width: 112px;
   height: 168px;
@@ -4358,20 +4938,6 @@ button.summon-result-card:hover {
   object-fit: cover;
   object-position: center 14%;
   display: block;
-}
-
-.formation-commander-banner__body {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.formation-commander-banner .commander-picker-strip {
-  padding-bottom: 0;
-  border-bottom: none;
 }
 
 /* SummonScreen Results Overlay: Commander Astra Pull Card */
@@ -4421,11 +4987,6 @@ button.summon-result-card:hover {
 }
 
 @media (max-width: 680px) {
-  .formation-commander-banner {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
   .card-preview-modal__card-slot {
     width: min(88vw, calc(74vh * 2 / 3));
   }
