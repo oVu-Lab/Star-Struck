@@ -243,14 +243,22 @@ export class HomeScreen {
       const commandersArt = this._container.querySelector('#home-nav-art-commanders');
       const showcaseArt = this._container.querySelector('#home-commander-img');
 
+      // Keep the left Commanders nav button on its default SVG portrait while restoring
+      // Astra's standalone character PNG illustration on the right-side Commander Preview
+      const navCommanderAssetId =
+        commander?.id === 'astra' || commander?.portraitAssetId === 'hero_portrait_astra'
+          ? 'hero_portrait_astra_home'
+          : commander?.portraitAssetId;
+      const showcaseCommanderAssetId = commander?.portraitAssetId || 'hero_portrait_astra';
+
       if (missionsArt) assetManager.bindImageElement(missionsArt, 'ui_emblem');
       if (summonArt) assetManager.bindImageElement(summonArt, 'effect_astral_burst');
       if (formationArt) assetManager.bindImageElement(formationArt, formationAssetId);
-      if (commandersArt && commander) {
-        assetManager.bindImageElement(commandersArt, commander.portraitAssetId);
+      if (commandersArt && navCommanderAssetId) {
+        assetManager.bindImageElement(commandersArt, navCommanderAssetId);
       }
-      if (showcaseArt && commander) {
-        assetManager.bindImageElement(showcaseArt, commander.portraitAssetId);
+      if (showcaseArt && showcaseCommanderAssetId) {
+        assetManager.bindImageElement(showcaseArt, showcaseCommanderAssetId);
       }
     }
 

@@ -153,10 +153,18 @@ export class AnimationManager {
     };
   }
 
-  reset() {
+  clearScreenShake() {
     this._shakeRemaining = 0;
     this._shakeIntensity = 0;
+  }
+
+  clearScreenEffects() {
+    this.clearScreenShake();
     this._flashRemaining = 0;
+  }
+
+  reset() {
+    this.clearScreenEffects();
     this._elapsed = 0;
     while (this._floatingTexts.length > 0) this._textPool.push(this._floatingTexts.pop());
     while (this._effects.length > 0) this._effectPool.push(this._effects.pop());

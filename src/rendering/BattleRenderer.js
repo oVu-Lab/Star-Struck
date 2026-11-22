@@ -10,6 +10,7 @@
  */
 
 import { UNIT_STATES } from '../battle/UnitManager.js';
+import { renderHolographicCardEffects } from './AstraGlitterEffects.js';
 
 export const TERRAIN_THEMES = Object.freeze({
   orbital_bastion: {
@@ -289,11 +290,13 @@ export class BattleRenderer {
     const ctx = this._ctx;
     const w = this._width;
     const h = this._height;
-    const shake = this._anim.getShakeOffset();
+    const isEndedPhase = phase === 'victory' || phase === 'defeat' || phase === 'results';
+    const shake = isEndedPhase ? { x: 0, y: 0 } : this._anim.getShakeOffset();
     const elapsed = this._anim.getElapsed();
     const theme = this._getTheme(bf);
 
     ctx.save();
+    try {
     ctx.scale(this._dpr, this._dpr);
     ctx.translate(shake.x, shake.y);
 
@@ -435,7 +438,9 @@ export class BattleRenderer {
       ctx.fillText('BATTLE PAUSED', w * 0.5, h * 0.48);
     }
 
-    ctx.restore();
+    } finally {
+      ctx.restore();
+    }
   }
 
   _drawPoly(ctx, bf, w, h, points) {
@@ -1029,53 +1034,20 @@ export class BattleRenderer {
       ctx.fillRect(frameX, frameY, cardW, cardH);
     }
 
-    // Enhanced Ultimate-Ready Holographic Foil Sweep & Glitter inside portrait clip
+    // Enhanced Ultimate-Ready Holographic Foil Sweep, Moving Glitter Particles & Sparkles inside portrait clip
     if (ultReady) {
-      ctx.save();
-      const prevComposite = ctx.globalCompositeOperation;
-      ctx.globalCompositeOperation = 'lighter';
-
-      // Periodic diagonal prismatic foil reflection sweep
-      const sweepCycle = (elapsed * 0.62) % 1;
-      const sweepX = frameX - cardW * 0.9 + sweepCycle * (cardW * 2.8);
-      const foilGrad = ctx.createLinearGradient(
-        sweepX,
-        frameY,
-        sweepX + cardW * 0.55,
-        frameY + cardH * 0.65,
-      );
-      foilGrad.addColorStop(0, 'rgba(255, 240, 184, 0)');
-      foilGrad.addColorStop(0.35, isAstra ? 'rgba(255, 232, 152, 0.34)' : 'rgba(255, 242, 194, 0.28)');
-      foilGrad.addColorStop(0.5, 'rgba(255, 255, 255, 0.56)');
-      foilGrad.addColorStop(0.65, isAstra ? 'rgba(146, 210, 255, 0.36)' : 'rgba(245, 220, 160, 0.28)');
-      foilGrad.addColorStop(1, 'rgba(255, 240, 184, 0)');
-      ctx.fillStyle = foilGrad;
-      ctx.fillRect(frameX, frameY, cardW, cardH);
-
-      // Twinkling golden & starlight glitter flecks
-      const glitterSeeds = [
-        [0.18, 0.2, 5.2, 0.0],
-        [0.78, 0.16, 4.7, 1.4],
-        [0.34, 0.38, 6.1, 2.3],
-        [0.82, 0.44, 5.5, 3.7],
-        [0.24, 0.58, 4.9, 4.8],
-        [0.66, 0.28, 6.4, 5.5],
-        [0.52, 0.14, 5.8, 0.9],
-        [0.44, 0.52, 5.1, 2.9],
-      ];
-      for (let i = 0; i < glitterSeeds.length; i += 1) {
-        const [gx, gy, speed, offset] = glitterSeeds[i];
-        const twinkle = Math.max(0, Math.sin(elapsed * speed + offset));
-        if (twinkle < 0.18) continue;
-        ctx.globalAlpha = twinkle * (isAstra ? 0.92 : 0.72);
-        ctx.fillStyle = i % 3 === 0 ? '#ffffff' : i % 3 === 1 ? '#ffe89c' : '#cfe8ff';
-        ctx.beginPath();
-        ctx.arc(frameX + cardW * gx, frameY + cardH * gy, (1.1 + twinkle * 1.1) * s, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      ctx.globalCompositeOperation = prevComposite;
-      ctx.restore();
+      renderHolographicCardEffects(ctx, {
+        x: frameX,
+        y: frameY,
+        width: cardW,
+        height: cardH,
+        elapsed,
+        isAstra,
+        accentColor: palette.accent,
+        ringColor: palette.ring,
+        includeFlares: false,
+        includeBorderSpecular: false,
+      });
     }
 
     // Subtle bottom scrim inside portrait frame

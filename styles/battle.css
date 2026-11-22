@@ -1012,22 +1012,48 @@
   flex-shrink: 0;
 }
 
-/* Cooldown Veil — Intentionally Dark Frosted Overlay with Crisp White Timer */
+.tactical-card__top[hidden],
+.tactical-card__art[hidden],
+.tactical-card__cooldown[hidden] {
+  display: none;
+}
+
+/* Cooldown Veil — Full-Card Timer Stage + Bottom-Anchored Sweeping Veil */
 .tactical-card__cooldown {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(28, 24, 20, 0.24);
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.tactical-card__cooldown::before {
+  content: '';
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 5;
-  background: rgba(28, 24, 20, 0.84);
+  height: var(--cd-pct, 0%);
+  background: rgba(28, 24, 20, 0.78);
   border-top: 1.5px solid #ebd08c;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.84rem;
+}
+
+.tactical-card__cooldown-text {
+  position: relative;
+  z-index: 1;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(24, 20, 16, 0.88);
+  border: 1px solid rgba(235, 208, 140, 0.65);
+  box-shadow: 0 2px 8px rgba(18, 14, 10, 0.45);
+  font-size: 0.78rem;
   font-weight: 700;
+  line-height: 1.2;
   color: #ffffff;
-  pointer-events: none;
 }
 
 /* ==========================================================================
@@ -1150,7 +1176,7 @@
 }
 
 .dock-commander-card.is-ult-ready .dock-commander-card__art {
-  filter: brightness(1.1) contrast(1.06) saturate(1.12);
+  filter: contrast(1.06) saturate(1.14);
 }
 
 /* Enhanced Ultimate-Ready Holographic FX Layer (dormant until .is-ult-ready) */
@@ -1158,14 +1184,24 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 2;
   opacity: 0;
-  transition: opacity 220ms ease;
+  visibility: hidden;
+  transition: opacity 220ms ease, visibility 220ms ease;
   overflow: hidden;
 }
 
 .dock-commander-card.is-ult-ready .dock-commander-card__fx {
   opacity: 1;
+  visibility: visible;
+}
+
+.dock-commander-card__fx-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
 }
 
 /* Holographic foil reflection & prismatic light flashes */
@@ -1175,16 +1211,16 @@
   background:
     linear-gradient(
       118deg,
-      transparent 28%,
-      rgba(255, 234, 158, 0.14) 38%,
-      rgba(255, 252, 230, 0.64) 47%,
-      rgba(146, 212, 255, 0.42) 52%,
-      rgba(248, 206, 108, 0.52) 57%,
-      transparent 68%
+      transparent 24%,
+      rgba(255, 232, 148, 0.28) 36%,
+      rgba(255, 253, 236, 0.78) 47%,
+      rgba(138, 212, 255, 0.56) 52%,
+      rgba(255, 208, 102, 0.62) 58%,
+      transparent 70%
     );
   mix-blend-mode: screen;
-  transform: translateX(-75%) rotate(8deg);
-  animation: ult-foil-sweep 2.2s ease-in-out infinite;
+  transform: translateX(-82%) rotate(8deg);
+  animation: ult-foil-sweep 1.85s ease-in-out infinite;
   animation-play-state: paused;
 }
 
@@ -1195,54 +1231,47 @@
 @keyframes ult-foil-sweep {
   0% {
     transform: translateX(-82%) rotate(8deg);
-    opacity: 0.35;
+    opacity: 0.45;
   }
-  38% {
-    opacity: 0.95;
-  }
-  62% {
-    transform: translateX(82%) rotate(8deg);
-    opacity: 0.9;
+  50% {
+    transform: translateX(20%) rotate(8deg);
+    opacity: 1;
   }
   100% {
-    transform: translateX(92%) rotate(8deg);
-    opacity: 0;
+    transform: translateX(88%) rotate(8deg);
+    opacity: 0.25;
   }
 }
 
-/* Dual-layer golden & starlight glitter sparkle field */
+/* Dual-layer rising & twinkling golden/starlight glitter sparkle field (moderated dot density) */
 .dock-commander-card__glitter,
 .dock-commander-card__glitter::after {
   position: absolute;
   inset: 0;
   mix-blend-mode: screen;
-  background-repeat: no-repeat;
-  animation: ult-glitter-twinkle 1.6s ease-in-out infinite;
+  background-repeat: repeat-y;
+  background-size: 100% 180px;
+  animation: ult-glitter-drift 2.6s linear infinite;
   animation-play-state: paused;
 }
 
 .dock-commander-card__glitter {
   background-image:
-    radial-gradient(circle 1.8px at 18% 22%, #fff8dc 0%, transparent 100%),
-    radial-gradient(circle 2.2px at 78% 18%, #ffe594 0%, transparent 100%),
-    radial-gradient(circle 1.6px at 34% 46%, #d6ecff 0%, transparent 100%),
-    radial-gradient(circle 2.0px at 84% 52%, #fff6d0 0%, transparent 100%),
-    radial-gradient(circle 1.7px at 22% 68%, #ffd978 0%, transparent 100%),
-    radial-gradient(circle 1.5px at 64% 34%, #ffffff 0%, transparent 100%),
-    radial-gradient(circle 1.9px at 50% 14%, #ffe9a8 0%, transparent 100%);
+    radial-gradient(circle 3.2px at 18% 22%, #ffffff 0%, #ffe594 42%, transparent 100%),
+    radial-gradient(circle 3.6px at 78% 18%, #ffffff 0%, #ffd875 45%, transparent 100%),
+    radial-gradient(circle 2.8px at 34% 50%, #ffffff 0%, #bde3ff 44%, transparent 100%),
+    radial-gradient(circle 3.4px at 76% 74%, #ffffff 0%, #ffe699 42%, transparent 100%);
 }
 
 .dock-commander-card__glitter::after {
   content: '';
-  animation-delay: -0.8s;
   animation-duration: 1.95s;
+  animation-direction: normal;
   background-image:
-    radial-gradient(circle 2.0px at 28% 30%, #ffffff 0%, transparent 100%),
-    radial-gradient(circle 1.6px at 72% 40%, #cde7ff 0%, transparent 100%),
-    radial-gradient(circle 2.2px at 42% 62%, #ffe38f 0%, transparent 100%),
-    radial-gradient(circle 1.8px at 88% 28%, #fff8db 0%, transparent 100%),
-    radial-gradient(circle 1.6px at 14% 54%, #bfe0ff 0%, transparent 100%),
-    radial-gradient(circle 2.1px at 60% 70%, #fff0b8 0%, transparent 100%);
+    radial-gradient(circle 3.2px at 28% 34%, #ffffff 0%, #ffe89c 45%, transparent 100%),
+    radial-gradient(circle 2.8px at 72% 44%, #ffffff 0%, #bfe2ff 45%, transparent 100%),
+    radial-gradient(circle 3.5px at 42% 68%, #ffffff 0%, #ffe38f 42%, transparent 100%),
+    radial-gradient(circle 3.0px at 84% 26%, #ffffff 0%, #fff0bd 44%, transparent 100%);
 }
 
 .dock-commander-card.is-ult-ready .dock-commander-card__glitter,
@@ -1250,26 +1279,31 @@
   animation-play-state: running;
 }
 
-@keyframes ult-glitter-twinkle {
-  0%, 100% {
-    opacity: 0.28;
-    transform: scale(0.98);
+@keyframes ult-glitter-drift {
+  0% {
+    background-position: 0 180px;
+    opacity: 0.72;
   }
   50% {
+    background-position: 0 90px;
     opacity: 1;
-    transform: scale(1.02);
+  }
+  100% {
+    background-position: 0 0;
+    opacity: 0.72;
   }
 }
 
 /* Celestial 4-point star flares echoing Astra's holographic card motif */
 .dock-commander-card__flare {
   position: absolute;
-  width: 24px;
-  height: 24px;
-  transform: translate(-50%, -50%) scale(0.4);
+  width: 28px;
+  height: 28px;
+  transform: translate(-50%, -50%) scale(0.5);
   opacity: 0;
   mix-blend-mode: screen;
-  animation: ult-star-flare 1.8s ease-in-out infinite;
+  filter: drop-shadow(0 0 6px rgba(255, 238, 168, 0.9));
+  animation: ult-star-flare 1.55s ease-in-out infinite;
   animation-play-state: paused;
 }
 
@@ -1348,6 +1382,7 @@
   position: absolute;
   top: 6px;
   left: 50%;
+  z-index: 4;
   transform: translateX(-50%);
   padding: 2px 7px;
   border-radius: 2px;

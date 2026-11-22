@@ -87,6 +87,8 @@ export class BattleManager {
     this.pathfinder = new Pathfinder(this.battlefield);
 
     this._rafId = null;
+    this._loopActive = false;
+    this._loopSessionToken = 0;
     this._lastTimestamp = 0;
     this._accumulator = 0;
     this._activeStage = null;
@@ -115,6 +117,14 @@ export class BattleManager {
     } else {
       this._particles.spawnBurst(p.x, p.y - 10, color, count);
     }
+  }
+
+  _isCombatVisualActive() {
+    return (
+      this._phase === BATTLE_PHASES.BATTLE_START ||
+      this._phase === BATTLE_PHASES.ACTIVE_COMBAT ||
+      this._phase === BATTLE_PHASES.WAVE_TRANSITION
+    );
   }
 
   _bindCombatFeedback() {
@@ -209,7 +219,7 @@ export class BattleManager {
         });
         this._spawnWorldParticles(unit.x, unit.y, fxColor, unit.isBoss ? 22 : 7, 'burst');
         this._audio?.playUnitDeath?.(Boolean(unit.isBoss));
-        if (unit.isBoss) {
+        if (unit.isBoss && this._isCombatVisualActive()) {
           this._anim?.triggerScreenShake(11, 0.55);
           this._anim?.triggerScreenFlash('#e2b75b', 0.4, 0.24);
         }
@@ -225,7 +235,7 @@ export class BattleManager {
           duration: 0.65,
         });
         this._spawnWorldParticles(x ?? unit?.x ?? 50, y ?? unit?.y ?? 50, ability.color || '#f87171', 12, 'burst');
-        if (unit?.isBoss || unit?.isElite) {
+        if ((unit?.isBoss || unit?.isElite) && this._isCombatVisualActive()) {
           this._anim?.triggerScreenShake(unit.isBoss ? 6 : 3, 0.28);
           this._audio?.playSkill();
         }
@@ -241,8 +251,10 @@ export class BattleManager {
           secondaryColor: '#e2b75b',
           duration: 1.15,
         });
-        this._anim?.triggerScreenShake(8, 0.45);
-        this._anim?.triggerScreenFlash(boss.auraColor || '#ef4444', 0.38, 0.22);
+        if (this._isCombatVisualActive()) {
+          this._anim?.triggerScreenShake(8, 0.45);
+          this._anim?.triggerScreenFlash(boss.auraColor || '#ef4444', 0.38, 0.22);
+        }
         this._spawnWorldParticles(boss.x, boss.y, boss.auraColor || '#e2b75b', 18, 'burst');
         this._audio?.playBossEntrance?.();
         this._audio?.setBgmMode?.('boss');
@@ -319,6 +331,15 @@ export class BattleManager {
     else if (nextPhase === BATTLE_PHASES.VICTORY) status = 'victory';
     else if (nextPhase === BATTLE_PHASES.DEFEAT) status = 'defeat';
     else if (nextPhase === BATTLE_PHASES.RESULTS) status = 'results';
+
+    if (
+      nextPhase === BATTLE_PHASES.PREPARATION ||
+      nextPhase === BATTLE_PHASES.VICTORY ||
+      nextPhase === BATTLE_PHASES.DEFEAT ||
+      nextPhase === BATTLE_PHASES.RESULTS
+    ) {
+      this._anim?.clearScreenShake?.();
+    }
 
     this._state.setBattle({ phase: nextPhase, status });
     this._eventBus?.emit('battle:phaseChanged', { from: prev, to: nextPhase });
@@ -413,8 +434,11 @@ export class BattleManager {
       this._renderer.attach(canvas);
       this._renderer.setBattlefield(this.battlefield);
       this._renderer.setDebugMode(this._debugMode);
+      this._loopActive = true;
+      this._loopSessionToken += 1;
+      const loopToken = this._loopSessionToken;
       this._lastTimestamp = typeof performance !== 'undefined' ? performance.now() : Date.now();
-      this._loop(this._lastTimestamp);
+      this._loop(this._lastTimestamp, loopToken);
     }
 
     return {
@@ -651,10 +675,18 @@ export class BattleManager {
   }
 
   stopSession() {
+    this._loopActive = false;
+    this._loopSessionToken += 1;
     if (this._rafId !== null && typeof cancelAnimationFrame === 'function') {
       cancelAnimationFrame(this._rafId);
       this._rafId = null;
     }
+    this._accumulator = 0;
+    this._phaseTimer = 0;
+    this._pointerWorld = null;
+    this._hoverDais = false;
+    this._anim?.reset?.();
+    this._particles?.clear?.();
     this._renderer?.detach();
     this._state.setBattle({
       status: 'idle',
@@ -1805,6 +1837,12 @@ export class BattleManager {
     if (this._rewardsApplied) return;
     this._rewardsApplied = true;
 
+    // Immediately stop all battle screen-shake/flash effects and clear transient pointer state
+    this._anim?.clearScreenEffects?.();
+    this._pointerWorld = null;
+    this._hoverDais = false;
+    this._accumulator = 0;
+
     this.transitionPhase(victory ? BATTLE_PHASES.VICTORY : BATTLE_PHASES.DEFEAT);
 
     const stats = this._combat.getStats();
@@ -1871,8 +1909,12 @@ export class BattleManager {
     this._eventBus?.emit('battle:completed', resultsPayload);
   }
 
-  _loop(timestamp) {
-    this._rafId = requestAnimationFrame((ts) => this._loop(ts));
+  _loop(timestamp, token = this._loopSessionToken) {
+    if (!this._loopActive || token !== this._loopSessionToken) {
+      this._rafId = null;
+      return;
+    }
+    this._rafId = requestAnimationFrame((ts) => this._loop(ts, token));
     const rawDt = Math.min(0.05, Math.max(0, (timestamp - this._lastTimestamp) / 1000));
     this._lastTimestamp = timestamp;
 
@@ -1886,7 +1928,15 @@ export class BattleManager {
         this._accumulator -= FIXED_DT;
       }
       this._particles?.update(rawDt, dims.width, dims.height);
-    } else if (this._phase === BATTLE_PHASES.PREPARATION) {
+    } else if (
+      this._phase === BATTLE_PHASES.PREPARATION ||
+      this._phase === BATTLE_PHASES.VICTORY ||
+      this._phase === BATTLE_PHASES.DEFEAT ||
+      this._phase === BATTLE_PHASES.RESULTS
+    ) {
+      if (this._phase !== BATTLE_PHASES.PREPARATION) {
+        this._anim?.clearScreenShake?.();
+      }
       this._anim?.update(rawDt);
       this._particles?.update(rawDt, dims.width, dims.height);
     }

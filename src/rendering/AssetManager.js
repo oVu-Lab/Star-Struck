@@ -20,6 +20,15 @@ export const ASSETS_CONFIG = {
     label: 'Astra Valen',
     canvasSize: PORTRAIT_CANVAS,
   },
+  hero_portrait_astra_home: {
+    id: 'hero_portrait_astra_home',
+    category: 'hero_portrait',
+    type: 'image',
+    format: 'svg',
+    src: './assets/heroes/astra.svg',
+    label: 'Astra Valen',
+    canvasSize: PORTRAIT_CANVAS,
+  },
   hero_bg_astra: {
     id: 'hero_bg_astra',
     category: 'hero_background',

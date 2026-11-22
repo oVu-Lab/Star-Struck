@@ -6,7 +6,16 @@
  */
 
 import { BATTLE_PHASES } from '../battle/BattleManager.js';
+import { CardUltimateFxController } from '../rendering/AstraGlitterEffects.js';
 import { formatNumber } from '../utils/MathUtils.js';
+
+const COMMANDER_FX_THEMES = {
+  astra: { isAstra: true, accentColor: '#ffe594', ringColor: '#cfe8ff' },
+  kael: { isAstra: false, accentColor: '#3ec9a7', ringColor: '#88e7cf' },
+  lyra: { isAstra: false, accentColor: '#4cd495', ringColor: '#9beec5' },
+  seraphina: { isAstra: false, accentColor: '#b78bfa', ringColor: '#d9c0ff' },
+  vanguard_zero: { isAstra: false, accentColor: '#ea8d48', ringColor: '#f7c494' },
+};
 
 const CATEGORY_LABELS = {
   unit: 'Unit',
@@ -44,6 +53,7 @@ export class BattleScreen {
     this._lastCardRenderMs = 0;
     this._hudEls = null;
     this._hudCache = {};
+    this._ultFxController = null;
     this._slotNodes = [];
     this._slotMeta = [];
     this._pendingMergeSlot = -1;
@@ -245,6 +255,7 @@ export class BattleScreen {
             >
               <img id="battle-commander-avatar" class="dock-commander-card__art" alt="${commander?.name || 'Commander'}" />
               <div class="dock-commander-card__fx" aria-hidden="true">
+                <canvas id="ult-fx-canvas" class="dock-commander-card__fx-canvas" aria-hidden="true"></canvas>
                 <span class="dock-commander-card__foil"></span>
                 <span class="dock-commander-card__glitter"></span>
                 <span class="dock-commander-card__flare dock-commander-card__flare--a"></span>
@@ -286,6 +297,11 @@ export class BattleScreen {
 
     this._cacheHudRefs();
     this._initCardSlotElements();
+    const fxTheme = COMMANDER_FX_THEMES[commander?.id] || COMMANDER_FX_THEMES.astra;
+    this._ultFxController = new CardUltimateFxController(
+      container.querySelector('#ult-fx-canvas'),
+      fxTheme,
+    );
 
     const avatarEl = container.querySelector('#battle-commander-avatar');
     const cutinPortraitEl = container.querySelector('#cutin-portrait-img');
@@ -527,6 +543,8 @@ export class BattleScreen {
   }
 
   unmount() {
+    this._ultFxController?.stop();
+    this._ultFxController = null;
     this._ctx.battleManager.stopSession();
     if (this._resizeHandler) {
       window.removeEventListener('resize', this._resizeHandler);
@@ -636,7 +654,7 @@ export class BattleScreen {
             </div>
           </div>
           <div class="tactical-card__cooldown" hidden>
-            <span class="tabular-nums"></span>
+            <span class="tactical-card__cooldown-text tabular-nums"></span>
           </div>
         </div>
       `;
@@ -677,7 +695,7 @@ export class BattleScreen {
         name: btn.querySelector('.tactical-card__name'),
         hint: btn.querySelector('.tactical-card__hint'),
         cdWrap: btn.querySelector('.tactical-card__cooldown'),
-        cdText: btn.querySelector('.tactical-card__cooldown span'),
+        cdText: btn.querySelector('.tactical-card__cooldown-text'),
       });
       this._slotMeta.push({
         instanceId: null,
@@ -738,6 +756,8 @@ export class BattleScreen {
       el.classList.remove(...HERO_THEME_CLASSES);
       el.classList.add(themeClass);
     }
+    const fxTheme = COMMANDER_FX_THEMES[commander.id] || COMMANDER_FX_THEMES.astra;
+    this._ultFxController?.setTheme(fxTheme);
   }
 
   _syncPrepControls() {
@@ -846,6 +866,14 @@ export class BattleScreen {
         h.cmdConsole.classList.toggle('is-ult-ready', ultReady);
         h.cmdConsole.setAttribute('data-ult-ready', String(ultReady));
       }
+      if (ultReady) {
+        const cmd = this._ctx.heroSystem.getActiveCommander();
+        const fxTheme = COMMANDER_FX_THEMES[cmd?.id] || COMMANDER_FX_THEMES.astra;
+        this._ultFxController?.setTheme(fxTheme);
+        this._ultFxController?.start();
+      } else {
+        this._ultFxController?.stop();
+      }
     }
 
     const canPause =
@@ -953,6 +981,8 @@ export class BattleScreen {
           node.top.hidden = true;
           node.art.hidden = true;
           node.cdWrap.hidden = true;
+          node.cdWrap.style.removeProperty('--cd-pct');
+          if (node.cdText) node.cdText.textContent = '';
           node.name.textContent = 'Empty';
           node.name.className = 'tactical-card__empty-label';
           node.hint.textContent = 'Deck empty';
@@ -1058,12 +1088,14 @@ export class BattleScreen {
       }
 
       if (onCooldown) {
-        const cdPct = Math.min(100, (cooldown / Math.max(0.5, slot.cooldownSec || 2.5)) * 100);
+        const cdPct = Math.min(100, Math.max(0, (cooldown / Math.max(0.5, slot.cooldownSec || 2.5)) * 100));
         node.cdWrap.hidden = false;
-        node.cdWrap.style.height = `${cdPct}%`;
-        node.cdText.textContent = `${cooldown.toFixed(1)}s`;
+        node.cdWrap.style.setProperty('--cd-pct', `${cdPct}%`);
+        if (node.cdText) node.cdText.textContent = `${cooldown.toFixed(1)}s`;
       } else if (!node.cdWrap.hidden) {
         node.cdWrap.hidden = true;
+        node.cdWrap.style.removeProperty('--cd-pct');
+        if (node.cdText) node.cdText.textContent = '';
       }
 
       meta.instanceId = slot.instanceId;
@@ -1309,6 +1341,7 @@ export class BattleScreen {
         this._resultsRevealTimer = null;
       }
       this._resultsShownSessionId = null;
+      this._ultFxController?.stop();
       overlay.hidden = true;
       overlay.innerHTML = '';
       this._hudCache = {};

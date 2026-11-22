@@ -617,9 +617,7 @@
 
 .home-nav-card__art--portrait {
   padding: 0;
-  background:
-    radial-gradient(ellipse 85% 65% at 50% 25%, rgba(214, 168, 72, 0.22), transparent 70%),
-    linear-gradient(180deg, #161d38 0%, #0b0f22 100%);
+  background: linear-gradient(180deg, #2d2824 0%, #171412 100%);
   border-color: var(--border-strong);
 }
 
@@ -628,7 +626,7 @@
   height: 100%;
   max-height: none;
   object-fit: cover;
-  object-position: center 18%;
+  object-position: center 14%;
   filter: none;
 }
 
@@ -755,14 +753,6 @@
     radial-gradient(ellipse 85% 60% at 50% 24%, var(--hero-glow), transparent 68%),
     linear-gradient(180deg, #2d2824 0%, #171412 100%);
   box-shadow: var(--shadow-elevated);
-}
-
-.home-commander-stage.theme-astra {
-  background:
-    radial-gradient(ellipse 85% 60% at 50% 24%, rgba(214, 168, 72, 0.26), transparent 68%),
-    linear-gradient(180deg, rgba(16, 21, 44, 0.42) 0%, rgba(7, 9, 20, 0.72) 100%),
-    url('/astra-cardtemplate/assets-astra/bg.jpeg') center 18% / cover no-repeat,
-    #0b1024;
 }
 
 .home-commander-stage.theme-seraphina {
