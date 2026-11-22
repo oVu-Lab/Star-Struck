@@ -210,8 +210,15 @@ function createSummonHarness({ extraBanners = [], startingAstrite = 3200 } = {})
     ctx,
     screen,
     container,
+    storage,
+    saveManager,
     gachaSystem,
     economySystem,
+    heroSystem,
+    formationSystem,
+    cardSystem,
+    eventBus,
+    dataRegistry,
     gameState,
     navigated,
     boundAssets,
@@ -283,9 +290,12 @@ test('Bottom-right pull controls render in exact order: [Pulling History] [1x Pu
   assert.ok((tenBtn.getAttribute('class') || '').includes('btn-gold'));
   assert.ok((tenBtn.getAttribute('class') || '').includes('btn-lg'));
 
-  // Costs are displayed clearly
-  assert.ok(container.innerHTML.includes('160 Astrite'));
-  assert.ok(container.innerHTML.includes('1,600 Astrite'));
+  // Costs are displayed clearly on Character Gacha Banner (Astrite: 100 single / 1,000 ten-pull)
+  assert.ok(container.innerHTML.includes('100 Astrite'));
+  assert.ok(container.innerHTML.includes('1,000 Astrite'));
+  assert.ok(container.innerHTML.includes('Single pull: 100'));
+  assert.ok(container.innerHTML.includes('10 pulls: 1,000'));
+  assert.ok(container.innerHTML.includes('SSR Guarantee in 30 pulls'));
 });
 
 test('Switching banners updates main presentation stage, artwork binding, and active status', () => {
@@ -314,9 +324,9 @@ test('1x Pull and 10x Pull execute on active banner, deduct currency, show resul
     startingAstrite: 3200,
   });
 
-  // Execute 1x Pull
+  // Execute 1x Pull on Character Gacha Banner (costs 100 Astrite)
   container.querySelector('#btn-pull-single').click();
-  assert.equal(economySystem.getBalance('astrite'), 3040);
+  assert.equal(economySystem.getBalance('astrite'), 3100);
   assert.equal(gachaSystem.getPityStatus().totalPulls, 1);
 
   // Results overlay opens automatically with 1 result card
@@ -328,14 +338,16 @@ test('1x Pull and 10x Pull execute on active banner, deduct currency, show resul
   container.querySelector('[data-close-overlay]').click();
   assert.equal(container.querySelector('.summon-overlay'), null);
 
-  // Switch to Tactical banner and execute 10x Pull
+  // Switch to Tactical banner and execute 10x Pull (costs 1,600 Astrite — unchanged)
   const tacticalBtn = container
     .querySelectorAll('[data-banner-id]')
     .find((b) => b.getAttribute('data-banner-id') === 'banner_tactical_requisition');
   tacticalBtn.click();
+  assert.ok(container.innerHTML.includes('160 Astrite'));
+  assert.ok(container.innerHTML.includes('1,600 Astrite'));
 
   container.querySelector('#btn-pull-ten').click();
-  assert.equal(economySystem.getBalance('astrite'), 1440);
+  assert.equal(economySystem.getBalance('astrite'), 1500);
   assert.equal(gachaSystem.getPityStatus().totalPulls, 11);
 
   resultCards = container.querySelectorAll('.summon-result-card');
@@ -368,12 +380,12 @@ test('Pulling History button opens history interface displaying recorded pulls',
 });
 
 test('Currency validation disables unaffordable pull buttons and shows clear unavailable state', () => {
-  // Case 1: Enough for 1x (160) but not 10x (1600)
+  // Case 1: Enough for 1x (100) but not 10x (1,000)
   const partial = createSummonHarness({ startingAstrite: 500 });
   assert.equal(partial.container.querySelector('#btn-pull-single').disabled, false);
   assert.equal(partial.container.querySelector('#btn-pull-ten').disabled, true);
   assert.ok(partial.container.querySelector('.summon-unavailable-note'));
-  assert.ok(partial.container.innerHTML.includes('1,100 more Astrite for 10x Pull'));
+  assert.ok(partial.container.innerHTML.includes('500 more Astrite for 10x Pull'));
 
   // Clicking disabled 10x does nothing
   partial.container.querySelector('#btn-pull-ten').click();
@@ -425,4 +437,242 @@ test('Expired banner status is clearly distinguished and blocks pulls without in
   assert.ok(container.innerHTML.includes('This banner has expired.'));
   assert.ok(container.innerHTML.includes('Ended 2025-01-01'));
   assert.equal(economySystem.getBalance('astrite'), 3200);
+});
+
+test('Character Banner 29th/30th pull guarantees SSR on pull 30 and updates remaining pulls UI', () => {
+  const { container, gachaSystem, economySystem } = createSummonHarness({
+    startingAstrite: 5000,
+  });
+
+  const origRandom = Math.random;
+  // 0.95 always lands on R (SSR=0.03, SR=0.17, R=0.80) unless hard pity overrides
+  Math.random = () => 0.95;
+  try {
+    for (let i = 1; i <= 29; i += 1) {
+      const res = gachaSystem.pull(1);
+      assert.equal(res.ok, true);
+      assert.equal(res.results[0].rarity, 'R', `Pull ${i} should not trigger hard pity yet`);
+      assert.equal(gachaSystem.getPityStatus().ssrPity, i);
+      assert.equal(gachaSystem.getPityStatus().remainingPulls, 30 - i);
+    }
+
+    // After 29 non-SSR pulls, UI shows 29/30 and 1 pull remaining until SSR guarantee
+    const pity29 = gachaSystem.getPityStatus();
+    assert.equal(pity29.ssrPity, 29);
+    assert.equal(pity29.ssrHardPity, 30);
+    assert.equal(pity29.remainingPulls, 1);
+    assert.ok(container.innerHTML.includes('SSR Pity 29 / 30'));
+    assert.ok(container.innerHTML.includes('SSR Guarantee in 1 pull'));
+
+    // 30th pull MUST guarantee an SSR and immediately reset pity to 0
+    const res30 = gachaSystem.pull(1);
+    assert.equal(res30.ok, true);
+    assert.equal(res30.results[0].rarity, 'SSR');
+    assert.ok(['astra', 'seraphina'].includes(res30.results[0].heroId));
+    assert.equal(economySystem.getBalance('astrite'), 2000);
+
+    const pityAfter = gachaSystem.getPityStatus();
+    assert.equal(pityAfter.ssrPity, 0);
+    assert.equal(pityAfter.remainingPulls, 30);
+    assert.ok(container.innerHTML.includes('SSR Pity 0 / 30'));
+    assert.ok(container.innerHTML.includes('SSR Guarantee in 30 pulls'));
+  } finally {
+    Math.random = origRandom;
+  }
+});
+
+test('Character Banner early SSR before 30 pulls resets pity counter immediately', () => {
+  const { gachaSystem } = createSummonHarness({ startingAstrite: 5000 });
+
+  const origRandom = Math.random;
+  let forceSsr = false;
+  Math.random = () => (forceSsr ? 0.01 : 0.95);
+  try {
+    for (let i = 1; i <= 11; i += 1) {
+      const res = gachaSystem.pull(1);
+      assert.equal(res.ok, true);
+      assert.equal(res.results[0].rarity, 'R');
+    }
+    assert.equal(gachaSystem.getPityStatus().ssrPity, 11);
+    assert.equal(gachaSystem.getPityStatus().remainingPulls, 19);
+
+    // Roll an early SSR on pull 12
+    forceSsr = true;
+    const earlyRes = gachaSystem.pull(1);
+    assert.equal(earlyRes.ok, true);
+    assert.equal(earlyRes.results[0].rarity, 'SSR');
+    assert.equal(gachaSystem.getPityStatus().ssrPity, 0);
+    assert.equal(gachaSystem.getPityStatus().remainingPulls, 30);
+
+    // Next non-SSR pull starts counting from 1 again
+    forceSsr = false;
+    gachaSystem.pull(1);
+    assert.equal(gachaSystem.getPityStatus().ssrPity, 1);
+    assert.equal(gachaSystem.getPityStatus().remainingPulls, 29);
+  } finally {
+    Math.random = origRandom;
+  }
+});
+
+test('Character Banner 10-pulls share exact per-pull pity logic (hard pity mid-10-pull, 10th-slot hard pity, and early SSR reset)', () => {
+  const origRandom = Math.random;
+  try {
+    // Case A: Starting at pity 24 -> 6th pull of 10-pull hits 30th pull hard pity SSR, resets to 0, then remaining 4 increment to 4
+    const h1 = createSummonHarness({ startingAstrite: 5000 });
+    h1.gameState.mutatePersistent('gacha', (draft) => {
+      draft.gacha.ssrPity = 24;
+    });
+    Math.random = () => 0.95;
+    const tenMid = h1.gachaSystem.pull(10);
+    assert.equal(tenMid.ok, true);
+    assert.equal(tenMid.results.length, 10);
+    assert.equal(h1.economySystem.getBalance('astrite'), 4000);
+    assert.equal(tenMid.results[5].rarity, 'SSR', '6th pull in 10-pull (24+6=30) must guarantee SSR');
+    assert.equal(
+      tenMid.results.filter((r) => r.rarity === 'SSR').length,
+      1,
+    );
+    assert.equal(h1.gachaSystem.getPityStatus().ssrPity, 4);
+    assert.equal(h1.gachaSystem.getPityStatus().remainingPulls, 26);
+
+    // Case B: Starting at pity 20 -> 10th pull of 10-pull hits 30th pull hard pity SSR (not downgraded to SR), resets to 0
+    const h2 = createSummonHarness({ startingAstrite: 5000 });
+    h2.gameState.mutatePersistent('gacha', (draft) => {
+      draft.gacha.ssrPity = 20;
+    });
+    const tenEnd = h2.gachaSystem.pull(10);
+    assert.equal(tenEnd.ok, true);
+    assert.equal(tenEnd.results[9].rarity, 'SSR', '10th pull hitting 30 hard pity must be SSR');
+    assert.equal(h2.gachaSystem.getPityStatus().ssrPity, 0);
+    assert.equal(h2.gachaSystem.getPityStatus().remainingPulls, 30);
+
+    // Case C: Early SSR on 4th pull (index 3) inside a 10-pull resets pity immediately so ending pity is 6
+    const h3 = createSummonHarness({ startingAstrite: 5000 });
+    Math.random = () => (h3.gameState.gacha.totalPulls === 3 ? 0.01 : 0.95);
+    const tenEarly = h3.gachaSystem.pull(10);
+    assert.equal(tenEarly.ok, true);
+    assert.equal(tenEarly.results[3].rarity, 'SSR');
+    assert.equal(h3.gachaSystem.getPityStatus().ssrPity, 6);
+    assert.equal(h3.gachaSystem.getPityStatus().remainingPulls, 24);
+  } finally {
+    Math.random = origRandom;
+  }
+});
+
+test('Character Banner pity progress and currency persist via SaveManager across page refreshes and game restarts', () => {
+  const { storage, gachaSystem, economySystem } = createSummonHarness({
+    startingAstrite: 4000,
+  });
+
+  const origRandom = Math.random;
+  Math.random = () => 0.95;
+  try {
+    // Pull 10 + 7 = 17 pulls (cost 1,000 + 700 = 1,700 -> remaining balance 2,300)
+    assert.equal(gachaSystem.pull(10).ok, true);
+    for (let i = 0; i < 7; i += 1) {
+      assert.equal(gachaSystem.pull(1).ok, true);
+    }
+    assert.equal(gachaSystem.getPityStatus().ssrPity, 17);
+    assert.equal(gachaSystem.getPityStatus().totalPulls, 17);
+    assert.equal(economySystem.getBalance('astrite'), 2300);
+
+    // Simulate full page refresh / game restart using the same backing storage
+    const bundle = readFullBundle();
+    const restartedRegistry = buildDataRegistry(bundle);
+    const restartedBus = new EventBus();
+    const restartedSave = new SaveManager({ storage, eventBus: restartedBus });
+    const loaded = restartedSave.load();
+    assert.equal(loaded.status, 'loaded');
+    assert.equal(loaded.data.gacha.ssrPity, 17);
+    assert.equal(loaded.data.gacha.totalPulls, 17);
+    assert.equal(loaded.data.resources.astrite, 2300);
+
+    const restartedState = new GameState(loaded.data, restartedBus);
+    const restartedEconomy = new EconomySystem({
+      gameState: restartedState,
+      saveManager: restartedSave,
+      eventBus: restartedBus,
+    });
+    const restartedHeroes = new HeroSystem({
+      dataRegistry: restartedRegistry,
+      gameState: restartedState,
+      saveManager: restartedSave,
+      eventBus: restartedBus,
+    });
+    const restartedFormation = new FormationSystem({
+      dataRegistry: restartedRegistry,
+      gameState: restartedState,
+      heroSystem: restartedHeroes,
+      saveManager: restartedSave,
+      eventBus: restartedBus,
+    });
+    const restartedCards = new CardSystem({
+      dataRegistry: restartedRegistry,
+      gameState: restartedState,
+      saveManager: restartedSave,
+      eventBus: restartedBus,
+    });
+    const restartedGacha = new GachaSystem({
+      dataRegistry: restartedRegistry,
+      gameState: restartedState,
+      economySystem: restartedEconomy,
+      heroSystem: restartedHeroes,
+      formationSystem: restartedFormation,
+      cardSystem: restartedCards,
+      saveManager: restartedSave,
+      eventBus: restartedBus,
+    });
+
+    assert.equal(restartedGacha.getPityStatus().ssrPity, 17);
+    assert.equal(restartedGacha.getPityStatus().remainingPulls, 13);
+
+    // Pull 12 more times -> pity reaches 29, then 13th pull (30th cumulative) guarantees SSR & resets to 0
+    for (let i = 0; i < 12; i += 1) {
+      const r = restartedGacha.pull(1);
+      assert.equal(r.ok, true);
+      assert.notEqual(r.results[0].rarity, 'SSR');
+    }
+    assert.equal(restartedGacha.getPityStatus().ssrPity, 29);
+
+    const pityHit = restartedGacha.pull(1);
+    assert.equal(pityHit.ok, true);
+    assert.equal(pityHit.results[0].rarity, 'SSR');
+    assert.equal(restartedGacha.getPityStatus().ssrPity, 0);
+    assert.equal(restartedGacha.getPityStatus().totalPulls, 30);
+    assert.equal(restartedEconomy.getBalance('astrite'), 1000);
+
+    // Reload once more to verify reset pity (0) persisted cleanly
+    const afterResetReload = new SaveManager({ storage }).load();
+    assert.equal(afterResetReload.data.gacha.ssrPity, 0);
+    assert.equal(afterResetReload.data.gacha.totalPulls, 30);
+    assert.equal(afterResetReload.data.resources.astrite, 1000);
+  } finally {
+    Math.random = origRandom;
+  }
+});
+
+test('Insufficient currency rejects pulls without deducting currency or altering pity/history', () => {
+  // Single pull requires 100
+  const lowSingle = createSummonHarness({ startingAstrite: 99 });
+  const singleFail = lowSingle.gachaSystem.pull(1);
+  assert.equal(singleFail.ok, false);
+  assert.equal(singleFail.results.length, 0);
+  assert.equal(lowSingle.economySystem.getBalance('astrite'), 99);
+  assert.equal(lowSingle.gachaSystem.getPityStatus().ssrPity, 0);
+  assert.equal(lowSingle.gachaSystem.getPityStatus().totalPulls, 0);
+  assert.equal(lowSingle.gachaSystem.getPityStatus().history.length, 0);
+
+  // 10-pull requires 1,000 (999 must fail without deducting)
+  const lowTen = createSummonHarness({ startingAstrite: 999 });
+  lowTen.gameState.mutatePersistent('gacha', (draft) => {
+    draft.gacha.ssrPity = 14;
+    draft.gacha.totalPulls = 14;
+  });
+  const tenFail = lowTen.gachaSystem.pull(10);
+  assert.equal(tenFail.ok, false);
+  assert.equal(tenFail.results.length, 0);
+  assert.equal(lowTen.economySystem.getBalance('astrite'), 999);
+  assert.equal(lowTen.gachaSystem.getPityStatus().ssrPity, 14);
+  assert.equal(lowTen.gachaSystem.getPityStatus().totalPulls, 14);
+  assert.equal(lowTen.gachaSystem.getPityStatus().history.length, 0);
 });

@@ -48,12 +48,31 @@ export class GachaSystem {
 
   getPityStatus(bannerId = null) {
     const banner = this.getActiveBanner(bannerId);
+    const ssrPity = this._state.gacha.ssrPity;
+    const ssrHardPity =
+      banner?.pityConfig?.ssrHardPity ?? (banner?.bannerType === 'commander' ? 30 : 80);
     return {
-      ssrPity: this._state.gacha.ssrPity,
-      ssrHardPity: banner?.pityConfig?.ssrHardPity ?? 80,
+      ssrPity,
+      ssrHardPity,
+      remainingPulls: Math.max(0, ssrHardPity - ssrPity),
       totalPulls: this._state.gacha.totalPulls,
       history: this._state.gacha.history,
     };
+  }
+
+  _resolvePullRarity({ banner, ssrPity, hardPity, count, pullIndex, hasSrOrHigher }) {
+    const nextPity = ssrPity + 1;
+    if (nextPity >= hardPity) {
+      return 'SSR';
+    }
+    if (count === 10 && pullIndex === 9 && !hasSrOrHigher) {
+      return Math.random() < banner.rates.SSR ? 'SSR' : 'SR';
+    }
+    return pickWeighted([
+      { value: 'SSR', weight: banner.rates.SSR },
+      { value: 'SR', weight: banner.rates.SR },
+      { value: 'R', weight: banner.rates.R },
+    ]);
   }
 
   _unlockCardAndUnit(cardId) {
@@ -100,31 +119,30 @@ export class GachaSystem {
     }
 
     const cost = count === 10 ? banner.tenCost : banner.singleCost;
+    const currencyLabel = banner.currencyLabel || banner.currency;
+    if (!this._economy.canAfford(banner.currency, cost)) {
+      return { ok: false, reason: `Need ${cost} ${currencyLabel} to recruit.`, results: [] };
+    }
     const spendRes = this._economy.spend(banner.currency, cost);
     if (!spendRes.ok) {
-      return { ok: false, reason: `Need ${cost} ${banner.currency} to recruit.`, results: [] };
+      return { ok: false, reason: `Need ${cost} ${currencyLabel} to recruit.`, results: [] };
     }
 
     const results = [];
     let hasSrOrHigher = false;
-    const hardPity = banner.pityConfig?.ssrHardPity ?? 80;
+    const hardPity =
+      banner.pityConfig?.ssrHardPity ?? (banner.bannerType === 'commander' ? 30 : 80);
     const isTacticalBanner = banner.bannerType === 'tactical';
 
     for (let i = 0; i < count; i += 1) {
-      const nextPity = this._state.gacha.ssrPity + 1;
-      let rarity;
-
-      if (nextPity >= hardPity) {
-        rarity = 'SSR';
-      } else if (count === 10 && i === 9 && !hasSrOrHigher) {
-        rarity = Math.random() < banner.rates.SSR ? 'SSR' : 'SR';
-      } else {
-        rarity = pickWeighted([
-          { value: 'SSR', weight: banner.rates.SSR },
-          { value: 'SR', weight: banner.rates.SR },
-          { value: 'R', weight: banner.rates.R },
-        ]);
-      }
+      const rarity = this._resolvePullRarity({
+        banner,
+        ssrPity: this._state.gacha.ssrPity,
+        hardPity,
+        count,
+        pullIndex: i,
+        hasSrOrHigher,
+      });
 
       if (rarity === 'SSR' || rarity === 'SR') hasSrOrHigher = true;
 

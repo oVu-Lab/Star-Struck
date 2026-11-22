@@ -171,14 +171,16 @@ export class SummonScreen {
     const durationLabel = formatBannerDuration(banner, nowMs);
     const pity = gachaSystem.getPityStatus();
     const currencyId = banner?.currency || 'astrite';
-    const currencyLabel = currencyId === 'astrite' ? 'Astrite' : currencyId;
+    const currencyLabel =
+      banner?.currencyLabel || (currencyId === 'astrite' ? 'Astrite' : currencyId);
     const balance = economySystem.getBalance(currencyId);
-    const singleCost = banner?.singleCost ?? 160;
-    const tenCost = banner?.tenCost ?? 1600;
+    const singleCost = banner?.singleCost ?? (isTactical ? 160 : 100);
+    const tenCost = banner?.tenCost ?? (isTactical ? 1600 : 1000);
     const canAffordSingle = !isExpired && balance >= singleCost;
     const canAffordTen = !isExpired && balance >= tenCost;
     const results = gameState.ui.lastSummonResults || [];
 
+    const remainingPulls = pity.remainingPulls ?? Math.max(0, pity.ssrHardPity - pity.ssrPity);
     const pityPct = Math.min(100, Math.round((pity.ssrPity / Math.max(1, pity.ssrHardPity)) * 100));
     const ssrRate = Math.round((banner?.rates?.SSR ?? 0.03) * 100);
     const srRate = Math.round((banner?.rates?.SR ?? 0.17) * 100);
@@ -212,6 +214,8 @@ export class SummonScreen {
             <span class="summon-balance-readout">${formatNumber(balance)} ${currencyLabel}</span>
             <span class="meta-sep" aria-hidden="true">·</span>
             <span>SSR Pity ${pity.ssrPity} / ${pity.ssrHardPity}</span>
+            <span class="meta-sep" aria-hidden="true">·</span>
+            <span data-pity-remaining="${remainingPulls}">SSR Guarantee in ${remainingPulls} pull${remainingPulls === 1 ? '' : 's'}</span>
             <span class="meta-sep" aria-hidden="true">·</span>
             <span>Total Pulls ${pity.totalPulls}</span>
           </div>
@@ -346,8 +350,10 @@ export class SummonScreen {
                   </div>
                   <div class="summon-pity-inline">
                     <span class="summon-pity-inline__text tabular-nums">
-                      10x Guarantee: ≥1 ${banner?.pityConfig?.tenPullMinRarity || 'SR'} · Shared SSR Pity
-                      <strong>${pity.ssrPity} / ${pity.ssrHardPity}</strong>
+                      10x Guarantee: ≥1 ${banner?.pityConfig?.tenPullMinRarity || 'SR'} · SSR Pity
+                      <strong>${pity.ssrPity} / ${pity.ssrHardPity}</strong> ·
+                      <strong>${remainingPulls}</strong> pull${remainingPulls === 1 ? '' : 's'} until SSR guarantee ·
+                      Single pull: ${formatNumber(singleCost)} · 10 pulls: ${formatNumber(tenCost)}
                     </span>
                     <div class="progress-track summon-pity-track" aria-label="SSR Pity Progress">
                       <div class="progress-fill progress-fill--gold" style="width: ${pityPct}%;"></div>

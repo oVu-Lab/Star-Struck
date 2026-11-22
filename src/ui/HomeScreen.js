@@ -75,6 +75,9 @@ export class HomeScreen {
     const xpPct = Math.min(100, Math.round((player.xp / Math.max(1, player.xpToNext)) * 100));
     const themeClass = commander?.id ? `theme-${commander.id}` : 'theme-astra';
     const rarityLower = (commander?.rarity || 'SSR').toLowerCase();
+    const commanderBanner =
+      (dataRegistry.banners || []).find((b) => b.bannerType !== 'tactical') || dataRegistry.banners?.[0];
+    const commanderHardPity = commanderBanner?.pityConfig?.ssrHardPity ?? 30;
 
     this._container.innerHTML = `
       <section class="screen-frame" aria-label="Command Home">
@@ -110,7 +113,7 @@ export class HomeScreen {
             <button type="button" class="home-nav-card home-nav-card--gold" data-nav="summon">
               <span class="home-nav-card__head">
                 <span class="home-nav-card__kicker">Astral Recruitment</span>
-                <span class="home-nav-card__stat tabular-nums">Pity ${gameState.gacha.ssrPity}/80</span>
+                <span class="home-nav-card__stat tabular-nums">Pity ${gameState.gacha.ssrPity}/${commanderHardPity}</span>
               </span>
               <span class="home-nav-card__art home-nav-card__art--gold">
                 <img id="home-nav-art-summon" alt="" aria-hidden="true" />

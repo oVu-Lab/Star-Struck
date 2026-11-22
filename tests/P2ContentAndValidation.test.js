@@ -99,15 +99,26 @@ test('P2 Roster Targets: 10 playable units, 10 enemies, 28 cards, 5 commanders, 
     }
   }
 
-  // Verify banner_starlight_command preserves exact P0/P1 rates, costs, and pity
+  // Verify banner_starlight_command (Character Gacha Banner) uses updated costs & 30-pull SSR pity while preserving rates
   const cmdBanner = registry.bannersById.get('banner_starlight_command');
   assert.ok(cmdBanner);
   assert.equal(cmdBanner.rates.SSR, 0.03);
   assert.equal(cmdBanner.rates.SR, 0.17);
   assert.equal(cmdBanner.rates.R, 0.8);
-  assert.equal(cmdBanner.singleCost, 160);
-  assert.equal(cmdBanner.tenCost, 1600);
-  assert.equal(cmdBanner.pityConfig.ssrHardPity, 80);
+  assert.equal(cmdBanner.currency, 'astrite');
+  assert.equal(cmdBanner.singleCost, 100);
+  assert.equal(cmdBanner.tenCost, 1000);
+  assert.equal(cmdBanner.pityConfig.ssrHardPity, 30);
+
+  // Verify tactical banner remains unmodified
+  const tacBanner = registry.bannersById.get('banner_tactical_requisition');
+  assert.ok(tacBanner);
+  assert.equal(tacBanner.singleCost, 160);
+  assert.equal(tacBanner.tenCost, 1600);
+  assert.equal(tacBanner.pityConfig.ssrHardPity, 80);
+  assert.equal(tacBanner.rates.SSR, 0.03);
+  assert.equal(tacBanner.rates.SR, 0.17);
+  assert.equal(tacBanner.rates.R, 0.8);
 
   // Verify stages span 3 chapters and cover all 5 bosses
   const chapters = new Set(registry.stages.map((s) => s.chapter));

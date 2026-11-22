@@ -9,10 +9,10 @@
       "featuredHeroIds": ["astra", "seraphina"],
       "featuredAssetId": "hero_portrait_astra",
       "currency": "astrite",
-      "singleCost": 160,
-      "tenCost": 1600,
+      "singleCost": 100,
+      "tenCost": 1000,
       "pityConfig": {
-        "ssrHardPity": 80,
+        "ssrHardPity": 30,
         "tenPullMinRarity": "SR"
       },
       "rates": {
