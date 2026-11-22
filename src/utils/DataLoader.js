@@ -80,7 +80,7 @@ export const DEFAULT_BALANCE = Object.freeze({
     repeatClearCreditRatio: 0.7,
     repeatClearAstriteRatio: 0.35,
   },
-  deck: { deckSize: 12, handSlots: 6, maxCardLevel: 3 },
+  deck: { deckSize: 6, handSlots: 6, maxCardLevel: 3, refillIntervalSec: 5 },
   speeds: [1, 2, 3],
   ratings: {
     S: { minSurvivorRatio: 0.72, maxDurationSec: 180 },
@@ -175,11 +175,32 @@ export function validateDataBundle(raw) {
       }
     }
 
+    const refillIntervalSec = raw.balance?.deck?.refillIntervalSec ?? raw.cards.handConfig?.refillIntervalSec;
+    if (
+      refillIntervalSec !== undefined &&
+      (typeof refillIntervalSec !== 'number' || !Number.isFinite(refillIntervalSec) || refillIntervalSec <= 0)
+    ) {
+      errors.push('Deck refillIntervalSec must be a positive number.');
+    }
+
     if (Array.isArray(raw.cards.defaultBattleDeck)) {
+      const cardDefsById = new Map(raw.cards.cards.map((c) => [c.id, c]));
+      const seenDeckIds = new Set();
+      const seenDeckNames = new Set();
       for (const cid of raw.cards.defaultBattleDeck) {
         if (!cardIds.has(cid)) {
           errors.push(`defaultBattleDeck references unknown card "${cid}".`);
+          continue;
         }
+        if (seenDeckIds.has(cid)) {
+          errors.push(`defaultBattleDeck contains duplicate card ID "${cid}".`);
+        }
+        seenDeckIds.add(cid);
+        const cardName = String(cardDefsById.get(cid)?.name || '').trim().toLowerCase();
+        if (cardName && seenDeckNames.has(cardName)) {
+          errors.push(`defaultBattleDeck contains duplicate card name "${cardDefsById.get(cid)?.name}".`);
+        }
+        if (cardName) seenDeckNames.add(cardName);
       }
     }
 

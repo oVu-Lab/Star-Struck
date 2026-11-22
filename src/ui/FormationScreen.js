@@ -1,8 +1,7 @@
 /**
  * FormationScreen (P4 Structural Redesign) — 3-Tab Tactical Command Workspace
- * eliminating excessive vertical scrolling by organizing Squad & Units,
- * 12-Card Battle Deck Builder, and 12-Stage Campaign Operations into dedicated
- * full-viewport 2-column tactical desks.
+ * organizing Squad & Units, 6-Card Unique Battle Deck Builder, and 12-Stage
+ * Campaign Operations into dedicated full-viewport 2-column tactical desks.
  */
 
 import { formatNumber } from '../utils/MathUtils.js';
@@ -41,13 +40,20 @@ export class FormationScreen {
     this._draftDeck = null;
   }
 
-  _countInDraft(cardId) {
-    if (!Array.isArray(this._draftDeck)) return 0;
-    let n = 0;
-    for (const id of this._draftDeck) {
-      if (id === cardId) n += 1;
+  _hasInDraft(cardId) {
+    return Array.isArray(this._draftDeck) && this._draftDeck.includes(cardId);
+  }
+
+  _getDraftCardNames() {
+    const names = new Set();
+    if (!Array.isArray(this._draftDeck)) return names;
+    const { dataRegistry } = this._ctx;
+    for (const cid of this._draftDeck) {
+      const def = dataRegistry.cardsById.get(cid);
+      const norm = def?.name ? String(def.name).trim().toLowerCase() : '';
+      if (norm) names.add(norm);
     }
-    return n;
+    return names;
   }
 
   render() {
@@ -72,6 +78,7 @@ export class FormationScreen {
     const clearedCount = stages.filter((s) => s.cleared).length;
     const savedDeck = cardSystem.getCustomDeck();
     const deckSize = cardSystem.getDeckSize();
+    const deckReady = cardSystem.isDeckReadyForBattle();
 
     if (!Array.isArray(this._draftDeck)) {
       this._draftDeck = [...savedDeck];
@@ -87,7 +94,7 @@ export class FormationScreen {
                 Squad &amp; Units
               </button>
               <button type="button" role="tab" aria-selected="${activeTab === 'deck'}" class="segmented-btn ${activeTab === 'deck' ? 'is-active' : ''}" data-form-tab="deck">
-                12-Card Deck (${this._draftDeck.length}/${deckSize})
+                Battle Deck (${this._draftDeck.length}/${deckSize})
               </button>
               <button type="button" role="tab" aria-selected="${activeTab === 'stages'}" class="segmented-btn ${activeTab === 'stages' ? 'is-active' : ''}" data-form-tab="stages">
                 Campaign (${clearedCount}/${stages.length})
@@ -99,7 +106,7 @@ export class FormationScreen {
             <span class="meta-line" style="white-space: nowrap;">
               <span>Stage ${selectedStage?.code || '1-1'} · ${selectedStage?.name || 'Outer Bastion'}</span>
             </span>
-            <button type="button" id="btn-formation-deploy" class="btn btn-primary btn-sm">
+            <button type="button" id="btn-formation-deploy" class="btn btn-primary btn-sm" ${!deckReady.ok ? `title="${String(deckReady.reason || '').replace(/"/g, '&quot;')}"` : ''}>
               Deploy to Stage ${selectedStage?.code || '1-1'}
             </button>
           </div>
@@ -127,6 +134,14 @@ export class FormationScreen {
     }
 
     this._container.querySelector('#btn-formation-deploy')?.addEventListener('click', () => {
+      const check = cardSystem.isDeckReadyForBattle();
+      if (!check.ok) {
+        audioManager.playInvalid();
+        this._ctx.notify(check.reason, 'warn');
+        gameState.setUI({ formationTab: 'deck' });
+        this.render();
+        return;
+      }
       audioManager.playClick();
       screenManager.navigate('battle');
     });
@@ -635,6 +650,7 @@ export class FormationScreen {
     const { cardSystem, dataRegistry, gameState, assetManager, audioManager } = this._ctx;
     const savedDeck = cardSystem.getCustomDeck();
     const deckSize = cardSystem.getDeckSize();
+    const refillSec = cardSystem.getRefillIntervalSec();
     const cardCatFilter = gameState.ui.cardCategoryFilter || 'all';
     const unlockedCardSet = new Set(cardSystem.getUnlockedCardIds());
     const unlockedCards = dataRegistry.cards.filter((c) => unlockedCardSet.has(c.id));
@@ -644,20 +660,36 @@ export class FormationScreen {
         : unlockedCards.filter((c) => (c.category || 'unit') === cardCatFilter);
 
     const draftCounts = { unit: 0, skill: 0, tactic: 0, support: 0 };
-    const groupedDraft = new Map();
+    const draftNames = new Set();
     for (const cid of this._draftDeck) {
       const def = dataRegistry.cardsById.get(cid);
       const cat = def?.category || 'unit';
       if (draftCounts[cat] !== undefined) draftCounts[cat] += 1;
-      groupedDraft.set(cid, (groupedDraft.get(cid) || 0) + 1);
+      const normName = def?.name ? String(def.name).trim().toLowerCase() : '';
+      if (normName) draftNames.add(normName);
     }
+
+    const draftValidation = cardSystem.validateDeck(this._draftDeck, { requireUnlocked: true });
+    const savedValidation = cardSystem.validateDeck(savedDeck, { requireUnlocked: true });
+    const isDraftMatchesSaved =
+      draftValidation.ok &&
+      savedDeck.length === this._draftDeck.length &&
+      savedDeck.every((id, idx) => id === this._draftDeck[idx]);
+    const deckStatusMessage =
+      unlockedCards.length < deckSize
+        ? `Unlock at least ${deckSize} unique cards (${unlockedCards.length}/${deckSize} owned) to enter battle.`
+        : draftValidation.ok
+          ? isDraftMatchesSaved
+            ? `Ready for battle · Battle slots draw randomly with replacement (${refillSec}s refill).`
+            : 'Deck complete (6/6) · Click Save 6-Card Deck to apply.'
+          : draftValidation.reason;
 
     bodyEl.innerHTML = `
       <div class="formation-workspace formation-workspace--deck">
         <div class="surface workspace-pane">
           <div class="workspace-pane__head">
             <div>
-              <div class="section-kicker">Unlocked Tactical Pool</div>
+              <div class="section-kicker">Unlocked Card Pool · Select ${deckSize} Unique Cards</div>
               <h2 class="section-heading" style="margin-top: 2px;">Available Cards (${unlockedCards.length})</h2>
             </div>
 
@@ -684,11 +716,18 @@ export class FormationScreen {
             <div class="deck-builder-grid" id="deck-builder-grid">
               ${visibleCards
                 .map((card) => {
-                  const count = this._countInDraft(card.id);
-                  const canAdd = count < 3 && this._draftDeck.length < deckSize;
+                  const isSelected = this._hasInDraft(card.id);
+                  const normName = String(card.name || '').trim().toLowerCase();
+                  const duplicateName = !isSelected && normName && draftNames.has(normName);
+                  const isFull = this._draftDeck.length >= deckSize;
+                  const canAdd = !isSelected && !duplicateName && !isFull;
                   const cat = card.category || 'unit';
                   return `
-                    <div class="deck-card-row deck-card-row--${cat} ${count > 0 ? 'is-in-deck' : ''}" title="${card.description || ''}">
+                    <div
+                      class="deck-card-row deck-card-row--${cat} ${isSelected ? 'is-in-deck' : ''}"
+                      data-card-id="${card.id}"
+                      title="${[card.description, card.upgradeSummary].filter(Boolean).join(' · ')}"
+                    >
                       <div class="deck-card-row__main">
                         <div class="deck-card-row__icon">
                           <img data-deck-icon="${card.iconAssetId}" alt="${card.name}" />
@@ -707,27 +746,31 @@ export class FormationScreen {
                         </div>
                       </div>
                       <div class="deck-stepper">
-                        <button
-                          type="button"
-                          class="btn btn-secondary deck-stepper__btn"
-                          aria-label="Remove ${card.name}"
-                          data-deck-remove="${card.id}"
-                          ${count <= 0 ? 'disabled' : ''}
-                        >
-                          -
-                        </button>
-                        <span class="tabular-nums" style="min-width: 16px; text-align: center; font-weight: 700; font-size: 0.85rem;">
-                          ${count}
-                        </span>
-                        <button
-                          type="button"
-                          class="btn btn-secondary deck-stepper__btn"
-                          aria-label="Add ${card.name}"
-                          data-deck-add="${card.id}"
-                          ${!canAdd ? 'disabled' : ''}
-                        >
-                          +
-                        </button>
+                        ${
+                          isSelected
+                            ? `
+                              <span class="deck-selected-badge">Selected</span>
+                              <button
+                                type="button"
+                                class="btn btn-secondary deck-stepper__btn"
+                                aria-label="Remove ${card.name}"
+                                data-deck-remove="${card.id}"
+                              >
+                                Remove
+                              </button>
+                            `
+                            : `
+                              <button
+                                type="button"
+                                class="btn btn-primary deck-stepper__btn"
+                                aria-label="Add ${card.name}"
+                                data-deck-add="${card.id}"
+                                ${!canAdd ? 'disabled' : ''}
+                              >
+                                ${duplicateName ? 'Duplicate' : isFull ? 'Full' : 'Add'}
+                              </button>
+                            `
+                        }
                       </div>
                     </div>
                   `;
@@ -740,13 +783,13 @@ export class FormationScreen {
         <aside class="surface workspace-pane" aria-label="Active Deck Composition">
           <div class="workspace-pane__head">
             <div>
-              <div class="section-kicker section-kicker--gold">Battle Deck (${this._draftDeck.length} / ${deckSize})</div>
-              <h2 class="section-heading" style="margin-top: 2px;">${savedDeck.length === deckSize ? 'Custom Deck Active' : 'Auto-Deck Active'}</h2>
+              <div class="section-kicker section-kicker--gold">Battle Deck (${this._draftDeck.length}/${deckSize})</div>
+              <h2 class="section-heading" style="margin-top: 2px;">${savedValidation.ok ? '6-Card Pool Active' : 'Incomplete Deck'}</h2>
             </div>
           </div>
 
           <div class="meta-line tabular-nums" style="font-size: 0.78rem;">
-            <span class="cat-text-unit">Unit ${draftCounts.unit} (min 4)</span>
+            <span class="cat-text-unit">Unit ${draftCounts.unit}</span>
             <span class="meta-sep" aria-hidden="true">·</span>
             <span class="cat-text-skill">Skill ${draftCounts.skill}</span>
             <span class="meta-sep" aria-hidden="true">·</span>
@@ -759,39 +802,47 @@ export class FormationScreen {
             <div class="progress-fill" style="width: ${Math.min(100, (this._draftDeck.length / deckSize) * 100)}%;"></div>
           </div>
 
-          <div class="deck-draft-list">
-            ${
-              groupedDraft.size === 0
-                ? '<p style="font-size: 0.84rem; color: var(--text-muted); padding: 12px 0;">Draft is empty. Add up to 12 cards (max 3 copies each, min 4 Unit cards) or use Auto-Deck.</p>'
-                : Array.from(groupedDraft.entries())
-                    .map(([cid, qty]) => {
-                      const card = dataRegistry.cardsById.get(cid);
-                      const cat = card?.category || 'unit';
-                      return `
-                        <button type="button" class="deck-draft-pill" data-deck-remove="${cid}" title="Click to remove one copy">
-                          <span style="min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                            <span class="cat-text-${cat}" style="margin-right: 6px;">${CATEGORY_LABELS[cat]}</span>
-                            <strong style="color: var(--text-primary);">${card?.name || cid}</strong>
-                          </span>
-                          <span class="tabular-nums" style="color: var(--accent-gold-bright); font-weight: 700; flex-shrink: 0;">×${qty}</span>
-                        </button>
-                      `;
-                    })
-                    .join('')
-            }
+          <p id="deck-validation-message" class="deck-validation-msg ${draftValidation.ok ? 'is-valid' : 'is-warn'}">
+            ${deckStatusMessage}
+          </p>
+
+          <div class="deck-draft-list" id="deck-draft-slots">
+            ${Array.from({ length: deckSize }, (_, idx) => {
+              const cid = this._draftDeck[idx];
+              if (!cid) {
+                return `
+                  <div class="deck-draft-pill deck-draft-pill--empty">
+                    <span class="tabular-nums" style="color: var(--text-muted);">Slot ${idx + 1} · Empty</span>
+                    <span style="font-size: 0.74rem; color: var(--text-muted);">Select a card</span>
+                  </div>
+                `;
+              }
+              const card = dataRegistry.cardsById.get(cid);
+              const cat = card?.category || 'unit';
+              return `
+                <button type="button" class="deck-draft-pill" data-deck-remove="${cid}" title="Click to remove ${card?.name || cid}">
+                  <span style="min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                    <span class="tabular-nums" style="color: var(--text-muted); margin-right: 6px;">${idx + 1}.</span>
+                    <span class="cat-text-${cat}" style="margin-right: 6px;">${CATEGORY_LABELS[cat]}</span>
+                    <strong style="color: var(--text-primary);">${card?.name || cid}</strong>
+                  </span>
+                  <span class="tabular-nums" style="color: var(--accent-gold-bright); font-weight: 700; flex-shrink: 0;">${card?.cost ?? 0}E · ×</span>
+                </button>
+              `;
+            }).join('')}
           </div>
 
           <div class="btn-row" style="margin-top: auto; justify-content: space-between;">
             <button type="button" id="btn-deck-auto" class="btn btn-ghost btn-sm">
-              Use Auto-Deck
+              Auto-Fill 6 Cards
             </button>
             <button
               type="button"
               id="btn-deck-save"
               class="btn btn-primary btn-sm"
-              ${this._draftDeck.length !== deckSize || draftCounts.unit < 4 ? 'disabled' : ''}
+              ${!draftValidation.ok ? 'disabled' : ''}
             >
-              Save 12-Card Deck
+              Save 6-Card Deck
             </button>
           </div>
         </aside>
@@ -814,11 +865,23 @@ export class FormationScreen {
     for (const btn of bodyEl.querySelectorAll('[data-deck-add]')) {
       btn.addEventListener('click', () => {
         const cid = btn.getAttribute('data-deck-add');
-        if (this._draftDeck.length < deckSize && this._countInDraft(cid) < 3) {
-          this._draftDeck.push(cid);
-          audioManager.playCardSelect();
-          this.render();
+        const def = dataRegistry.cardsById.get(cid);
+        if (!def) return;
+        const normName = String(def.name || '').trim().toLowerCase();
+        const currentNames = this._getDraftCardNames();
+        if (this._hasInDraft(cid) || (normName && currentNames.has(normName))) {
+          audioManager.playInvalid();
+          this._ctx.notify(`"${def.name}" is already in your deck.`, 'warn');
+          return;
         }
+        if (this._draftDeck.length >= deckSize) {
+          audioManager.playInvalid();
+          this._ctx.notify(`Deck already has ${deckSize} unique cards. Remove one first.`, 'warn');
+          return;
+        }
+        this._draftDeck.push(cid);
+        audioManager.playCardSelect();
+        this.render();
       });
     }
 
@@ -837,8 +900,10 @@ export class FormationScreen {
     bodyEl.querySelector('#btn-deck-save')?.addEventListener('click', () => {
       const res = cardSystem.setCustomDeck(this._draftDeck);
       if (res.ok) {
+        this._draftDeck = [...res.battleDeck];
         audioManager.playReward();
-        this._ctx.notify('Custom 12-card battle deck saved.', 'success');
+        this._ctx.notify('6-card unique battle deck saved.', 'success');
+        this.render();
       } else if (res.reason) {
         audioManager.playInvalid();
         this._ctx.notify(res.reason, 'warn');
@@ -846,13 +911,20 @@ export class FormationScreen {
     });
 
     bodyEl.querySelector('#btn-deck-auto')?.addEventListener('click', () => {
-      const res = cardSystem.setCustomDeck([]);
-      if (res.ok) {
-        this._draftDeck = [];
-        audioManager.playClick();
-        this._ctx.notify('Switched to automatic battle deck.');
-        this.render();
+      const defaultIds = cardSystem.buildDefaultDeckIds();
+      this._draftDeck = [...defaultIds];
+      if (defaultIds.length === deckSize) {
+        const res = cardSystem.setCustomDeck(defaultIds);
+        if (res.ok) {
+          audioManager.playReward();
+          this._ctx.notify('Loaded and saved 6-card tactical deck.', 'success');
+          this.render();
+          return;
+        }
       }
+      audioManager.playInvalid();
+      this._ctx.notify(`Need at least ${deckSize} unlocked cards to complete a deck.`, 'warn');
+      this.render();
     });
   }
 
@@ -1040,6 +1112,14 @@ export class FormationScreen {
     }
 
     bodyEl.querySelector('#btn-briefing-deploy')?.addEventListener('click', () => {
+      const check = this._ctx.cardSystem.isDeckReadyForBattle();
+      if (!check.ok) {
+        audioManager.playInvalid();
+        this._ctx.notify(check.reason, 'warn');
+        gameState.setUI({ formationTab: 'deck' });
+        this.render();
+        return;
+      }
       audioManager.playClick();
       screenManager.navigate('battle');
     });

@@ -98,6 +98,11 @@ test('Full P1 Battle Integration: Preparation -> Combat -> Cards & Merge -> Ulti
   const h = createHeadlessGameHarness();
   const creditsBefore = h.gameState.resources.credits;
 
+  // Deterministic sequence ensuring slots 0 & 1 match for merge testing, while all 4 categories appear in slots 0..5
+  const initSeq = [0.0, 0.0, 0.55, 0.72, 0.9, 0.2, 0.55, 0.72, 0.9, 0.0];
+  let seqIdx = 0;
+  h.cardSystem.setRandomSource(() => initSeq[seqIdx++ % initSeq.length]);
+
   // 1. Enter preparation
   h.battleManager.startSession(null, { stageId: 'stage_1_1' });
   assert.equal(h.battleManager.getPhase(), BATTLE_PHASES.PREPARATION);
@@ -155,7 +160,7 @@ test('Full P1 Battle Integration: Preparation -> Combat -> Cards & Merge -> Ulti
     if (waveNumber >= 2) sawWave2 = true;
   });
 
-  // 5. Merge adjacent identical cards in slots 0 and 1 (must NOT spawn a unit directly)
+  // 5. Merge identical cards in slots 0 and 1 (must NOT spawn a unit directly)
   const allyCountBeforeMerge = h.unitManager.getActiveCount('ally');
   const sel0 = h.battleManager.interactWithCardSlot(0);
   assert.equal(sel0.action, 'selected');
@@ -181,10 +186,12 @@ test('Full P1 Battle Integration: Preparation -> Combat -> Cards & Merge -> Ulti
       }
     }
 
-    // Play cards periodically as Command Energy regenerates
+    // Play cards periodically as Command Energy regenerates, prioritizing unplayed categories first
     if (step % 45 === 0) {
       const slots = h.cardSystem.getSlots();
-      for (let idx = 0; idx < slots.length; idx += 1) {
+      const neededSlot = slots.findIndex((c) => c && !categoriesPlayed.has(c.category));
+      const candidateIndices = neededSlot >= 0 ? [neededSlot] : [0, 1, 2, 3, 4, 5];
+      for (const idx of candidateIndices) {
         const card = slots[idx];
         if (!card) continue;
         if (h.gameState.battle.energy >= card.cost && h.cardSystem.getCardCooldown(card.cardId) <= 0) {
@@ -202,7 +209,7 @@ test('Full P1 Battle Integration: Preparation -> Combat -> Cards & Merge -> Ulti
   assert.ok(firstAlly.x > allyStartX || h.combatSystem.getStats().damageDealt > 0, 'Units must advance and fight');
   assert.equal(sawDamage, true, 'Combat damage must occur');
   assert.equal(sawHeal, true, 'Healing must occur via Field Cleric, Skill/Support cards, or ASTRA ultimate');
-  assert.equal(mergedCard, true, 'Adjacent card merge must succeed');
+  assert.equal(mergedCard, true, 'Identical card merge must succeed');
   assert.ok(categoriesPlayed.has('unit'), 'Unit card must be played');
   assert.ok(categoriesPlayed.has('skill'), 'Skill card must be played');
   assert.ok(categoriesPlayed.has('tactic'), 'Tactic card must be played');
@@ -228,13 +235,13 @@ test('Full P1 Battle Integration: Preparation -> Combat -> Cards & Merge -> Ulti
   assert.ok(reloaded.data.progression.clearedStages.includes('stage_1_1'));
 });
 
-test('Defeat triggers strictly when all friendly units die and no reinforcement unit cards remain (not on deck exhaustion alone)', () => {
+test('Defeat triggers strictly when all friendly units die and no reinforcement unit cards remain (not on random refills alone)', () => {
   const h = createHeadlessGameHarness();
   h.battleManager.startSession(null, {
     stageId: 'stage_1_3',
     customDeckIds: [
       'card_skill_astral_nova',
-      'card_skill_astral_nova',
+      'card_skill_sanctuary_wave',
       'card_tactic_full_assault',
       'card_tactic_focus_fire',
       'card_support_aegis_blessing',
@@ -247,9 +254,8 @@ test('Defeat triggers strictly when all friendly units die and no reinforcement 
   for (let i = 0; i < 65; i += 1) h.battleManager.stepSimulation(1 / 60);
   assert.equal(h.battleManager.getPhase(), BATTLE_PHASES.ACTIVE_COMBAT);
 
-  // Deck has 0 cards remaining (all 6 dealt into hand, none are unit cards),
-  // yet living allies keep battle going (deck exhaustion alone does NOT cause defeat!)
-  assert.equal(h.cardSystem.getRemainingDeckCount(), 0);
+  // Deck pool has no unit cards, yet living allies keep battle going until defeated
+  assert.equal(h.cardSystem.hasRemainingUnitCards(), false);
   assert.equal(h.battleManager.getPhase(), BATTLE_PHASES.ACTIVE_COMBAT);
 
   // Defeat all friendly units -> now defeat MUST trigger cleanly

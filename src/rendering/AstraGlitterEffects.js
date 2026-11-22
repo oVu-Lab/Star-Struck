@@ -5,6 +5,18 @@
  */
 
 const TWO_PI = Math.PI * 2;
+const IRIDESCENT_PALETTE = ['#a8f0ff', '#bdd8ff', '#d8c4ff', '#ffc6e4', '#ffe8b6'];
+
+function wrap01(v) {
+  return ((v % 1) + 1) % 1;
+}
+
+function classifyType(ratio) {
+  if (ratio < 0.6) return 'iridescent';
+  if (ratio < 0.85) return 'dust';
+  if (ratio < 0.95) return 'star';
+  return 'glint';
+}
 
 function createSeededList(count, salt = 1) {
   const list = [];
@@ -14,14 +26,62 @@ function createSeededList(count, salt = 1) {
     return (s - 1) / 2147483646;
   };
   for (let i = 0; i < count; i += 1) {
+    const rx = nextRand();
+    const ry = nextRand();
+    const z = nextRand();
+    const w = nextRand();
+    const hueRoll = nextRand();
+    const freqRoll = nextRand();
+    const phaseRoll = nextRand();
+    const rotRoll = nextRand();
+    const ratio = ((i * 7 + salt) % count + 0.5) / count;
     list.push({
-      x: nextRand(),
-      y: nextRand(),
-      z: nextRand(),
-      w: nextRand(),
+      x: wrap01((i + 0.5) * 0.7548776662 + (rx - 0.5) * 0.14),
+      y: wrap01((i + 0.5) * 0.5698402910 + (ry - 0.5) * 0.14),
+      z,
+      w,
+      type: classifyType(ratio),
+      hueIndex: Math.floor(hueRoll * IRIDESCENT_PALETTE.length),
+      twinkleFreq: 1 + Math.floor(freqRoll * 3),
+      phase: phaseRoll * TWO_PI,
+      rot: rotRoll * TWO_PI,
+      glow: w > 0.45,
     });
   }
   return list;
+}
+
+function drawDiamondSpeck(ctx, x, y, rx, ry, rotation = 0) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rotation);
+  ctx.beginPath();
+  ctx.moveTo(0, -ry);
+  ctx.lineTo(rx, 0);
+  ctx.lineTo(0, ry);
+  ctx.lineTo(-rx, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawFourPointSparkle(ctx, x, y, radius, rotation = 0, innerRatio = 0.15) {
+  const inner = radius * innerRatio;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rotation);
+  ctx.beginPath();
+  ctx.moveTo(0, -radius);
+  ctx.lineTo(inner, -inner);
+  ctx.lineTo(radius * 1.1, 0);
+  ctx.lineTo(inner, inner);
+  ctx.lineTo(0, radius);
+  ctx.lineTo(-inner, inner);
+  ctx.lineTo(-radius * 1.1, 0);
+  ctx.lineTo(-inner, -inner);
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
 }
 
 // Moderated glitter density (24 rising + 18 micro-glitter, down from 52 + 36) to prevent clustering
@@ -162,93 +222,140 @@ export function renderHolographicCardEffects(
     ctx.fillRect(0, 0, width, height);
   }
 
-  // 2. Moving rising & swaying glitter particles (mirroring AstraCard PVS/PFS particle layers)
+  // 2. Moving rising & swaying celestial particles (mirroring AstraCard PVS/PFS particle layers)
   for (let i = 0; i < RISING_PARTICLES.length; i += 1) {
     const s = RISING_PARTICLES[i];
     const isForeground = i >= 10;
-    const speedK = 1 + Math.floor(s.z * 3);
+    const speedK = s.type === 'dust'
+      ? 1 + Math.floor(s.z * 1.3)
+      : 1 + Math.floor(s.z * 3);
     const travel = ((s.y - ph * speedK) % 1 + 1) % 1;
-    const px =
-      s.x * width +
-      Math.sin(phase * speedK + s.z * 30) * (isForeground ? 9 : 5) * scale;
-    const py = travel * height;
+    const driftX = (
+      Math.sin(phase * speedK + s.z * 30) * (isForeground ? 6.5 : 3.5)
+      + Math.cos(phase + s.phase) * (isForeground ? 3.0 : 1.8)
+    ) * scale;
+    const driftY = Math.sin(phase * 2 + s.phase) * 2.5 * scale;
+    const px = s.x * width + driftX;
+    const py = travel * height + driftY;
 
     const edgeFade = Math.sin(travel * Math.PI);
-    const pulse = 0.45 + 0.55 * Math.sin(phase * 3 + s.x * 50);
-    const alpha = edgeFade * pulse * (isForeground ? (isAstra ? 0.96 : 0.78) : (isAstra ? 0.65 : 0.48));
-    if (alpha <= 0.05) continue;
+    const tw1 = 0.5 + 0.5 * Math.sin(phase * s.twinkleFreq + s.phase);
+    const tw2 = 0.5 + 0.5 * Math.sin(phase * (s.twinkleFreq + 1) + s.x * 44);
+    let twinkle;
+    let flash = 0;
+    if (s.type === 'dust') {
+      twinkle = 0.24 + 0.36 * tw1;
+    } else if (s.type === 'star') {
+      twinkle = 0.28 + 0.72 * Math.pow(tw1, 2.2);
+    } else if (s.type === 'glint') {
+      flash = Math.pow(tw1 * 0.5 + tw2 * 0.5, 6);
+      twinkle = 0.3 + 0.95 * flash;
+    } else {
+      twinkle = 0.28 + 0.72 * (tw1 * 0.65 + tw2 * 0.35);
+    }
 
-    const baseR = (isForeground ? 1.55 + s.z * 1.95 : 0.95 + s.z * 1.1) * scale;
-    const pColor =
-      i % 4 === 0
-        ? '#ffffff'
-        : i % 4 === 1
-          ? accentColor
-          : i % 4 === 2
-            ? ringColor
-            : '#ffd978';
+    const layerAlpha = isForeground ? (isAstra ? 0.92 : 0.75) : (isAstra ? 0.6 : 0.45);
+    const alpha = Math.min(1, edgeFade * twinkle * layerAlpha);
+    if (alpha <= 0.04) continue;
 
-    ctx.globalAlpha = Math.min(1, alpha);
-    if (typeof ctx.createRadialGradient === 'function' && isForeground) {
-      const orb = ctx.createRadialGradient(px, py, 0, px, py, baseR * 2.4);
-      orb.addColorStop(0, '#ffffff');
-      orb.addColorStop(0.35, pColor);
-      orb.addColorStop(1, 'rgba(255, 232, 160, 0)');
-      ctx.fillStyle = orb;
+    const baseR = (isForeground ? 1.55 + s.z * 1.85 : 0.95 + s.z * 1.05) * scale;
+    const pColor = isAstra
+      ? IRIDESCENT_PALETTE[(s.hueIndex + (tw1 > 0.7 ? 1 : 0)) % IRIDESCENT_PALETTE.length]
+      : (i % 3 === 0 ? accentColor : i % 3 === 1 ? ringColor : '#fff0c8');
+
+    if (s.type === 'dust') {
+      const dustR = baseR * 1.35;
+      if (typeof ctx.createRadialGradient === 'function') {
+        const mist = ctx.createRadialGradient(px, py, 0, px, py, dustR * 1.5);
+        mist.addColorStop(0, pColor);
+        mist.addColorStop(1, 'rgba(200, 224, 255, 0)');
+        ctx.fillStyle = mist;
+      } else {
+        ctx.fillStyle = pColor;
+      }
+      ctx.globalAlpha = alpha * 0.65;
       ctx.beginPath();
-      ctx.arc(px, py, baseR * 2.4, 0, TWO_PI);
+      ctx.arc(px, py, dustR * 1.5, 0, TWO_PI);
+      ctx.fill();
+      continue;
+    }
+
+    if (typeof ctx.createRadialGradient === 'function' && (isForeground || s.glow || s.type !== 'iridescent')) {
+      const haloR = baseR * (s.type === 'glint' ? 2.6 : s.type === 'star' ? 2.2 : 1.9);
+      const orb = ctx.createRadialGradient(px, py, 0, px, py, haloR);
+      orb.addColorStop(0, s.type === 'glint' ? '#ffffff' : pColor);
+      orb.addColorStop(0.4, pColor);
+      orb.addColorStop(1, 'rgba(255, 232, 200, 0)');
+      ctx.fillStyle = orb;
+      ctx.globalAlpha = alpha * (s.type === 'iridescent' ? 0.42 : 0.55);
+      ctx.beginPath();
+      ctx.arc(px, py, haloR, 0, TWO_PI);
       ctx.fill();
     } else {
       ctx.fillStyle = pColor;
+      ctx.globalAlpha = alpha * 0.35;
       ctx.beginPath();
-      ctx.arc(px, py, baseR, 0, TWO_PI);
+      ctx.arc(px, py, baseR * 0.85, 0, TWO_PI);
       ctx.fill();
     }
 
-    // Crisp diamond sparkle glint on brightest foreground motes
-    if (isForeground && pulse > 0.78 && i % 2 === 0) {
-      const sp = baseR * 2.2;
+    ctx.globalAlpha = alpha;
+    if (s.type === 'iridescent') {
+      ctx.fillStyle = pColor;
+      drawDiamondSpeck(ctx, px, py, baseR * 0.72, baseR * (1.05 + 0.35 * s.w), s.rot);
+      if (isForeground && tw1 > 0.65) {
+        ctx.globalAlpha = alpha * 0.65;
+        ctx.fillStyle = '#ffffff';
+        drawDiamondSpeck(ctx, px, py, baseR * 0.32, baseR * 0.52, s.rot);
+      }
+    } else if (s.type === 'star') {
+      const tilt = (s.z - 0.5) * 0.5;
+      ctx.fillStyle = pColor;
+      drawFourPointSparkle(ctx, px, py, baseR * 2.1, tilt, 0.16);
       ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.moveTo(px, py - sp);
-      ctx.lineTo(px + sp * 0.28, py);
-      ctx.lineTo(px, py + sp);
-      ctx.lineTo(px - sp * 0.28, py);
-      ctx.closePath();
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(px - sp, py);
-      ctx.lineTo(px, py + sp * 0.28);
-      ctx.lineTo(px + sp, py);
-      ctx.lineTo(px, py - sp * 0.28);
-      ctx.closePath();
-      ctx.fill();
+      drawFourPointSparkle(ctx, px, py, baseR * 1.1, tilt, 0.2);
+    } else {
+      const tilt = (s.z - 0.5) * 0.4;
+      const glintR = baseR * (2.2 + 0.9 * flash);
+      ctx.fillStyle = pColor;
+      drawFourPointSparkle(ctx, px, py, glintR * 0.78, tilt + Math.PI / 4, 0.14);
+      ctx.fillStyle = '#ffffff';
+      drawFourPointSparkle(ctx, px, py, glintR, tilt, 0.15);
     }
   }
 
-  // 3. Sweep-reactive micro-glitter & specular sparkles across frame & portrait
+  // 3. Sweep-reactive micro-glitter & delicate specular sparkles across frame & portrait
   for (let i = 0; i < MICRO_GLITTER.length; i += 1) {
     const g = MICRO_GLITTER[i];
     const gx = g.x * width;
     const gy = g.y * height;
-    const twinkle = Math.pow(Math.max(0, Math.sin(phase * 2.5 + g.w * 42)), 4);
+    const twinkle = Math.pow(Math.max(0, Math.sin(phase * (1.5 + g.twinkleFreq * 0.7) + g.phase)), 4);
     const diagCoord = (g.x * 0.8 + g.y * 0.6) / 1.4;
     const sweepBoost = Math.exp(-Math.pow((diagCoord - sweepPos * 0.85) * 6.5, 2));
     const intensity = Math.min(1, twinkle * 0.7 + sweepBoost * 0.9);
     if (intensity <= 0.14) continue;
 
-    ctx.globalAlpha = intensity * (isAstra ? 0.95 : 0.72);
-    ctx.fillStyle = i % 3 === 0 ? '#ffffff' : i % 3 === 1 ? '#ffe89c' : '#bfe4ff';
-    const r = (0.9 + intensity * 1.4) * scale;
-    ctx.beginPath();
-    ctx.arc(gx, gy, r, 0, TWO_PI);
-    ctx.fill();
+    const pColor = isAstra
+      ? IRIDESCENT_PALETTE[g.hueIndex % IRIDESCENT_PALETTE.length]
+      : (i % 3 === 0 ? '#ffffff' : i % 3 === 1 ? accentColor : ringColor);
+    const r = (0.85 + intensity * 1.25) * scale;
+    ctx.globalAlpha = intensity * (isAstra ? 0.88 : 0.68);
 
-    if (intensity > 0.58) {
-      const spike = r * 2.4;
+    if (g.type === 'dust') {
+      ctx.globalAlpha *= 0.55;
+      ctx.fillStyle = pColor;
+      ctx.beginPath();
+      ctx.arc(gx, gy, r * 1.15, 0, TWO_PI);
+      ctx.fill();
+    } else if (g.type === 'star' || g.type === 'glint' || intensity > 0.62) {
+      const sp = r * (g.type === 'glint' ? 2.5 : 2.1);
+      ctx.fillStyle = pColor;
+      drawFourPointSparkle(ctx, gx, gy, sp, (g.z - 0.5) * 0.5, 0.15);
       ctx.fillStyle = '#ffffff';
-      ctx.fillRect(gx - spike, gy - 0.5 * scale, spike * 2, 1 * scale);
-      ctx.fillRect(gx - 0.5 * scale, gy - spike, 1 * scale, spike * 2);
+      drawFourPointSparkle(ctx, gx, gy, sp * 0.55, (g.z - 0.5) * 0.5, 0.22);
+    } else {
+      ctx.fillStyle = pColor;
+      drawDiamondSpeck(ctx, gx, gy, r * 0.7, r * (1.05 + 0.3 * g.w), g.rot);
     }
   }
 

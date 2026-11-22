@@ -35,28 +35,38 @@ test('All /data/*.json configuration files pass cross-reference schema validatio
   for (const coreId of ['heavy_shield_guard', 'wind_cavalry', 'arcane_archer', 'field_cleric']) {
     assert.ok(registry.unitsById.has(coreId), `Missing core unit ${coreId}`);
   }
+  assert.equal(registry.handConfig.deckSize, 6);
   assert.equal(registry.handConfig.slotCount, 6);
-  assert.equal(registry.handConfig.mergeRule, 'adjacent_identical_only');
+  assert.equal(registry.handConfig.refillIntervalSec, 5);
+  assert.equal(registry.handConfig.mergeRule, 'any_identical_pair');
 });
 
-test('CardSystem enforces 6-slot hand and adjacent-identical-only merging', () => {
+test('CardSystem enforces 6-slot hand and identical card merging across any slot positions', () => {
   const registry = buildDataRegistry(readDataBundleFromDisk());
   const bus = new EventBus();
   const state = new GameState(createDefaultSave(), bus);
   const cards = new CardSystem({ dataRegistry: registry, gameState: state, eventBus: bus });
 
-  const slots = cards.initHand();
+  // Deterministic RNG yielding index 0 in slot 0 & slot 5, distinct cards in slots 1..4
+  const rolls = [0.0, 0.2, 0.4, 0.6, 0.8, 0.0];
+  let rIdx = 0;
+  const slots = cards.initHand({
+    randomSource: () => rolls[rIdx++ % rolls.length],
+  });
   assert.equal(slots.length, 6);
 
-  // Slots 0 and 1 are seeded as identical adjacent cards
-  assert.equal(cards.canMerge(0, 1), true);
-  // Non-adjacent slots cannot merge
-  assert.equal(cards.canMerge(0, 2), false);
-  // Different card types cannot merge (slot 1 and slot 2 are different)
-  assert.equal(cards.canMerge(1, 2), false);
+  // Non-adjacent identical cards in slots 0 and 5 can merge
+  assert.equal(cards.canMerge(0, 5), true);
+  // Same card cannot merge with itself
+  assert.equal(cards.canMerge(0, 0), false);
+  // Different card types cannot merge
+  assert.equal(cards.canMerge(0, 1), false);
 
-  const merged = cards.mergeAdjacent(0, 1);
+  const merged = cards.mergeAdjacent(0, 5);
   assert.equal(merged.ok, true);
   assert.equal(merged.upgradedCard.tier, 2);
   assert.equal(cards.getSlots().length, 6);
+  assert.equal(cards.getSlots()[0], null);
+  assert.equal(cards.getSlots()[5].tier, 2);
+  assert.equal(cards.getRefillState(0).active, true);
 });

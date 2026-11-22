@@ -407,11 +407,11 @@ test('Issue 1: HomeScreen right-side preview uses Astra standalone character PNG
     'hero_portrait_kael',
   );
 
-  // Stylesheet check: Home stage must not pull AstraCard bg.jpeg or frame.jpeg
+  // Stylesheet check: Home stage must not pull AstraCard bg.jpeg or frame.png
   const componentsCss = await fs.readFile(path.join(ROOT, 'styles/components.css'), 'utf8');
   assert.doesNotMatch(
     componentsCss,
-    /\.home-commander-stage\.theme-astra[^}]*(bg\.jpeg|frame\.jpeg)/,
+    /\.home-commander-stage\.theme-astra[^}]*(bg\.jpeg|frame\.png|frame\.jpeg)/,
     'Home Commander stage CSS must not reference AstraCard frame or bg.jpeg',
   );
 
@@ -833,6 +833,134 @@ test('Issue 4: tactical card cooldown overlay hides cleanly after expiry and nev
       /\.tactical-card__cooldown::before\s*\{[^}]*bottom:\s*0;[^}]*height:\s*var\(--cd-pct,\s*0%\);/s,
       'battle.css must animate the sweeping veil via ::before using --cd-pct',
     );
+  } finally {
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+  }
+});
+
+test('BattleScreen upper HUD displays only stage in top-left pill and only Start Battle button in prep bar', async () => {
+  const registry = await loadRealRegistry();
+  const {
+    eventBus,
+    gameState,
+    heroSystem,
+    formationSystem,
+    cardSystem,
+    progressionSystem,
+  } = createSystems(registry);
+
+  const stage = registry.stages[0];
+  cardSystem.initHand();
+  gameState.setBattle({
+    stageId: stage.id,
+    phase: BATTLE_PHASES.PREPARATION,
+    status: 'preparation',
+    energy: 60,
+    maxEnergy: 100,
+    waveIndex: 1,
+    totalWaves: stage.waves?.length || 3,
+    friendlyCount: 2,
+    friendlyCap: 6,
+    enemyCount: 0,
+    enemyCap: 10,
+    remainingDeckCount: 6,
+    elapsedSec: 0,
+    speedMultiplier: 1,
+  });
+
+  let beginCalled = 0;
+  const screen = new BattleScreen({
+    eventBus,
+    gameState,
+    dataRegistry: registry,
+    heroSystem,
+    formationSystem,
+    cardSystem,
+    progressionSystem,
+    battleManager: {
+      startSession() {},
+      stopSession() {},
+      beginBattle() {
+        beginCalled += 1;
+        gameState.setBattle({ phase: BATTLE_PHASES.BATTLE_START, status: 'running' });
+      },
+      getSelectedPrepUnit: () => null,
+      getSelectedPrepUnitUid: () => null,
+      interactWithCardSlot: () => ({ ok: false, action: 'none' }),
+    },
+    assetManager: { bindImageElement() {} },
+    audioManager: { playClick() {}, playInvalid() {} },
+    screenManager: { navigate() {} },
+    notify() {},
+  });
+
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  globalThis.document = {
+    createElement(tag) {
+      return createMockElement(tag);
+    },
+  };
+  globalThis.window = {
+    devicePixelRatio: 1,
+    addEventListener() {},
+    removeEventListener() {},
+  };
+
+  try {
+    const container = createMockElement('div');
+    screen.mount(container);
+
+    // Top-left stage pill contains only #hud-stage-name
+    assert.ok(container.querySelector('.hud-pill-group--left'));
+    assert.ok(container.querySelector('#hud-stage-name'));
+    assert.equal(container.querySelector('.hud-realm-name'), null);
+    assert.equal(container.querySelector('.hud-wave-meta'), null);
+    assert.equal(container.querySelector('#hud-wave-indicator'), null);
+    assert.equal(container.querySelector('#hud-wave-label'), null);
+    assert.equal(container.querySelector('#hud-tactic-wrap'), null);
+    assert.equal(container.querySelector('#hud-tactic-label'), null);
+
+    const leftGroupMatch = container.innerHTML.match(
+      /<div class="hud-pill-group hud-pill-group--left">([\s\S]*?)<\/div>/,
+    );
+    assert.ok(leftGroupMatch, 'Expected .hud-pill-group--left markup');
+    assert.match(
+      leftGroupMatch[1].trim(),
+      /^<span id="hud-stage-name" class="hud-stage-name">Stage 1-1 · Outer Bastion<\/span>$/,
+      'Top-left HUD pill must render only #hud-stage-name',
+    );
+
+    // Preparation bar contains only #btn-start-battle
+    const prepBar = container.querySelector('#prep-bar');
+    const startBtn = container.querySelector('#btn-start-battle');
+    assert.ok(prepBar);
+    assert.ok(startBtn);
+    assert.equal(prepBar.hidden, false);
+    assert.equal(container.querySelector('.prep-floating-bar__info'), null);
+    assert.equal(container.querySelector('#prep-passive-label'), null);
+    assert.equal(container.querySelector('#prep-hint'), null);
+    assert.equal(container.querySelector('#prep-commander-switcher'), null);
+    assert.equal(container.querySelector('#btn-prep-swap-class'), null);
+    assert.equal(container.querySelector('[data-prep-commander]'), null);
+
+    const prepBarMatch = container.innerHTML.match(
+      /<div id="prep-bar" class="prep-floating-bar">([\s\S]*?)<\/div>/,
+    );
+    assert.ok(prepBarMatch, 'Expected #prep-bar markup');
+    assert.match(
+      prepBarMatch[1].trim(),
+      /^<button type="button" id="btn-start-battle" class="btn btn-primary btn-sm">\s*Start Battle\s*<\/button>$/,
+      '#prep-bar must contain only #btn-start-battle',
+    );
+
+    // Clicking Start Battle starts combat and hides #prep-bar
+    startBtn.click();
+    assert.equal(beginCalled, 1);
+    assert.equal(prepBar.hidden, true);
+
+    screen.unmount();
   } finally {
     globalThis.document = prevDoc;
     globalThis.window = prevWin;

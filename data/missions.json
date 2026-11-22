@@ -37,7 +37,7 @@
     {
       "id": "daily_merge_3",
       "title": "Instruction Synthesis",
-      "description": "Merge adjacent identical tactical cards 3 times during combat.",
+      "description": "Merge identical tactical cards 3 times during combat.",
       "metric": "cards_merged",
       "target": 3,
       "rewards": {
@@ -105,7 +105,7 @@
     {
       "id": "weekly_merges_12",
       "title": "Master Tactician",
-      "description": "Perform 12 adjacent card merges in battle this week.",
+      "description": "Perform 12 card merges in battle this week.",
       "metric": "cards_merged",
       "target": 12,
       "rewards": {

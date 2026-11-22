@@ -331,6 +331,30 @@ test('AstraCard module uses local Three.js r128 (no CDN) and exports static-card
   const source = await fs.readFile(path.join(ROOT, 'astra-cardtemplate/AstraCard.js'), 'utf8');
   assert.doesNotMatch(source, /cdn\.jsdelivr\.net/i, 'AstraCard.js must not import Three.js from external CDN');
   assert.match(source, /import\s+\*\s+as\s+THREE\s+from\s+['"]three['"]/, 'AstraCard.js must import local three package');
+  assert.doesNotMatch(
+    source,
+    /hs\(\s*floor\(\s*u\s*\*\s*vec2\(\s*220\.?\s*,\s*330\.?\s*\)\s*\)/,
+    'AstraCard.js flow-dust shader must not sample uninterpolated floor-quantized grid hash (causes 4x4 mosaic blocks)',
+  );
+  assert.match(
+    source,
+    /\bvn\(/,
+    'AstraCard.js flow-dust shader must use smooth interpolated value noise vn()',
+  );
+
+  // Verify unrelated holographic/relief/flare shaders remain intact
+  assert.match(source, /const VS = `/, 'AstraCard.js must preserve vertex shader VS');
+  assert.match(source, /const COM = `/, 'AstraCard.js must preserve common shader COM');
+  assert.match(source, /const FS = COM \+ `/, 'AstraCard.js must preserve main card shader FS');
+  assert.match(source, /const SFS = COM \+ `/, 'AstraCard.js must preserve stacked edge shader SFS');
+  assert.match(source, /float cr\(vec2 d\)/, 'AstraCard.js must preserve cr(d) star flares');
+
+  // Verify upgraded holographic glitter particle shaders (PVS/PFS) and stratified meta attribute
+  assert.match(source, /attribute vec4 meta;/, 'AstraCard.js PVS must accept vec4 meta attribute');
+  assert.match(source, /g\.setAttribute\('meta'/, 'AstraCard.js pts() must populate meta attribute');
+  assert.match(source, /vec3 pal\(float x\)/, 'AstraCard.js PFS must define iridescent 5-tone palette');
+  assert.match(source, /if\(t<\.60\).*else if\(t<\.85\).*else if\(t<\.95\)/s, 'AstraCard.js PFS must differentiate 60/25/10/5 particle types');
+  assert.doesNotMatch(source, /vec3\(1\.,\.88,\.62\)/, 'AstraCard.js PFS must not revert to solid monochrome circle');
 
   assert.deepEqual(ASTRA_CARD_STATIC_OPTIONS, {
     autoplay: false,
@@ -343,7 +367,7 @@ test('AstraCard module uses local Three.js r128 (no CDN) and exports static-card
     'astra-cardtemplate/AstraCard.css',
     'astra-cardtemplate/assets-astra/bg.jpeg',
     'astra-cardtemplate/assets-astra/character.png',
-    'astra-cardtemplate/assets-astra/frame.jpeg',
+    'astra-cardtemplate/assets-astra/frame.png',
     'astra-cardtemplate/assets-astra/depth.jpeg',
   ]) {
     const stat = await fs.stat(path.join(ROOT, rel));

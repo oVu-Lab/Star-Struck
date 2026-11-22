@@ -103,9 +103,34 @@ export class BattleManager {
     this._rewardsApplied = false;
     this._pointerWorld = null;
     this._hoverDais = false;
+    this._isTutorial = false;
+    this._tutorialCombatPaused = false;
+    this._tutorialRefillPaused = false;
+    this._tutorialProtectEnemies = false;
+    this._tutorialActionFilter = null;
     this._unsubs = [];
 
     this._bindCombatFeedback();
+  }
+
+  isTutorialSession() {
+    return this._isTutorial;
+  }
+
+  setTutorialCombatPaused(paused) {
+    this._tutorialCombatPaused = Boolean(paused);
+  }
+
+  setTutorialRefillPaused(paused) {
+    this._tutorialRefillPaused = Boolean(paused);
+  }
+
+  setTutorialProtectEnemies(protect) {
+    this._tutorialProtectEnemies = Boolean(protect);
+  }
+
+  setTutorialActionFilter(filterFn) {
+    this._tutorialActionFilter = typeof filterFn === 'function' ? filterFn : null;
   }
 
   _spawnWorldParticles(worldX, worldY, color, count, mode = 'burst') {
@@ -147,8 +172,26 @@ export class BattleManager {
           this._audio?.playProjectile?.();
         }
       }),
+      this._eventBus.on('battle:unitSpawned', ({ unit }) => {
+        if (!this._isTutorial || !unit || unit.side !== 'enemy') return;
+        const scaling = this._activeStage?.tutorialScaling;
+        if (!scaling) return;
+        const hpScale = unit.isBoss ? (scaling.bossHpScale ?? 0.22) : (scaling.enemyHpScale ?? 0.42);
+        const atkScale = unit.isBoss ? (scaling.bossAttackScale ?? 0.3) : (scaling.enemyAttackScale ?? 0.35);
+        unit.maxHp = Math.max(40, Math.round(unit.maxHp * hpScale));
+        unit.hp = unit.maxHp;
+        unit.attack = Math.max(5, Math.round(unit.attack * atkScale));
+        unit.defense = Math.max(2, Math.round(unit.defense * 0.5));
+      }),
       this._eventBus.on('combat:damage', ({ target, amount, isCrit, attackType }) => {
         if (!target) return;
+        if (this._isTutorial && this._tutorialProtectEnemies && target.side === 'enemy') {
+          const otherLiving = this._units.getBySide('enemy').filter((u) => u.uid !== target.uid);
+          const floorHp = Math.max(1, Math.ceil(target.maxHp * 0.25));
+          if (otherLiving.length === 0 && target.hp < floorHp) {
+            target.hp = floorHp;
+          }
+        }
         this._anim?.spawnFloatingText({
           x: target.x,
           y: target.y,
@@ -350,14 +393,30 @@ export class BattleManager {
    * Initializes a new battle session in Preparation phase.
    * Works both with a Canvas element (browser) and without one (headless tests).
    */
-  startSession(canvas = null, { stageId = null, customDeckIds = null } = {}) {
+  startSession(
+    canvas = null,
+    {
+      stageId = null,
+      customDeckIds = null,
+      initialSlots = null,
+      cardGenerator = null,
+      stageConfig = null,
+      isTutorial = false,
+    } = {},
+  ) {
     this.stopSession();
 
     const stage =
+      stageConfig ||
       (stageId ? this._data?.stagesById?.get(stageId) : null) ||
       this._progression?.getSelectedStage() ||
       this._data?.stages?.[0];
     this._activeStage = stage;
+    this._isTutorial = Boolean(isTutorial || stage?.isTutorial);
+    this._tutorialCombatPaused = false;
+    this._tutorialRefillPaused = false;
+    this._tutorialProtectEnemies = false;
+    this._tutorialActionFilter = null;
     this._sessionId = `battle_${stage?.id || 'stage'}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     this._rewardsApplied = false;
     this._phase = BATTLE_PHASES.PREPARATION;
@@ -391,9 +450,35 @@ export class BattleManager {
     this._combat.resetStats();
     this._anim?.reset();
     this._waves.configure(stage, this._data?.balance);
-    this._cards.initHand({ customDeckIds });
 
-    const energyCfg = this._data?.balance?.commandEnergy || { max: 100, starting: 60 };
+    const resolvedDeckIds =
+      customDeckIds ||
+      (this._isTutorial && Array.isArray(stage?.tutorialDeckIds) ? stage.tutorialDeckIds : null);
+    const resolvedInitialSlots =
+      initialSlots ||
+      (this._isTutorial && Array.isArray(stage?.tutorialInitialSlots)
+        ? stage.tutorialInitialSlots
+        : null);
+    let resolvedCardGenerator = cardGenerator || null;
+    if (!resolvedCardGenerator && this._isTutorial && Array.isArray(stage?.tutorialRefillSequence)) {
+      let seqIdx = 0;
+      const seq = stage.tutorialRefillSequence;
+      resolvedCardGenerator = () => {
+        const cardId = seq[seqIdx % seq.length];
+        seqIdx += 1;
+        return cardId;
+      };
+    }
+
+    this._cards.initHand({
+      customDeckIds: resolvedDeckIds,
+      initialSlots: resolvedInitialSlots,
+      cardGenerator: resolvedCardGenerator,
+    });
+
+    const energyCfg =
+      (this._isTutorial && stage?.energyConfig) ||
+      this._data?.balance?.commandEnergy || { max: 100, starting: 60 };
     const ultCfg = this._data?.balance?.ultimateEnergy || { max: 100, starting: 0 };
     const caps = this._units.getCaps();
 
@@ -404,6 +489,7 @@ export class BattleManager {
       status: 'preparation',
       phase: BATTLE_PHASES.PREPARATION,
       stageId: stage?.id || 'stage_1_1',
+      isTutorial: this._isTutorial,
       speedMultiplier: ALLOWED_SPEEDS.includes(this._state.settings.battleSpeed)
         ? this._state.settings.battleSpeed
         : 1,
@@ -423,7 +509,6 @@ export class BattleManager {
       ultimateEnergy: ultCfg.starting,
       ultimateMaxEnergy: ultCfg.max,
       selectedCardSlot: -1,
-      remainingDeckCount: this._cards.getRemainingDeckCount(),
       activeTactic: null,
       bannerText: 'Arrange your starting squad in the friendly zone, then press Start Battle.',
       bossInfo: null,
@@ -553,6 +638,24 @@ export class BattleManager {
       this._state.battle.selectedCardSlot !== -1
     ) {
       const slotIndex = this._state.battle.selectedCardSlot;
+      if (this._tutorialActionFilter) {
+        const filterRes = this._tutorialActionFilter({
+          type: 'canvas_deploy',
+          slotIndex,
+          card: this.getSelectedCardSnapshot(),
+          world,
+          isFriendlyRegion: this.battlefield.isInsideFriendlyRegion(world.x, world.y),
+        });
+        if (filterRes && filterRes.allowed === false) {
+          this._audio?.playInvalid?.();
+          return {
+            action: 'played',
+            ok: false,
+            reason: filterRes.reason || 'Click inside the highlighted area.',
+            world,
+          };
+        }
+      }
       const res = this.playCardSlot(slotIndex, world);
       return { action: 'played', ...res, world };
     }
@@ -681,15 +784,26 @@ export class BattleManager {
       cancelAnimationFrame(this._rafId);
       this._rafId = null;
     }
+    const wasTutorial = this._isTutorial;
     this._accumulator = 0;
     this._phaseTimer = 0;
     this._pointerWorld = null;
     this._hoverDais = false;
+    this._isTutorial = false;
+    this._tutorialCombatPaused = false;
+    this._tutorialRefillPaused = false;
+    this._tutorialProtectEnemies = false;
+    this._tutorialActionFilter = null;
+    this._cards?.clearBattleTimers?.();
+    if (wasTutorial) {
+      this._cards?.setCardGenerator?.(null);
+    }
     this._anim?.reset?.();
     this._particles?.clear?.();
     this._renderer?.detach();
     this._state.setBattle({
       status: 'idle',
+      isTutorial: false,
       selectedCardSlot: -1,
       bannerText: '',
     });
@@ -748,7 +862,7 @@ export class BattleManager {
   /**
    * Handles 6-slot tactical card interactions:
    * - Clicking an unselected occupied card selects it.
-   * - Clicking an adjacent identical card of same level (< Lv.III) merges them without spawning a unit.
+   * - Clicking another matching identical card of the same level (< Lv.III) in any slot merges them without spawning a unit.
    * - Clicking the already-selected card plays/deploys it immediately.
    */
   interactWithCardSlot(slotIndex) {
@@ -775,6 +889,22 @@ export class BattleManager {
       return { action: 'empty', ok: false, reason: 'Empty card slot.' };
     }
 
+    if (this._tutorialActionFilter) {
+      const filterRes = this._tutorialActionFilter({
+        type: 'card_slot',
+        slotIndex,
+        card: clickedCard,
+        selectedCardSlot: selected,
+      });
+      if (filterRes && filterRes.allowed === false) {
+        return {
+          action: 'blocked',
+          ok: false,
+          reason: filterRes.reason || 'Follow the highlighted tutorial step.',
+        };
+      }
+    }
+
     if (selected === -1) {
       this._state.setBattle({ selectedCardSlot: slotIndex });
       this._audio?.playCardSelect ? this._audio.playCardSelect() : this._audio?.playClick();
@@ -789,7 +919,6 @@ export class BattleManager {
       const mergeRes = this._cards.mergeAdjacent(selected, slotIndex);
       this._state.setBattle({
         selectedCardSlot: -1,
-        remainingDeckCount: this._cards.getRemainingDeckCount(),
       });
       if (mergeRes.ok) {
         this._audio?.playMerge(mergeRes.upgradedCard?.tier || 2);
@@ -814,10 +943,28 @@ export class BattleManager {
       return { ok: false, reason: 'Cards can only be played during active combat.' };
     }
 
+    const previewCard = this._cards.getSlots()[slotIndex];
+    if (this._tutorialActionFilter && previewCard) {
+      const isFriendlyRegion =
+        targetWorld && typeof targetWorld.x === 'number' && typeof targetWorld.y === 'number'
+          ? this.battlefield.isInsideFriendlyRegion(targetWorld.x, targetWorld.y)
+          : null;
+      const filterRes = this._tutorialActionFilter({
+        type: 'play_card',
+        slotIndex,
+        card: previewCard,
+        world: targetWorld,
+        isFriendlyRegion,
+      });
+      if (filterRes && filterRes.allowed === false) {
+        this._audio?.playInvalid?.();
+        return { ok: false, reason: filterRes.reason || 'Follow the current tutorial step.' };
+      }
+    }
+
     const result = this._cards.playCard(slotIndex, { unitManager: this._units });
     this._state.setBattle({
       selectedCardSlot: -1,
-      remainingDeckCount: this._cards.getRemainingDeckCount(),
     });
 
     if (!result.ok) {
@@ -1606,6 +1753,12 @@ export class BattleManager {
     ) {
       return { ok: false, reason: 'Ultimate can only be activated during active combat.' };
     }
+    if (this._tutorialActionFilter) {
+      const filterRes = this._tutorialActionFilter({ type: 'ultimate' });
+      if (filterRes && filterRes.allowed === false) {
+        return { ok: false, reason: filterRes.reason || 'Follow the current tutorial step first.' };
+      }
+    }
     const res = this._skills.activateUltimate({
       unitManager: this._units,
       combatSystem: this._combat,
@@ -1684,17 +1837,33 @@ export class BattleManager {
     }
 
     // Active Combat & Wave Transition simulation
+    const energyCfg =
+      (this._isTutorial && this._activeStage?.energyConfig) ||
+      this._data?.balance?.commandEnergy || { max: 100, regenPerSecond: 4.2 };
+    const regenRate = (energyCfg.regenPerSecond ?? 4.2) * this._skills.getCommandEnergyRegenMultiplier();
+    const curEnergy = this._state.battle.energy ?? 0;
+    const nextEnergy = Math.min(energyCfg.max ?? 100, curEnergy + regenRate * dt);
+
+    // Tutorial combat pause holds unit movement, attacks, and waves while keeping
+    // cooldown recovery, slot refills, and Command Energy regen observable in real time.
+    if (this._tutorialCombatPaused) {
+      this._cards.updateCooldowns(dt);
+      if (!this._tutorialRefillPaused) {
+        this._cards.updateRefills(dt);
+      }
+      this._syncCountersToState({
+        energy: nextEnergy,
+        dp: nextEnergy,
+      });
+      return;
+    }
+
     const nextElapsed = (this._state.battle.elapsedSec || 0) + dt;
     this._combat.setElapsedTime(nextElapsed);
 
-    // 1. Command Energy regeneration (continues between waves!)
-    const energyCfg = this._data?.balance?.commandEnergy || { max: 100, regenPerSecond: 4.2 };
-    const regenRate = energyCfg.regenPerSecond * this._skills.getCommandEnergyRegenMultiplier();
-    const curEnergy = this._state.battle.energy ?? 0;
-    const nextEnergy = Math.min(energyCfg.max, curEnergy + regenRate * dt);
-
-    // 2. Card cooldowns
+    // 2. Card cooldowns & timed slot refills
     this._cards.updateCooldowns(dt);
+    this._cards.updateRefills(dt);
 
     // 3. Active tactic timer
     if (this._activeTactic) {
@@ -1801,7 +1970,6 @@ export class BattleManager {
       friendlyCount: this._units.getActiveCount('ally'),
       enemyCount: this._units.getActiveCount('enemy'),
       waveIndex: this._waves.getCurrentWave(),
-      remainingDeckCount: this._cards.getRemainingDeckCount(),
       bossInfo,
       ...extraPatch,
     });
@@ -1837,7 +2005,8 @@ export class BattleManager {
     if (this._rewardsApplied) return;
     this._rewardsApplied = true;
 
-    // Immediately stop all battle screen-shake/flash effects and clear transient pointer state
+    // Immediately stop all battle screen-shake/flash effects, pending refills, and transient pointer state
+    this._cards?.clearBattleTimers?.();
     this._anim?.clearScreenEffects?.();
     this._pointerWorld = null;
     this._hoverDais = false;
@@ -1857,21 +2026,37 @@ export class BattleManager {
       durationSec,
     });
 
-    const outcomeRes = this._progression.recordBattleOutcome({
-      sessionId: this._sessionId,
-      stageId: this._activeStage?.id || 'stage_1_1',
-      victory,
-      rating,
-      enemiesDefeated: stats.enemiesDefeated,
-      economySystem: this._economy,
-      heroSystem: this._heroes,
-    });
+    const outcomeRes = this._isTutorial
+      ? {
+          applied: false,
+          isFirstClear: false,
+          rewards: {
+            credits: 0,
+            astrite: 0,
+            playerXp: 0,
+            heroXp: 0,
+            unitXp: 0,
+            materials: [],
+            bonusCards: [],
+            bonusUnits: [],
+          },
+        }
+      : this._progression.recordBattleOutcome({
+          sessionId: this._sessionId,
+          stageId: this._activeStage?.id || 'stage_1_1',
+          victory,
+          rating,
+          enemiesDefeated: stats.enemiesDefeated,
+          economySystem: this._economy,
+          heroSystem: this._heroes,
+        });
 
     const resultsPayload = {
       sessionId: this._sessionId,
       stageId: this._activeStage?.id || 'stage_1_1',
       stageCode: this._activeStage?.code || '1-1',
       stageName: this._activeStage?.name || 'Stage',
+      isTutorial: this._isTutorial,
       victory,
       rating,
       durationSec,
@@ -1894,7 +2079,11 @@ export class BattleManager {
         bonusUnits: [],
       },
       isFirstClear: Boolean(outcomeRes.isFirstClear),
-      nextStageId: victory ? this._progression.getNextStageId(this._activeStage?.id) : null,
+      nextStageId: this._isTutorial
+        ? null
+        : victory
+          ? this._progression.getNextStageId(this._activeStage?.id)
+          : null,
     };
 
     this._audio?.setBgmMode?.('menu');

@@ -6,6 +6,7 @@
  */
 
 import { BATTLE_PHASES } from '../battle/BattleManager.js';
+import { createTutorialStageConfig } from '../battle/TutorialBattleConfig.js';
 import { CardUltimateFxController } from '../rendering/AstraGlitterEffects.js';
 import { formatNumber } from '../utils/MathUtils.js';
 
@@ -60,7 +61,7 @@ export class BattleScreen {
     this._isInitialHandSync = true;
   }
 
-  mount(container) {
+  mount(container, params = {}) {
     this._container = container;
     this._hudCache = {};
     this._slotNodes = [];
@@ -74,17 +75,31 @@ export class BattleScreen {
       battleManager,
       heroSystem,
       progressionSystem,
-      dataRegistry,
       assetManager,
       eventBus,
       screenManager,
       gameState,
       saveManager,
       audioManager,
+      tutorialManager,
+      cardSystem,
     } = this._ctx;
-    const stage = progressionSystem.getSelectedStage();
-    const terrainDef = stage?.terrainId ? dataRegistry?.terrainsById?.get(stage.terrainId) : null;
-    const realmLabel = terrainDef?.realmTitle || terrainDef?.name || '';
+    const launchingTutorial = Boolean(tutorialManager?.shouldLaunch?.(params));
+
+    if (!launchingTutorial && cardSystem?.isDeckReadyForBattle) {
+      const deckCheck = cardSystem.isDeckReadyForBattle();
+      if (!deckCheck.ok) {
+        audioManager?.playInvalid?.();
+        this._ctx.notify?.(deckCheck.reason, 'warn');
+        gameState.setUI({ formationTab: 'deck' });
+        screenManager?.navigate?.('formation');
+        return;
+      }
+    }
+
+    const stage = launchingTutorial
+      ? createTutorialStageConfig()
+      : progressionSystem.getSelectedStage();
     const commander = heroSystem.getActiveCommander();
     const themeClass = commander?.id ? `theme-${commander.id}` : 'theme-astra';
     const isMuted = Boolean(gameState.settings?.muted);
@@ -95,18 +110,11 @@ export class BattleScreen {
 
         <header class="battle-topbar" aria-label="Battle Status Bar">
           <div class="hud-pill-group hud-pill-group--left">
-            <span class="hud-stage-name">Stage ${stage?.code || '1-1'} · ${stage?.name || 'Outer Bastion'}</span>
-            ${realmLabel ? `<span class="meta-sep" aria-hidden="true">|</span><span class="hud-realm-name">${realmLabel}</span>` : ''}
-            <span class="meta-sep" aria-hidden="true">|</span>
-            <span class="hud-wave-meta">
-              <span id="hud-wave-indicator" class="tabular-nums">Wave 1 / ${stage?.waves?.length || 3}</span>
-              <span class="meta-sep" aria-hidden="true">·</span>
-              <span id="hud-wave-label">${stage?.waves?.[0]?.label || 'Preparation'}</span>
-              <span id="hud-tactic-wrap" hidden>
-                <span class="meta-sep" aria-hidden="true">·</span>
-                <span id="hud-tactic-label" class="hud-tactic-active"></span>
-              </span>
-            </span>
+            <span id="hud-stage-name" class="hud-stage-name">${
+              stage?.isTutorial
+                ? `Tutorial · ${stage.name}`
+                : `Stage ${stage?.code || '1-1'} · ${stage?.name || 'Outer Bastion'}`
+            }</span>
           </div>
 
           <div class="hud-pill-group hud-pill-group--center">
@@ -165,59 +173,9 @@ export class BattleScreen {
         <div id="battle-banner" class="battle-banner" aria-live="polite" hidden></div>
 
         <div id="prep-bar" class="prep-floating-bar">
-          <div class="prep-floating-bar__info">
-            <span class="prep-floating-bar__title">
-              Preparation Phase
-              <span id="prep-passive-label" class="prep-passive-label">
-                ${commander?.passiveSkill ? `· ${commander.name.split(' ')[0]}: ${commander.passiveSkill.name} (${commander.passiveSkill.description})` : ''}
-              </span>
-            </span>
-            <span class="prep-floating-bar__hint" id="prep-hint">
-              Click friendly units on the left to reposition or swap class, then press Start Battle [Enter].
-            </span>
-          </div>
-          <div class="prep-floating-bar__actions">
-            <div
-              id="prep-commander-switcher"
-              class="prep-commander-switcher"
-              role="radiogroup"
-              aria-label="Select Commander for battle"
-            >
-              ${heroSystem
-                .getOwnedHeroes()
-                .map((h) => {
-                  const isAct = h.id === commander?.id;
-                  const rLower = (h.rarity || 'R').toLowerCase();
-                  const shortName = (h.name || h.id).split(' ')[0];
-                  const tip = `${h.name} (${h.rarity} · ${h.realm || h.faction}) — Passive: ${h.passiveSkill?.name || '—'} · Ultimate: ${h.ultimateSkill?.name || '—'}`;
-                  return `
-                    <button
-                      type="button"
-                      role="radio"
-                      aria-checked="${isAct}"
-                      class="prep-cmd-tile theme-${h.id} ${isAct ? 'is-active' : ''}"
-                      data-prep-commander="${h.id}"
-                      title="${tip}"
-                    >
-                      <span class="prep-cmd-tile__thumb">
-                        <img data-prep-cmd-portrait="${h.portraitAssetId}" alt="${h.name}" />
-                      </span>
-                      <span class="prep-cmd-tile__meta">
-                        <span class="prep-cmd-tile__name">${shortName}</span>
-                        <span class="prep-cmd-tile__rarity rarity-${rLower}">${h.rarity || 'R'}</span>
-                      </span>
-                    </button>
-                  `;
-                })
-                .join('')}
-            </div>
-            <button type="button" id="btn-prep-swap-class" class="btn btn-secondary btn-sm" disabled>
-              Swap Class
-            </button>
-            <button type="button" id="btn-start-battle" class="btn btn-primary btn-sm">
-              Start Battle
-            </button>
-          </div>
+          <button type="button" id="btn-start-battle" class="btn btn-primary btn-sm">
+            Start Battle
+          </button>
         </div>
 
         <div id="card-preview-strip" class="card-preview-strip" aria-live="polite" hidden>
@@ -237,8 +195,8 @@ export class BattleScreen {
               <div id="hud-energy-bar" class="progress-fill" style="width: 60%;"></div>
             </div>
             <div>
-              <div class="dock-energy-core__sub tabular-nums" id="hud-deck-remaining">Deck: 6 left</div>
-              <div class="dock-energy-core__hint" id="hand-hint-text">Keys 1-6 · Merge adjacent</div>
+              <div class="dock-energy-core__sub tabular-nums" id="hud-deck-remaining">6-Card Pool · 5s Refill</div>
+              <div class="dock-energy-core__hint" id="hand-hint-text">Keys 1-6 · Merge matching</div>
             </div>
           </div>
 
@@ -292,6 +250,8 @@ export class BattleScreen {
         <div id="battle-outcome-splash" class="battle-outcome-splash" aria-live="assertive" hidden></div>
 
         <div id="battle-results-overlay" class="battle-results-overlay" hidden></div>
+
+        <div id="tutorial-overlay-root" class="tutorial-overlay-root" hidden></div>
       </section>
     `;
 
@@ -309,13 +269,17 @@ export class BattleScreen {
       if (avatarEl) assetManager.bindImageElement(avatarEl, commander.portraitAssetId);
       if (cutinPortraitEl) assetManager.bindImageElement(cutinPortraitEl, commander.portraitAssetId);
     }
-    for (const imgEl of container.querySelectorAll('[data-prep-cmd-portrait]')) {
-      const aid = imgEl.getAttribute('data-prep-cmd-portrait');
-      if (aid) assetManager.bindImageElement(imgEl, aid);
-    }
 
     const canvas = container.querySelector('#battle-canvas');
-    battleManager.startSession(canvas);
+    if (launchingTutorial && tutorialManager) {
+      tutorialManager.startSession({
+        container,
+        battleScreen: this,
+        isReplay: Boolean(params?.replay),
+      });
+    } else {
+      battleManager.startSession(canvas);
+    }
 
     this._renderCardSlots();
     this._isInitialHandSync = false;
@@ -359,37 +323,6 @@ export class BattleScreen {
       battleManager.beginBattle();
       this._syncHud();
       this._renderCardSlots();
-    });
-
-    for (const tile of container.querySelectorAll('[data-prep-commander]')) {
-      tile.addEventListener('click', () => {
-        const nextId = tile.getAttribute('data-prep-commander');
-        if (!nextId) return;
-        const res = battleManager.setPrepCommander(nextId);
-        if (res.ok) {
-          const nextCmd = heroSystem.getActiveCommander();
-          this._refreshCommanderConsole(nextCmd);
-          for (const other of container.querySelectorAll('[data-prep-commander]')) {
-            const active = other.getAttribute('data-prep-commander') === nextId;
-            other.classList.toggle('is-active', active);
-            other.setAttribute('aria-checked', String(active));
-          }
-          this._ctx.notify(`Commander switched to ${nextCmd?.name || nextId}.`);
-        } else if (res.reason) {
-          this._ctx.notify(res.reason, 'warn');
-        }
-        this._syncPrepControls();
-      });
-    }
-
-    container.querySelector('#btn-prep-swap-class')?.addEventListener('click', () => {
-      const uid = battleManager.getSelectedPrepUnitUid();
-      if (!uid) return;
-      const res = battleManager.cyclePrepUnitClass(uid);
-      if (res.ok && res.unit) {
-        this._ctx.notify(`Unit switched to ${res.unit.name}.`);
-      }
-      this._syncPrepControls();
     });
 
     container.querySelector('#btn-battle-pause')?.addEventListener('click', () => {
@@ -454,6 +387,12 @@ export class BattleScreen {
       }
       const modalRoot = document.getElementById('modal-root');
       if (modalRoot && modalRoot.children.length > 0) return;
+      if (this._ctx.tutorialManager?.isSkipConfirmOpen?.()) {
+        if (ev.code === 'Escape') {
+          this._ctx.tutorialManager.cancelSkipConfirm();
+        }
+        return;
+      }
       const phase = battleManager.getPhase();
       if (phase === BATTLE_PHASES.RESULTS) return;
 
@@ -524,6 +463,8 @@ export class BattleScreen {
           'success',
         );
       }),
+      eventBus.on('cards:refillTick', () => this._syncRefillIndicators()),
+      eventBus.on('cards:refilled', () => this._renderCardSlots()),
       eventBus.on('cards:updated', () => this._renderCardSlots()),
       eventBus.on('commander:ultimateActivated', ({ commander: cmd, skill, summary }) => {
         this._showCutin(cmd, skill);
@@ -543,6 +484,7 @@ export class BattleScreen {
   }
 
   unmount() {
+    this._ctx.tutorialManager?.abortSession?.();
     this._ultFxController?.stop();
     this._ultFxController = null;
     this._ctx.battleManager.stopSession();
@@ -572,6 +514,31 @@ export class BattleScreen {
     this._slotNodes = [];
     this._slotMeta = [];
     this._container = null;
+  }
+
+  startNormalBattleAfterTutorial() {
+    if (!this._container) return;
+    const deckCheck = this._ctx.cardSystem?.isDeckReadyForBattle?.();
+    if (deckCheck && !deckCheck.ok) {
+      this._ctx.audioManager?.playInvalid?.();
+      this._ctx.notify?.(deckCheck.reason, 'warn');
+      this._ctx.gameState.setUI({ formationTab: 'deck' });
+      this._ctx.screenManager?.navigate?.('formation');
+      return;
+    }
+    const stage = this._ctx.progressionSystem.getSelectedStage();
+    const stageEl = this._container.querySelector('#hud-stage-name');
+    if (stageEl && stage) {
+      stageEl.textContent = `Stage ${stage.code || '1-1'} · ${stage.name || 'Outer Bastion'}`;
+    }
+    this._hudCache = {};
+    this._isInitialHandSync = true;
+    const canvas = this._container.querySelector('#battle-canvas');
+    this._ctx.battleManager.startSession(canvas);
+    this._renderCardSlots();
+    this._isInitialHandSync = false;
+    this._syncHud();
+    this._syncPrepControls();
   }
 
   _syncMuteBtn() {
@@ -653,6 +620,14 @@ export class BattleScreen {
               <span class="tactical-card__key tabular-nums" aria-hidden="true">${idx + 1}</span>
             </div>
           </div>
+          <div class="tactical-card__refill" hidden>
+            <span class="tactical-card__refill-label">Refilling</span>
+            <span class="tactical-card__refill-time tabular-nums">5.0s</span>
+            <div class="tactical-card__refill-track">
+              <div class="tactical-card__refill-fill" style="width: 0%;"></div>
+            </div>
+            <span class="tactical-card__refill-key tabular-nums" aria-hidden="true">Slot ${idx + 1}</span>
+          </div>
           <div class="tactical-card__cooldown" hidden>
             <span class="tactical-card__cooldown-text tabular-nums"></span>
           </div>
@@ -692,8 +667,12 @@ export class BattleScreen {
         tier: btn.querySelector('.tactical-card__tier'),
         art: btn.querySelector('.tactical-card__art'),
         img: btn.querySelector('.tactical-card__img'),
+        body: btn.querySelector('.tactical-card__body'),
         name: btn.querySelector('.tactical-card__name'),
         hint: btn.querySelector('.tactical-card__hint'),
+        refillWrap: btn.querySelector('.tactical-card__refill'),
+        refillTime: btn.querySelector('.tactical-card__refill-time'),
+        refillFill: btn.querySelector('.tactical-card__refill-fill'),
         cdWrap: btn.querySelector('.tactical-card__cooldown'),
         cdText: btn.querySelector('.tactical-card__cooldown-text'),
       });
@@ -832,9 +811,9 @@ export class BattleScreen {
       if (h.energyBar) h.energyBar.style.width = `${(energyNow / Math.max(1, energyMax)) * 100}%`;
     }
 
-    const deckText =
-      b.remainingDeckCount > 0 ? `Deck: ${b.remainingDeckCount} left` : 'Deck empty';
-    this._setTextIfChanged('deckRem', h.deckRem, deckText);
+    const deckCount = this._ctx.cardSystem?.getDeckSize?.() ?? 6;
+    const refillSec = this._ctx.cardSystem?.getRefillIntervalSec?.() ?? 5;
+    this._setTextIfChanged('deckRem', h.deckRem, `${deckCount}-Card Pool · ${refillSec}s Refill`);
 
     const ultMax = Math.max(1, b.ultimateMaxEnergy || 100);
     const ultRaw = b.ultimateEnergy || 0;
@@ -943,6 +922,26 @@ export class BattleScreen {
     }
   }
 
+  _syncRefillIndicators() {
+    if (!this._container || this._slotNodes.length !== 6) return;
+    const { cardSystem } = this._ctx;
+    const slots = cardSystem.getSlots();
+
+    for (let idx = 0; idx < 6; idx += 1) {
+      if (slots[idx]) continue;
+      const node = this._slotNodes[idx];
+      const refill = cardSystem.getRefillState(idx);
+      node.root.classList.toggle('is-refilling', refill.active);
+      if (node.refillWrap) node.refillWrap.hidden = !refill.active;
+      if (node.body) node.body.hidden = refill.active;
+      if (refill.active) {
+        if (node.refillTime) node.refillTime.textContent = `${refill.remainingSec.toFixed(1)}s`;
+        if (node.refillFill) node.refillFill.style.width = `${Math.round(refill.progress * 100)}%`;
+        node.root.title = `Slot ${idx + 1} refilling (${refill.remainingSec.toFixed(1)}s remaining)`;
+      }
+    }
+  }
+
   _renderCardSlots() {
     if (!this._container || this._slotNodes.length !== 6) return;
     this._lastCardRenderMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
@@ -955,13 +954,15 @@ export class BattleScreen {
     const inCombat =
       b.phase === BATTLE_PHASES.ACTIVE_COMBAT || b.phase === BATTLE_PHASES.WAVE_TRANSITION;
 
-    // Precompute passive adjacent merge pairs so players immediately spot merge opportunities
+    // Precompute all eligible merge pairs across any slot positions so players spot all merge opportunities
     const passiveMergeSlots = new Set();
     if (inCombat) {
-      for (let i = 0; i < 5; i += 1) {
-        if (cardSystem.canMerge(i, i + 1)) {
-          passiveMergeSlots.add(i);
-          passiveMergeSlots.add(i + 1);
+      for (let i = 0; i < 6; i += 1) {
+        for (let j = i + 1; j < 6; j += 1) {
+          if (cardSystem.canMerge(i, j)) {
+            passiveMergeSlots.add(i);
+            passiveMergeSlots.add(j);
+          }
         }
       }
     }
@@ -975,9 +976,9 @@ export class BattleScreen {
       const meta = this._slotMeta[idx];
 
       if (!slot) {
+        const refill = cardSystem.getRefillState(idx);
         if (!meta.isEmpty) {
           node.root.className = 'tactical-card tactical-card--empty';
-          node.root.title = 'Empty tactical slot';
           node.top.hidden = true;
           node.art.hidden = true;
           node.cdWrap.hidden = true;
@@ -985,13 +986,31 @@ export class BattleScreen {
           if (node.cdText) node.cdText.textContent = '';
           node.name.textContent = 'Empty';
           node.name.className = 'tactical-card__empty-label';
-          node.hint.textContent = 'Deck empty';
+          node.hint.textContent = 'Refilling...';
           meta.instanceId = null;
           meta.tier = 0;
           meta.artAssetId = null;
           meta.isEmpty = true;
         }
+        node.root.classList.toggle('is-refilling', refill.active);
+        if (node.refillWrap) node.refillWrap.hidden = !refill.active;
+        if (node.body) node.body.hidden = refill.active;
+        if (refill.active) {
+          if (node.refillTime) node.refillTime.textContent = `${refill.remainingSec.toFixed(1)}s`;
+          if (node.refillFill) node.refillFill.style.width = `${Math.round(refill.progress * 100)}%`;
+          node.root.title = `Slot ${idx + 1} refilling (${refill.remainingSec.toFixed(1)}s remaining)`;
+        } else {
+          node.root.title = 'Empty tactical slot';
+          node.hint.textContent = 'Waiting';
+        }
         continue;
+      }
+
+      if (node.refillWrap && !node.refillWrap.hidden) {
+        node.refillWrap.hidden = true;
+      }
+      if (node.body && node.body.hidden) {
+        node.body.hidden = false;
       }
 
       const instanceChanged = meta.instanceId !== slot.instanceId;
@@ -1056,7 +1075,8 @@ export class BattleScreen {
       } else if (isSelected) {
         hint = slot.category === 'unit' ? 'Deploy Ally' : 'Cast / Click';
       } else if (isPassiveMergeReady) {
-        hint = 'Merge ready';
+        const nextRoman = slot.tier + 1 === 3 ? 'III' : 'II';
+        hint = `Merge → ${nextRoman}`;
       } else {
         hint = CATEGORY_LABELS[slot.category] || 'Ready';
       }
@@ -1115,12 +1135,12 @@ export class BattleScreen {
       const nextHint = !inCombat
         ? 'Start battle to play cards'
         : hasMergeOption
-          ? 'Click gold neighbor to merge!'
+          ? 'Click glowing match to merge!'
           : selected !== -1
-            ? 'Click card again or battlefield'
+            ? 'Click again to play · Esc cancels'
             : passiveMergeSlots.size > 0
-              ? 'Adjacent merge pair ready!'
-              : 'Keys 1-6 · Merge adjacent';
+              ? 'Matching merge pair ready!'
+              : 'Keys 1-6 · Merge matching';
       this._setTextIfChanged('handHint', this._hudEls.handHint, nextHint);
     }
 
@@ -1165,9 +1185,12 @@ export class BattleScreen {
     if (splash) {
       splash.hidden = false;
       splash.className = `battle-outcome-splash ${results.victory ? 'is-victory' : 'is-defeat'}`;
+      const kickerText = results.isTutorial
+        ? 'Tutorial Complete · Proving Grounds'
+        : `Stage ${results.stageCode} · ${results.stageName}`;
       splash.innerHTML = `
         <div class="battle-outcome-splash__band">
-          <div class="battle-outcome-splash__kicker">Stage ${results.stageCode} · ${results.stageName}</div>
+          <div class="battle-outcome-splash__kicker">${kickerText}</div>
           <div class="battle-outcome-splash__title">${results.victory ? 'VICTORY' : 'DEFEAT'}</div>
         </div>
       `;
@@ -1210,8 +1233,69 @@ export class BattleScreen {
     const defeatTip = !results.victory
       ? results.ultimatesUsed === 0
         ? 'Tip: Trigger your Commander Ultimate [Space] once charged to swing critical waves.'
-        : 'Tip: Merge identical adjacent cards to Lv.II–III for major power spikes, or upgrade units in Formation.'
+        : 'Tip: Merge any two matching identical cards to Lv.II–III for major power spikes, or upgrade units in Formation.'
       : '';
+
+    const isTutorial = Boolean(results.isTutorial);
+    const rewardsSectionMarkup = isTutorial
+      ? `
+          <div class="tutorial-completion-banner">
+            <div class="section-kicker section-kicker--gold">Basic Battle Controls Covered</div>
+            <p class="tutorial-completion-banner__text">
+              ${
+                results.victory
+                  ? 'You have mastered battlefield layout, unit deployment, automatic combat, Command Energy, Skill/Tactic/Support cards, Commander Ultimates, and victory conditions.'
+                  : 'The tutorial battle ended early before victory was achieved. Retry the tutorial to complete your briefing.'
+              }
+            </p>
+          </div>
+        `
+      : `
+          <div class="results-rewards">
+            <div class="section-kicker section-kicker--gold">Battle Rewards</div>
+            <div class="meta-line tabular-nums" style="color: var(--text-primary); font-size: 0.88rem;">
+              <span>+${formatNumber(r.credits || 0)} Credits</span>
+              ${r.astrite > 0 ? `<span class="meta-sep">·</span><span style="color: var(--accent-gold-bright); font-weight: 700;">+${formatNumber(r.astrite)} Astrite</span>` : ''}
+              <span class="meta-sep">·</span>
+              <span>+${formatNumber(r.playerXp || 0)} Cmdr XP</span>
+              <span class="meta-sep">·</span>
+              <span>+${formatNumber(r.heroXp || 0)} Hero XP</span>
+              ${r.unitXp > 0 ? `<span class="meta-sep">·</span><span>+${formatNumber(r.unitXp)} Unit XP</span>` : ''}
+            </div>
+            ${materialItems ? `<div class="meta-line">${materialItems}</div>` : ''}
+            ${bonusUnitItems ? `<div class="meta-line" style="color: var(--accent-gold-bright); font-weight: 600;">${bonusUnitItems}</div>` : ''}
+            ${bonusCardItems ? `<div class="meta-line" style="color: var(--accent-blue-bright); font-weight: 600;">${bonusCardItems}</div>` : ''}
+          </div>
+        `;
+
+    const actionButtonsMarkup = isTutorial
+      ? `
+          <button type="button" id="btn-results-home" class="btn btn-ghost">Return Home</button>
+          <button type="button" id="btn-tutorial-replay" class="btn btn-secondary">${
+            results.victory ? 'Replay Tutorial' : 'Retry Tutorial'
+          }</button>
+          ${
+            results.victory
+              ? '<button type="button" id="btn-tutorial-campaign" class="btn btn-gold">Enter Normal Battle</button>'
+              : ''
+          }
+        `
+      : `
+          <button type="button" id="btn-results-home" class="btn btn-ghost">Home</button>
+          ${
+            !results.victory
+              ? '<button type="button" id="btn-results-formation" class="btn btn-secondary">Upgrade Squad</button>'
+              : hasNewUnlock
+                ? '<button type="button" id="btn-results-formation" class="btn btn-secondary">Equip Unlock</button>'
+                : ''
+          }
+          <button type="button" id="btn-results-retry" class="btn btn-secondary">Retry Stage</button>
+          ${
+            results.nextStageId
+              ? '<button type="button" id="btn-results-next" class="btn btn-gold">Next Stage</button>'
+              : ''
+          }
+        `;
 
     overlay.hidden = false;
     overlay.innerHTML = `
@@ -1221,10 +1305,10 @@ export class BattleScreen {
           <div class="results-visual-col__inner">
             <div>
               <div class="section-kicker ${results.victory ? 'section-kicker--gold' : ''}">
-                Stage ${results.stageCode}
+                ${isTutorial ? 'First-Battle Tutorial' : `Stage ${results.stageCode}`}
               </div>
               <h2 id="results-heading" class="results-outcome-title ${results.victory ? 'is-victory' : 'is-defeat'}" style="margin-top: 4px;">
-                ${results.victory ? 'VICTORY' : 'DEFEAT'}
+                ${isTutorial && results.victory ? 'TRAINING COMPLETE' : results.victory ? 'VICTORY' : 'DEFEAT'}
               </h2>
               <div class="meta-line" style="margin-top: 6px;">
                 <span>${results.stageName}</span>
@@ -1274,39 +1358,12 @@ export class BattleScreen {
             </div>
           </div>
 
-          <div class="results-rewards">
-            <div class="section-kicker section-kicker--gold">Battle Rewards</div>
-            <div class="meta-line tabular-nums" style="color: var(--text-primary); font-size: 0.88rem;">
-              <span>+${formatNumber(r.credits || 0)} Credits</span>
-              ${r.astrite > 0 ? `<span class="meta-sep">·</span><span style="color: var(--accent-gold-bright); font-weight: 700;">+${formatNumber(r.astrite)} Astrite</span>` : ''}
-              <span class="meta-sep">·</span>
-              <span>+${formatNumber(r.playerXp || 0)} Cmdr XP</span>
-              <span class="meta-sep">·</span>
-              <span>+${formatNumber(r.heroXp || 0)} Hero XP</span>
-              ${r.unitXp > 0 ? `<span class="meta-sep">·</span><span>+${formatNumber(r.unitXp)} Unit XP</span>` : ''}
-            </div>
-            ${materialItems ? `<div class="meta-line">${materialItems}</div>` : ''}
-            ${bonusUnitItems ? `<div class="meta-line" style="color: var(--accent-gold-bright); font-weight: 600;">${bonusUnitItems}</div>` : ''}
-            ${bonusCardItems ? `<div class="meta-line" style="color: var(--accent-blue-bright); font-weight: 600;">${bonusCardItems}</div>` : ''}
-          </div>
+          ${rewardsSectionMarkup}
 
-          ${defeatTip ? `<div class="results-tip">${defeatTip}</div>` : ''}
+          ${defeatTip && !isTutorial ? `<div class="results-tip">${defeatTip}</div>` : ''}
 
           <div class="btn-row" style="margin-top: auto; justify-content: flex-end;">
-            <button type="button" id="btn-results-home" class="btn btn-ghost">Home</button>
-            ${
-              !results.victory
-                ? '<button type="button" id="btn-results-formation" class="btn btn-secondary">Upgrade Squad</button>'
-                : hasNewUnlock
-                  ? '<button type="button" id="btn-results-formation" class="btn btn-secondary">Equip Unlock</button>'
-                  : ''
-            }
-            <button type="button" id="btn-results-retry" class="btn btn-secondary">Retry Stage</button>
-            ${
-              results.nextStageId
-                ? '<button type="button" id="btn-results-next" class="btn btn-gold">Next Stage</button>'
-                : ''
-            }
+            ${actionButtonsMarkup}
           </div>
         </div>
       </div>
@@ -1327,6 +1384,30 @@ export class BattleScreen {
     overlay.querySelector('#btn-results-home')?.addEventListener('click', () => {
       this._ctx.audioManager.playClick();
       this._ctx.screenManager.navigate('home');
+    });
+
+    overlay.querySelector('#btn-tutorial-replay')?.addEventListener('click', () => {
+      this._ctx.audioManager.playClick();
+      if (this._resultsRevealTimer) {
+        clearTimeout(this._resultsRevealTimer);
+        this._resultsRevealTimer = null;
+      }
+      this._resultsShownSessionId = null;
+      overlay.hidden = true;
+      overlay.innerHTML = '';
+      this._ctx.screenManager.navigate('battle', { tutorial: true, replay: true });
+    });
+
+    overlay.querySelector('#btn-tutorial-campaign')?.addEventListener('click', () => {
+      this._ctx.audioManager.playClick();
+      if (this._resultsRevealTimer) {
+        clearTimeout(this._resultsRevealTimer);
+        this._resultsRevealTimer = null;
+      }
+      this._resultsShownSessionId = null;
+      overlay.hidden = true;
+      overlay.innerHTML = '';
+      this._ctx.screenManager.navigate('battle', { tutorial: false });
     });
 
     overlay.querySelector('#btn-results-formation')?.addEventListener('click', () => {

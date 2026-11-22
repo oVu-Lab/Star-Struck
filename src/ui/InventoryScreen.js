@@ -278,7 +278,7 @@ export class InventoryScreen {
                       <div class="dossier-skill" style="margin-top: auto;">
                         <div class="section-kicker section-kicker--gold">Merge Evolution (Lv.I → Lv.III)</div>
                         <p class="dossier-skill__desc" style="color: var(--text-primary);">
-                          ${selectedCard.upgradeSummary || 'Merge adjacent identical cards in battle to amplify potency.'}
+                          ${selectedCard.upgradeSummary || 'Merge any two identical cards in battle to amplify potency.'}
                         </p>
                       </div>
 

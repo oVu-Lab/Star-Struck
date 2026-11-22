@@ -50,7 +50,7 @@ export class GachaSystem {
     const banner = this.getActiveBanner(bannerId);
     const ssrPity = this._state.gacha.ssrPity;
     const ssrHardPity =
-      banner?.pityConfig?.ssrHardPity ?? (banner?.bannerType === 'commander' ? 30 : 80);
+      banner?.pityConfig?.ssrHardPity ?? (banner?.bannerType === 'commander' ? 30 : 10);
     return {
       ssrPity,
       ssrHardPity,
@@ -131,7 +131,7 @@ export class GachaSystem {
     const results = [];
     let hasSrOrHigher = false;
     const hardPity =
-      banner.pityConfig?.ssrHardPity ?? (banner.bannerType === 'commander' ? 30 : 80);
+      banner.pityConfig?.ssrHardPity ?? (banner.bannerType === 'commander' ? 30 : 10);
     const isTacticalBanner = banner.bannerType === 'tactical';
 
     for (let i = 0; i < count; i += 1) {

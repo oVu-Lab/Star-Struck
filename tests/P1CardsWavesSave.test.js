@@ -31,78 +31,92 @@ function loadRegistry() {
   });
 }
 
-test('CardSystem handles 12-card deck, 6-slot hand, Lv.I->II->III adjacent merging, energy/cooldown/cap checks, and deck exhaustion', () => {
+test('CardSystem handles 6-card deck, 6-slot hand, Lv.I->II->III merging across any slots, energy/cooldown/cap checks, and timed automatic refill', () => {
   const registry = loadRegistry();
   const bus = new EventBus();
   const state = new GameState(createDefaultSave(), bus);
   state.setBattle({ energy: 60, maxEnergy: 100, dp: 60, maxDp: 100 });
   const cards = new CardSystem({ dataRegistry: registry, gameState: state, eventBus: bus });
 
-  // Custom 12-card deck with 4 identical shield cards upfront to test Lv.I->II->III and max-tier cap
+  // Custom 6-card unique deck
   const customDeck = [
-    'card_shield_guard',
-    'card_shield_guard',
-    'card_shield_guard',
     'card_shield_guard',
     'card_skill_astral_nova',
     'card_tactic_full_assault',
     'card_support_aegis_blessing',
     'card_arcane_archer',
     'card_wind_cavalry',
-    'card_field_cleric',
-    'card_skill_sanctuary_wave',
-    'card_tactic_focus_fire',
   ];
 
-  const hand = cards.initHand({ customDeckIds: customDeck });
+  // Initial 6 slots with shield guards in slots 0, 1, 2, 5 + skill + tactic
+  const hand = cards.initHand({
+    customDeckIds: customDeck,
+    initialSlots: [
+      'card_shield_guard',
+      'card_shield_guard',
+      'card_shield_guard',
+      'card_tactic_full_assault',
+      'card_skill_astral_nova',
+      'card_shield_guard',
+    ],
+  });
   assert.equal(hand.length, 6);
-  assert.equal(cards.getRemainingDeckCount(), 6);
+  assert.deepEqual(cards.getActiveDeckIds(), customDeck);
 
-  // Invalid merges: non-adjacent, different card ID / category
-  assert.equal(cards.canMerge(0, 2), false);
+  // Invalid merges: self-merge, different card ID / category
+  assert.equal(cards.canMerge(0, 0), false);
+  assert.equal(cards.canMerge(2, 3), false);
   assert.equal(cards.canMerge(3, 4), false);
-  assert.equal(cards.canMerge(4, 5), false);
 
-  // Level I + Level I -> Level II
-  assert.equal(cards.canMerge(0, 1), true);
-  const m1 = cards.mergeAdjacent(0, 1);
+  // Non-adjacent identical cards (slots 0 & 5) CAN merge -> Level II at slot 5; slot 0 starts refill
+  assert.equal(cards.canMerge(0, 5), true);
+  const m1 = cards.mergeAdjacent(0, 5);
   assert.equal(m1.ok, true);
   assert.equal(m1.upgradedCard.tier, 2);
   assert.equal(m1.upgradedCard.levelLabel, 'Lv.II');
+  assert.equal(cards.getSlots()[0], null);
+  assert.equal(cards.getRefillState(0).active, true);
 
-  // Level I + Level I in slots 2 & 3 -> Level II at slot 2
-  const m2 = cards.mergeAdjacent(3, 2);
+  // Level I + Level I in slots 1 & 2 -> Level II at slot 2; slot 1 starts refill timer
+  const m2 = cards.mergeAdjacent(1, 2);
   assert.equal(m2.ok, true);
   assert.equal(m2.upgradedCard.tier, 2);
+  assert.equal(cards.getRefillState(1).active, true);
 
-  // Level II (slot 1) + Level II (slot 2) -> Level III
-  assert.equal(cards.canMerge(1, 2), true);
-  const m3 = cards.mergeAdjacent(1, 2);
+  // Non-adjacent Level II (slot 5) + Level II (slot 2) -> Level III at slot 2
+  assert.equal(cards.canMerge(5, 2), true);
+  const m3 = cards.mergeAdjacent(5, 2);
   assert.equal(m3.ok, true);
   assert.equal(m3.upgradedCard.tier, 3);
   assert.equal(m3.upgradedCard.levelLabel, 'Lv.III');
+  assert.equal(cards.getRefillState(5).active, true);
 
-  // Level III cannot merge even if adjacent identical Level III existed
+  // Level III cannot merge even if another identical Level III existed
   cards._slots[1] = { ...cards._slots[2], instanceId: 'clone_lv3' };
+  cards._refillTimers[1] = null;
   assert.equal(cards.canMerge(1, 2), false);
   assert.equal(cards.mergeAdjacent(1, 2).ok, false);
 
-  // Insufficient energy does NOT consume card or energy
+  // Insufficient energy does NOT consume card, energy, or start refill timer
   state.setBattle({ energy: 5, dp: 5 });
   const failEnergy = cards.playCard(4);
   assert.equal(failEnergy.ok, false);
   assert.equal(state.battle.energy, 5);
   assert.equal(cards.getSlots()[4].cardId, 'card_skill_astral_nova');
+  assert.equal(cards.getRefillState(4).active, false);
 
-  // Playing a card deducts energy, triggers cooldown, and draws next card
+  // Playing a card deducts energy, triggers cooldown, empties slot, and starts refill timer
   state.setBattle({ energy: 100, dp: 100 });
   const played = cards.playCard(4);
   assert.equal(played.ok, true);
   assert.equal(state.battle.energy, 100 - played.card.cost);
   assert.ok(cards.getCardCooldown(played.card.cardId) > 0);
+  assert.equal(cards.getSlots()[4], null);
+  assert.equal(cards.getRefillState(4).active, true);
 
   // Cooldown blocks immediate re-play of same cardId
   cards._slots[4] = cards._createCardInstance(registry.cardsById.get(played.card.cardId), 1);
+  cards._refillTimers[4] = null;
   const cdBlocked = cards.playCard(4);
   assert.equal(cdBlocked.ok, false);
   cards.updateCooldowns(10);
@@ -119,17 +133,12 @@ test('CardSystem handles 12-card deck, 6-slot hand, Lv.I->II->III adjacent mergi
   assert.equal(capBlocked.ok, false);
   assert.equal(state.battle.energy, energyBeforeCap);
 
-  // Deck exhaustion: playing remaining cards empties deck and leaves null slots without crashing
+  // Timed refill replenishes empty slots after 5 seconds without deck exhaustion
   um.clear();
-  for (let round = 0; round < 15; round += 1) {
-    state.setBattle({ energy: 100, dp: 100 });
-    cards.updateCooldowns(10);
-    for (let s = 0; s < 6; s += 1) {
-      if (cards.getSlots()[s]) cards.playCard(s);
-    }
-  }
-  assert.equal(cards.getRemainingDeckCount(), 0);
-  assert.equal(cards.getSlots().every((s) => s === null), true);
+  cards.updateRefills(cards.getRefillIntervalSec());
+  assert.ok(cards.getSlots()[0], 'Slot 0 refills automatically after interval');
+  assert.ok(cards.getSlots()[3], 'Slot 3 refills automatically after interval');
+  assert.equal(cards.getSlots().every((s) => s !== null && s.tier >= 1), true);
 });
 
 test('WaveManager spawns multi-wave squads, elites, and boss in enemy region with clean wave transitions', () => {

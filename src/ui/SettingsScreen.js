@@ -27,8 +27,14 @@ export class SettingsScreen {
 
   render() {
     if (!this._container) return;
-    const { gameState, saveManager, assetManager, audioManager } = this._ctx;
+    const { gameState, saveManager, assetManager, audioManager, screenManager } = this._ctx;
     const s = gameState.settings;
+    const tutorialState = gameState.tutorial || {};
+    const tutorialStatusText = tutorialState.completed
+      ? 'Completed'
+      : tutorialState.skipped
+        ? 'Skipped'
+        : 'Not Completed';
     const assetSummary = assetManager.getStatusSummary();
     const isMasterMuted = Boolean(s.muted);
     const isMusicMuted = Boolean(s.musicMuted);
@@ -188,6 +194,20 @@ export class SettingsScreen {
                 </div>
               </div>
 
+              <div class="setting-control">
+                <div class="setting-control__top">
+                  <div>
+                    <div style="font-weight: 500;">Battle Tutorial</div>
+                    <div id="tutorial-status-label" style="font-size: 0.76rem; color: var(--text-muted);">
+                      Status: ${tutorialStatusText}
+                    </div>
+                  </div>
+                  <button type="button" id="btn-replay-tutorial" class="btn btn-secondary btn-sm">
+                    Replay Tutorial
+                  </button>
+                </div>
+              </div>
+
               <div class="hairline"></div>
 
               <div>
@@ -306,6 +326,11 @@ export class SettingsScreen {
         updateSetting('graphicsQuality', btn.getAttribute('data-quality'));
       });
     }
+
+    this._container.querySelector('#btn-replay-tutorial')?.addEventListener('click', () => {
+      audioManager?.playClick?.();
+      screenManager?.navigate('battle', { tutorial: true, replay: true });
+    });
 
     this._container.querySelector('#btn-verify-fallback')?.addEventListener('click', async () => {
       audioManager.playClick();

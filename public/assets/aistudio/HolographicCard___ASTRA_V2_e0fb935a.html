@@ -17,6 +17,7 @@ const W=1152,H=1744,VS=`varying vec2 vUv;varying vec3 vP;void main(){vUv=uv;vP=p
 const COM=`precision highp float;varying vec2 vUv;varying vec3 vP;uniform vec3 uCam,uTint;uniform float uP;
 const vec2 PX=vec2(1./1152.,1./1744.);
 float hs(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float vn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hs(i),hs(i+vec2(1.,0.)),f.x),mix(hs(i+vec2(0.,1.)),hs(i+vec2(1.,1.)),f.x),f.y);}
 vec3 hue(float h){return .5+.5*cos(6.2832*(h+vec3(0.,.33,.67)));}
 float lm(vec3 c){return dot(c,vec3(.299,.587,.114));}
 float rr(vec2 p){vec2 q=abs(p)-vec2(.94,1.44);return length(max(q,0.))+min(max(q.x,q.y),0.)-.06;}`;
@@ -49,7 +50,8 @@ vec3 dust=vec3(0.);
 for(int k=0;k<2;k++){float fk=float(k);vec2 u=vUv-vd*(.12+.06*fk);
 float s=u.x*(5.+fk*3.)+u.y*3.+sin(u.y*9.+6.2832*ph+fk*2.)*.3;
 float fl=pow(.5+.5*sin(s*8.+6.2832*ph*(1.+fk)+sin(u.x*13.+u.y*7.+tv.x*3.)*1.6),7.);
-fl*=.3+.7*hs(floor(u*vec2(220.,330.))+fk);
+float dn=vn(u*vec2(60.,90.)+fk*13.)*.6+vn(u*vec2(140.,210.)+fk*29.)*.4;
+fl*=.35+.65*dn;
 dust+=fl*mix(vec3(1.,.8,.45),vec3(.6,.95,1.),fk)*.28;}
 {vec2 us=vUv-vd*.1;vec2 gg=us*vec2(40.,60.);vec2 ci=floor(gg),cf=fract(gg);float q=hs(ci+7.);
 if(q>.6){vec2 ct=.5+.3*vec2(sin(6.2832*ph+q*40.),cos(6.2832*ph+q*70.));

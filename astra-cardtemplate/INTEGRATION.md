@@ -21,7 +21,7 @@ astra-cardtemplate/
 └── assets-astra/
     ├── bg.jpeg        # 1152×1744 celestial astrolabe background (RGB JPEG)
     ├── character.png  # 1152×1744 Astra character art (RGBA PNG — MUST keep alpha channel)
-    ├── frame.jpeg     # 1152×1744 ornate gold border frame (RGB JPEG, auto-keyed)
+    ├── frame.png      # 1152×1744 ornate gold border frame (RGBA PNG)
     └── depth.jpeg     # 1152×1744 grayscale relief height map (RGB JPEG)
 ```
 
@@ -35,7 +35,7 @@ astra-cardtemplate/
 | :--- | :--- | :--- | :--- |
 | `bg` | `./assets-astra/bg.jpeg` | `1152×1744` | RGB JPEG background texture |
 | `character` | `./assets-astra/character.png` | `1152×1744` | **RGBA PNG with alpha transparency** (do not convert to JPEG) |
-| `frame` | `./assets-astra/frame.jpeg` | `1152×1744` | RGB JPEG frame (checkerboard background keyed automatically) |
+| `frame` | `./assets-astra/frame.png` | `1152×1744` | RGBA PNG frame (with automatic fallback keying if alpha is absent) |
 | `depth` | `./assets-astra/depth.jpeg` | `1152×1744` | Grayscale depth map used for relief ray-marching & lighting normals |
 
 - **Custom asset locations:** If Star Struck stores assets in a different directory, pass explicit URLs in `options.assets` or `data.assets` (`data.assets` takes precedence over `options.assets`, which takes precedence over defaults).

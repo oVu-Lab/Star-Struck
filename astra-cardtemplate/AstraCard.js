@@ -7,7 +7,10 @@ const VS = `varying vec2 vUv;varying vec3 vP;void main(){vUv=uv;vP=position;gl_P
 const COM = `precision highp float;varying vec2 vUv;varying vec3 vP;uniform vec3 uCam,uTint;uniform float uP;
 const vec2 PX=vec2(1./1152.,1./1744.);
 float hs(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float vn(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hs(i),hs(i+vec2(1.,0.)),f.x),mix(hs(i+vec2(0.,1.)),hs(i+vec2(1.,1.)),f.x),f.y);}
 vec3 hue(float h){return .5+.5*cos(6.2832*(h+vec3(0.,.33,.67)));}
+vec3 cpal(float x){float t=fract(x)*5.;vec3 c0=vec3(.08,.88,1.),c1=vec3(.28,.62,1.),c2=vec3(.68,.36,1.),c3=vec3(1.,.34,.74),c4=vec3(1.,.78,.24);
+if(t<1.)return mix(c0,c1,t);if(t<2.)return mix(c1,c2,t-1.);if(t<3.)return mix(c2,c3,t-2.);if(t<4.)return mix(c3,c4,t-3.);return mix(c4,c0,t-4.);}
 float lm(vec3 c){return dot(c,vec3(.299,.587,.114));}
 float rr(vec2 p){vec2 q=abs(p)-vec2(.94,1.44);return length(max(q,0.))+min(max(q.x,q.y),0.)-.06;}`;
 const FS = COM + `uniform sampler2D tB,tC,tF,tD,tT;uniform vec4 uFB;vec2 FU(vec2 u){return (u-uFB.xy)/(uFB.zw-uFB.xy);}
@@ -29,9 +32,14 @@ vec2 dc=(uB-vec2(.5,.685))*vec2(2.,3.);float ang=atan(dc.y,dc.x),rad=length(dc);
 float rays=.5+.5*sin(ang*22.+rad*5.+tv.x*7.+tv.y*5.);
 float gr=sin((uB.x*2.+uB.y*3.)*300.+(tv.x+tv.y)*16.);
 vec3 ir=hue(rad*.8+tv.x*1.3+tv.y*.8+.12*rays)*(.3+.6*rays)+hue(ang/6.2832*2.+tv.y*1.2+.4)*.22*(.5+.5*gr);
-vec2 g=uB*vec2(70.,105.);vec2 id=floor(g),f=fract(g);float h0=hs(id);
-float st=step(.94,h0)*smoothstep(.35,0.,length(f-.5))*(.5+.5*sin(ph*12.5664+h0*60.));
-vec3 bg=cb+(ir*.12+st*mix(vec3(1.,.85,.55),vec3(.8,.95,1.),hs(id+3.))*2.2)*dark;
+vec2 g=uB*vec2(50.,75.);vec2 id=floor(g),f=fract(g);float h0=hs(id);
+vec2 df=f-(.5+.24*(vec2(hs(id+1.),hs(id+2.))-.5));float a0=hs(id+4.)*6.2832;float cs0=cos(a0),sn0=sin(a0);
+vec2 rf=vec2(df.x*cs0-df.y*sn0,df.x*sn0+df.y*cs0);float tp=hs(id+5.);float shp=0.;
+if(tp<.60){shp=1.-smoothstep(.04,.26,abs(rf.x)*1.35+abs(rf.y));}
+else if(tp<.85){shp=exp(-dot(df,df)*18.)*.42;}
+else{shp=exp(-abs(df.y)*24.)*(1.-smoothstep(0.,.46,abs(df.x)))+exp(-abs(df.x)*24.)*(1.-smoothstep(0.,.46,abs(df.y)))+exp(-length(df)*20.)*.4;}
+float twf=1.+floor(hs(id+8.)*2.);float st=step(.95,h0)*shp*(.28+.72*(.5+.5*sin(6.2832*ph*twf+h0*60.)));
+vec3 bg=cb+(ir*.12+st*cpal(hs(id+3.)+ph*.25)*1.10)*dark;
 float gold=(1.-dark)*smoothstep(.25,.55,lb);
 bg+=gold*vec3(1.,.78,.42)*(.15+.5*band+.35*pow(.5+.5*sin(dot(uB,vec2(9.,6.))*3.+tv.x*5.),3.));
 // ---- flow dust + sparkles (between bg and subject)
@@ -39,13 +47,22 @@ vec3 dust=vec3(0.);
 for(int k=0;k<2;k++){float fk=float(k);vec2 u=vUv-vd*(.12+.06*fk);
 float s=u.x*(5.+fk*3.)+u.y*3.+sin(u.y*9.+6.2832*ph+fk*2.)*.3;
 float fl=pow(.5+.5*sin(s*8.+6.2832*ph*(1.+fk)+sin(u.x*13.+u.y*7.+tv.x*3.)*1.6),7.);
-fl*=.3+.7*hs(floor(u*vec2(220.,330.))+fk);
+float dn=vn(u*vec2(60.,90.)+fk*13.)*.6+vn(u*vec2(140.,210.)+fk*29.)*.4;
+fl*=.35+.65*dn;
 dust+=fl*mix(vec3(1.,.8,.45),vec3(.6,.95,1.),fk)*.28;}
-{vec2 us=vUv-vd*.1;vec2 gg=us*vec2(40.,60.);vec2 ci=floor(gg),cf=fract(gg);float q=hs(ci+7.);
-if(q>.6){vec2 ct=.5+.3*vec2(sin(6.2832*ph+q*40.),cos(6.2832*ph+q*70.));
+{vec2 us=vUv-vd*.1;vec2 gg=us*vec2(26.,39.);vec2 ci=floor(gg),cf=fract(gg);float q=hs(ci+7.);
+if(q>.72){vec2 ct=.5+.28*vec2(sin(6.2832*ph+q*40.),cos(6.2832*ph+q*70.));vec2 df=cf-ct;
 vec3 n=normalize(vec3((vec2(hs(ci),hs(ci+3.))-.5)*1.8,.7));
-float fl=pow(max(dot(n,normalize(Ld+v)),0.),24.);
-dust+=fl*smoothstep(.16,0.,length(cf-ct))*mix(vec3(1.,.85,.5),vec3(.7,1.,1.),hs(ci+9.))*3.5;}}
+float flSpec=pow(max(dot(n,normalize(Ld+v)),0.),18.);float mf=1.+floor(hs(ci+11.)*2.);
+float mTw=.30+.70*(.5+.5*sin(6.2832*ph*mf+q*50.));float fl=(.26+.74*flSpec)*mTw;
+float a1=hs(ci+15.)*6.2832;float cs1=cos(a1),sn1=sin(a1);vec2 rf=vec2(df.x*cs1-df.y*sn1,df.x*sn1+df.y*cs1);
+float mt=hs(ci+13.);float shp=0.;
+if(mt<.60){shp=1.-smoothstep(.02,.22,abs(rf.x)*1.4+abs(rf.y));}
+else if(mt<.85){shp=exp(-((rf.x*1.6)*(rf.x*1.6)+(rf.y*.85)*(rf.y*.85))*18.)*.40;}
+else if(mt<.95){shp=(exp(-abs(df.y)*28.)*(1.-smoothstep(0.,.45,abs(df.x)))+exp(-abs(df.x)*28.)*(1.-smoothstep(0.,.45,abs(df.y))))*.9+exp(-length(df)*22.)*.45;}
+else{float gf=pow(.5+.5*sin(6.2832*ph*mf+q*50.),4.);fl=(.25+1.10*gf)*(.45+.55*flSpec);
+shp=(exp(-abs(df.y)*26.)*(1.-smoothstep(0.,.48,abs(df.x)))+exp(-abs(df.x)*26.)*(1.-smoothstep(0.,.48,abs(df.y))))+exp(-length(df)*18.)*.55;}
+dust+=fl*shp*cpal(hs(ci+9.)+.08*sin(6.2832*ph+q*20.))*1.15;}}
 float sa=0.;for(int i=0;i<4;i++){vec2 o=vec2(float(i%2)-.5,float(i/2)-.5)*.02;sa+=texture2D(tC,vUv+(.5-uL)*.12+o,2.5).a;}sa*=.25;
 vec3 col=(bg+dust*.9)*(1.-.45*sa)+dust*.1;
 // ---- subject: relief ray-march
@@ -91,28 +108,63 @@ col+=band*vec3(1.,.95,.85)*.2*(1.-fm*.5);
 vec2 sl=(vUv-uL)*vec2(2.,3.);col+=exp(-dot(sl,sl)*.9)*.07;
 float stv=0.;for(int i=0;i<9;i++){vec2 A=AN[i];float pk=exp(-pow((dot(A-.5,dir)+.5-sp)*9.,2.));stv+=cr(vUv-A)*(.3+1.4*pk);}
 col+=stv*vec3(1.,.93,.75)*.9;
-vec2 g2=vUv*vec2(170.,255.);vec2 c2i=floor(g2);vec3 rn=normalize(vec3(vec2(hs(c2i+1.),hs(c2i+2.))-.5,.45));
-float tw=pow(max(dot(rn,normalize(Ld+v)),0.),26.)*step(.55,hs(c2i))*smoothstep(.45,0.,length(fract(g2)-.5))*(.6+.4*sin(ph*12.5664+hs(c2i)*50.));
-col+=tw*vec3(1.,.9,.65)*(fa*3.+ca*(.6+metal*3.)*(1.-fm)+dark*1.2);
+vec2 g2=vUv*vec2(90.,135.);vec2 c2i=floor(g2);vec3 rn=normalize(vec3(vec2(hs(c2i+1.),hs(c2i+2.))-.5,.45));
+vec2 df2=fract(g2)-.5;float r2a=hs(c2i+4.)*6.2832;float cs2=cos(r2a),sn2=sin(r2a);
+vec2 rf2=vec2(df2.x*cs2-df2.y*sn2,df2.x*sn2+df2.y*cs2);float dia2=1.-smoothstep(.03,.34,abs(rf2.x)*1.25+abs(rf2.y));
+float tw=pow(max(dot(rn,normalize(Ld+v)),0.),22.)*step(.72,hs(c2i))*dia2*(.45+.55*sin(ph*12.5664+hs(c2i)*50.));
+col+=tw*cpal(hs(c2i+5.)+.1*sin(ph*6.2832+hs(c2i)*30.))*(fa*1.4+ca*(.45+metal*1.5)*(1.-fm)+dark*.90);
 gl_FragColor=vec4(min(col,1.),cov);}`;
 const SFS = COM + `uniform float uI;void main(){float sd=rr((vUv-.5)*vec2(2.,3.));float fw=fwidth(sd)+1e-4;float cov=1.-smoothstep(-fw,fw,sd);if(cov<=0.)discard;
 vec3 v=normalize(uCam-vP);float t=.5+.5*sin(dot(vUv,vec2(3.,5.))*2.+v.x*6.+v.y*4.+uI*.5);
 float br=.55+.45*sin(vUv.x*500.+sin(vUv.y*20.)*2.+uI);
 vec3 m=mix(vec3(.5,.4,.22),vec3(.96,.86,.62),t*t)*(.55+.45*br)+smoothstep(-.03,0.,sd)*.3;gl_FragColor=vec4(m,cov);}`;
-const PVS = `attribute vec3 seed;uniform float uP,uZ,uS;varying float vA;void main(){float k=1.+floor(seed.z*3.);float f=fract(seed.y+uP/6.2832*k);
-vec3 p=vec3((seed.x-.5)*3.4+sin(uP*k+seed.z*30.)*.06,(f-.5)*4.,uZ+(seed.z-.5)*.3);vec4 mv=modelViewMatrix*vec4(p,1.);
-gl_PointSize=uS*(.5+seed.z)*300./-mv.z;vA=sin(f*3.1416)*(.5+.5*sin(uP*3.+seed.x*50.));gl_Position=projectionMatrix*mv;}`;
-const PFS = `precision highp float;varying float vA;void main(){float d=length(gl_PointCoord-.5);gl_FragColor=vec4(vec3(1.,.88,.62),smoothstep(.5,0.,d)*vA*.8);}`;
+const PVS = `attribute vec3 seed;attribute vec4 meta;uniform float uP,uZ,uS,uPr,uCs;varying float vA,vF,vIr;varying vec4 vM;
+void main(){float t=meta.x;float k=t>=.60&&t<.85?1.+floor(seed.z*1.3):1.+floor(seed.z*3.);
+float f=fract(seed.y+uP/6.2831853*k);float ph=meta.z*6.2831853;
+float fg=step(.01,uZ);float spanX=mix(3.4,1.44,fg);float spanY=mix(4.,2.16,fg);
+float driftX=sin(uP*k+seed.z*31.4159)*(.030+.025*meta.w)+cos(uP+ph)*.020;
+float driftY=sin(uP*2.+ph)*.018;
+vec3 p=vec3((seed.x-.5)*spanX+driftX,(f-.5)*spanY+driftY,uZ+(seed.z-.5)*.3);
+vec4 mv=modelViewMatrix*vec4(p,1.);float edge=sin(f*3.14159265);
+float twFreq=1.+floor(meta.w*3.);float tw1=.5+.5*sin(uP*twFreq+ph);
+float tw2=.5+.5*sin(uP*(twFreq+1.)+seed.x*43.9823);float flash=0.;float szM=1.25;
+if(t<.60){vA=edge*(.32+.68*smoothstep(.12,.95,tw1*.65+tw2*.35));szM=1.25;}
+else if(t<.85){vA=edge*(.22+.46*tw1);szM=1.45;}
+else if(t<.95){vA=edge*(.34+.66*pow(max(tw1,1e-4),2.2));szM=1.90;}
+else{flash=pow(max(tw1*.5+tw2*.5,1e-4),6.);vA=edge*(.36+.94*flash);szM=2.15+.30*flash;}
+vM=meta;vF=flash;vIr=sin(uP+ph);gl_PointSize=uS*(.5+seed.z)*szM*uPr*uCs*300./-mv.z;gl_Position=projectionMatrix*mv;}`;
+const PFS = `precision highp float;varying float vA,vF,vIr;varying vec4 vM;
+vec3 pal(float x){float t=fract(x)*5.;vec3 c0=vec3(.08,.88,1.),c1=vec3(.28,.62,1.),c2=vec3(.68,.36,1.),c3=vec3(1.,.34,.74),c4=vec3(1.,.78,.24);
+if(t<1.)return mix(c0,c1,t);if(t<2.)return mix(c1,c2,t-1.);if(t<3.)return mix(c2,c3,t-2.);if(t<4.)return mix(c3,c4,t-3.);return mix(c4,c0,t-4.);}
+void main(){vec2 p=gl_PointCoord-.5;float t=vM.x;float rot=t<.85?vM.z*6.2831853:(vM.z-.5)*.56;
+float cs=cos(rot),sn=sin(rot);vec2 rp=vec2(p.x*cs-p.y*sn,p.x*sn+p.y*cs);
+vec3 col=pal(vM.y+vF*.14+vIr*.06);vec3 rgb=col;float alpha=0.;
+if(t<.60){float ax=abs(rp.x)*(1.25+.45*vM.w),ay=abs(rp.y);
+float dDia=ax+ay;float core=1.-smoothstep(.18,.38,dDia);
+float edgeGlow=exp(-dDia*8.)*(.18+.18*step(.55,vM.w));
+alpha=clamp(core*.92+edgeGlow,0.,1.)*vA*.88;}
+else if(t<.85){float dDust=length(vec2(rp.x*1.5,rp.y*.85));float mask=1.-smoothstep(.12,.5,length(p));
+alpha=exp(-dDust*dDust*14.)*mask*vA*.45;}
+else if(t<.95){float rayH=exp(-abs(rp.y)*26.)*(1.-smoothstep(0.,.49,abs(rp.x)));
+float rayV=exp(-abs(rp.x)*26.)*(1.-smoothstep(0.,.49,abs(rp.y)));
+float core=exp(-length(rp)*18.);float halo=exp(-dot(rp,rp)*18.)*.16;
+alpha=clamp((rayH+rayV)*.95+core*.85+halo,0.,1.2)*vA*.92;rgb=mix(col,vec3(1.,.98,.96),clamp(core*.55,0.,1.));}
+else{vec2 rp45=.70710678*vec2(rp.x-rp.y,rp.x+rp.y);
+float r1=exp(-abs(rp.y)*24.)*(1.-smoothstep(0.,.5,abs(rp.x)))+exp(-abs(rp.x)*24.)*(1.-smoothstep(0.,.5,abs(rp.y)));
+float r2=(exp(-abs(rp45.y)*32.)*(1.-smoothstep(0.,.32,abs(rp45.x)))+exp(-abs(rp45.x)*32.)*(1.-smoothstep(0.,.32,abs(rp45.y))))*.45;
+float core=exp(-length(rp)*15.);float halo=exp(-dot(rp,rp)*14.)*(.22+.26*vF);
+alpha=clamp((r1+r2)*.95+core+halo,0.,1.3)*vA*.95;rgb=mix(col,vec3(1.,.99,.97),clamp(core*.6+vF*.18,0.,1.));}
+if(alpha<=.004)discard;gl_FragColor=vec4(rgb,clamp(alpha,0.,1.));}`;
 
 // ---------------------------------------------------------------- module config
 const DEFAULT_ASSETS = Object.freeze({
   bg: new URL('./assets-astra/bg.jpeg', import.meta.url).href,
   character: new URL('./assets-astra/character.png', import.meta.url).href,
-  frame: new URL('./assets-astra/frame.jpeg', import.meta.url).href,
+  frame: new URL('./assets-astra/frame.png', import.meta.url).href,
   depth: new URL('./assets-astra/depth.jpeg', import.meta.url).href
 });
 const DEFAULT_FRAME = Object.freeze({
-  crop: [30, 38, 1095, 1674], // outermost gold line of frame.jpeg -> card edge
+  crop: [30, 38, 1095, 1674], // outermost gold line of frame.png -> card edge
   clear: [
     [110, 112, 185, H - 112],
     [970, 112, 1048, H - 112],
@@ -934,6 +986,8 @@ export class AstraCard {
       tD: { value: T(prep.cD, false, false) },
       uCam: { value: new THREE.Vector3(0, 0, 7) },
       uP: { value: 0 },
+      uPr: { value: 1 },
+      uCs: { value: 1 },
       uTint: { value: new THREE.Vector3(ar / 255, ag / 255, ab / 255) },
       uFB: { value: new THREE.Vector4(0, 0, 1, 1) }
     };
@@ -966,13 +1020,25 @@ export class AstraCard {
     fr.renderOrder = 20;
     card.add(fr);
 
+    const wrap01 = v => ((v % 1) + 1) % 1;
     const pts = (cnt, z, s, ro) => {
       const g = new THREE.BufferGeometry();
-      const sd = new Float32Array(cnt * 3).map(Math.random);
+      const sd = new Float32Array(cnt * 3);
+      const mt = new Float32Array(cnt * 4);
+      for (let i = 0; i < cnt; i++) {
+        sd[i * 3] = wrap01((i + 0.5) * 0.7548776662 + (Math.random() - 0.5) * 0.14);
+        sd[i * 3 + 1] = wrap01((i + 0.5) * 0.5698402910 + (Math.random() - 0.5) * 0.14);
+        sd[i * 3 + 2] = Math.random();
+        mt[i * 4] = ((i * 37 + 13) % cnt + 0.5) / cnt;
+        mt[i * 4 + 1] = Math.random();
+        mt[i * 4 + 2] = Math.random();
+        mt[i * 4 + 3] = Math.random();
+      }
       g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(cnt * 3), 3));
       g.setAttribute('seed', new THREE.BufferAttribute(sd, 3));
+      g.setAttribute('meta', new THREE.BufferAttribute(mt, 4));
       const p = new THREE.Points(g, new THREE.ShaderMaterial({
-        uniforms: { uP: U.uP, uZ: { value: z }, uS: { value: s } },
+        uniforms: { uP: U.uP, uPr: U.uPr, uCs: U.uCs, uZ: { value: z }, uS: { value: s } },
         vertexShader: PVS,
         fragmentShader: PFS,
         transparent: true,
@@ -1055,7 +1121,10 @@ export class AstraCard {
     const shadowBlur = Math.round(Math.min(14, Math.max(4, w * 0.03)));
     this.root.style.setProperty('--astra-glow-blur', glowBlur + 'px');
     this.root.style.setProperty('--astra-shadow-blur', shadowBlur + 'px');
-    this.r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    const pr = Math.min(window.devicePixelRatio || 1, 2);
+    this.r.setPixelRatio(pr);
+    if (this.U && this.U.uPr) this.U.uPr.value = pr;
+    if (this.U && this.U.uCs) this.U.uCs.value = Math.max(0.5, Math.min(1.15, h / 640));
     this.r.setSize(w, h, false);
     this._setCam(w / h);
     this._dirty = true;

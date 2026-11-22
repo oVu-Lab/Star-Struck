@@ -24,6 +24,7 @@ import { EconomySystem } from '../systems/EconomySystem.js';
 import { ProgressionSystem } from '../systems/ProgressionSystem.js';
 import { GachaSystem } from '../systems/GachaSystem.js';
 import { MissionSystem } from '../systems/MissionSystem.js';
+import { TutorialManager } from '../systems/TutorialManager.js';
 
 import { UnitManager } from '../battle/UnitManager.js';
 import { TargetingSystem } from '../battle/TargetingSystem.js';
@@ -180,6 +181,19 @@ export class Game {
         audioManager: this.audioManager,
       });
 
+      this.tutorialManager = new TutorialManager({
+        gameState: this.gameState,
+        saveManager: this.saveManager,
+        eventBus: this.eventBus,
+        battleManager: this.battleManager,
+        cardSystem: this.cardSystem,
+        heroSystem: this.heroSystem,
+        unitManager: this.unitManager,
+        dataRegistry: this.dataRegistry,
+        audioManager: this.audioManager,
+        notify: (message, level = 'info') => this.notify(message, level),
+      });
+
       // 6. ScreenManager & all seven screens
       this.screenManager = new ScreenManager({
         viewportEl,
@@ -203,6 +217,7 @@ export class Game {
         gachaSystem: this.gachaSystem,
         missionSystem: this.missionSystem,
         battleManager: this.battleManager,
+        tutorialManager: this.tutorialManager,
         notify: (message, level = 'info') => this.notify(message, level),
         confirmDialog: (opts) => this.confirmDialog(opts),
         openGuide: () => this.openGuide(),
@@ -439,11 +454,11 @@ export class Game {
 
           <div class="guide-step-card">
             <div class="guide-step-card__num">02</div>
-            <h3 class="guide-step-card__title">6-Slot Adjacent Card Merging</h3>
+            <h3 class="guide-step-card__title">6-Card Pool, Auto-Refill &amp; Merging</h3>
             <p class="guide-step-card__body">
-              Two side-by-side identical cards glow gold when ready to merge. Click the first card, then click
-              its matching neighbor to fuse them into a stronger <strong>Lv.II</strong> or <strong>Lv.III</strong>
-              instruction — boosting stats, skill damage, or support power.
+              Six battle slots draw copies randomly from your 6-card deck. Used slots refill automatically
+              after 5 seconds. Any two identical cards of the same tier glow gold regardless of position —
+              select one then its match to merge into stronger <strong>Lv.II</strong> and max <strong>Lv.III</strong> cards!
             </p>
           </div>
 
@@ -465,6 +480,7 @@ export class Game {
         </div>
 
         <div class="btn-row modal-dialog__actions">
+          <button type="button" id="btn-guide-replay-tutorial" class="btn btn-secondary btn-sm">Replay Battle Tutorial</button>
           <button type="button" id="guide-close-btn" class="btn btn-primary btn-sm">Got It</button>
         </div>
       </div>
@@ -481,6 +497,11 @@ export class Game {
     };
 
     window.addEventListener('keydown', onKeyDown);
+    modalRoot.querySelector('#btn-guide-replay-tutorial')?.addEventListener('click', () => {
+      this.audioManager?.playClick();
+      close();
+      this.screenManager?.navigate('battle', { tutorial: true, replay: true });
+    });
     modalRoot.querySelector('#guide-close-x')?.addEventListener('click', () => {
       this.audioManager?.playClick();
       close();

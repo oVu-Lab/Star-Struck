@@ -200,13 +200,15 @@ test('P2 Commanders: switching to non-ASTRA commanders during prep applies passi
 
 test('P2 New Units & New Cards: all 6 new playable units and new Skill/Tactic/Support cards resolve through real gameplay systems', () => {
   const h = createBattleHarness();
-  const customDeckIds = [
+  const newUnitDeck = [
     'card_vanguard_breaker',
     'card_aegis_sentinel',
     'card_solar_pyromancer',
     'card_chrono_weaver',
     'card_astral_construct',
     'card_pulse_skirmisher',
+  ];
+  const tacticalDeck = [
     'card_skill_orbital_lance',
     'card_skill_gravity_vortex',
     'card_skill_chain_lightning',
@@ -215,11 +217,15 @@ test('P2 New Units & New Cards: all 6 new playable units and new Skill/Tactic/Su
     'card_support_haste_relay',
   ];
 
-  h.battleManager.startSession(null, { stageId: 'stage_2_2', customDeckIds });
+  // Phase A: Deploy all 6 new unit cards deterministically
+  h.battleManager.startSession(null, {
+    stageId: 'stage_2_2',
+    customDeckIds: newUnitDeck,
+    initialSlots: newUnitDeck,
+  });
   h.battleManager.beginBattle();
   for (let i = 0; i < 65; i += 1) h.battleManager.stepSimulation(1 / 60);
 
-  // Play all 6 new unit cards in hand -> spawns all 6 new playable unit types
   for (let slot = 0; slot < 6; slot += 1) {
     h.gameState.setBattle({ energy: 100, dp: 100 });
     h.battleManager.interactWithCardSlot(slot);
@@ -250,7 +256,14 @@ test('P2 New Units & New Cards: all 6 new playable units and new Skill/Tactic/Su
     shieldApplied = true;
   });
 
-  // Play the next 6 cards (new Skill, Tactic, and Support cards)
+  // Phase B: Configure deterministic refill for the 6 new Skill, Tactic, and Support cards and cast them after 5s refill
+  let refillCursor = 0;
+  h.cardSystem._activeDeckPool = tacticalDeck.map((id) => h.dataRegistry.cardsById.get(id));
+  h.cardSystem.setCardGenerator(() => tacticalDeck[refillCursor++ % tacticalDeck.length]);
+  // Advance 5.1s so all 6 slots refill with the 6 tactical cards (and cooldowns expire)
+  for (let i = 0; i < 310; i += 1) h.battleManager.stepSimulation(1 / 60);
+
+  h.gameState.setBattle({ ultimateEnergy: 0 });
   const ultBefore = h.gameState.battle.ultimateEnergy;
   for (let slot = 0; slot < 6; slot += 1) {
     h.gameState.setBattle({ energy: 100, dp: 100 });

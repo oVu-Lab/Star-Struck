@@ -266,7 +266,6 @@ test('SaveManager migrates v3 saves to v4 with mission tracking intact', () => {
   const res = saveManager.load();
   assert.equal(res.status, 'loaded');
   assert.equal(res.data.version, SAVE_VERSION);
-  assert.equal(res.data.version, 4);
   assert.equal(res.data.progression.selectedStageId, 'stage_2_1');
   assert.equal(res.data.progression.clearedStages.length, 4);
   assert.ok(res.data.missions && typeof res.data.missions === 'object');

@@ -338,16 +338,16 @@ test('1x Pull and 10x Pull execute on active banner, deduct currency, show resul
   container.querySelector('[data-close-overlay]').click();
   assert.equal(container.querySelector('.summon-overlay'), null);
 
-  // Switch to Tactical banner and execute 10x Pull (costs 1,600 Astrite — unchanged)
+  // Switch to Tactical banner and execute 10x Pull (costs 500 Astrite)
   const tacticalBtn = container
     .querySelectorAll('[data-banner-id]')
     .find((b) => b.getAttribute('data-banner-id') === 'banner_tactical_requisition');
   tacticalBtn.click();
-  assert.ok(container.innerHTML.includes('160 Astrite'));
-  assert.ok(container.innerHTML.includes('1,600 Astrite'));
+  assert.ok(container.innerHTML.includes('50 Astrite'));
+  assert.ok(container.innerHTML.includes('500 Astrite'));
 
   container.querySelector('#btn-pull-ten').click();
-  assert.equal(economySystem.getBalance('astrite'), 1500);
+  assert.equal(economySystem.getBalance('astrite'), 2600);
   assert.equal(gachaSystem.getPityStatus().totalPulls, 11);
 
   resultCards = container.querySelectorAll('.summon-result-card');
@@ -675,4 +675,33 @@ test('Insufficient currency rejects pulls without deducting currency or altering
   assert.equal(lowTen.gachaSystem.getPityStatus().ssrPity, 14);
   assert.equal(lowTen.gachaSystem.getPityStatus().totalPulls, 14);
   assert.equal(lowTen.gachaSystem.getPityStatus().history.length, 0);
+});
+
+test('Tactical Banner (banner_tactical_requisition) enforces 10-pull SSR hard pity with 50/500 Astrite costs', () => {
+  const { container, gachaSystem, economySystem } = createSummonHarness({
+    startingAstrite: 2000,
+  });
+
+  const tacticalBtn = container
+    .querySelectorAll('[data-banner-id]')
+    .find((b) => b.getAttribute('data-banner-id') === 'banner_tactical_requisition');
+  tacticalBtn.click();
+
+  assert.equal(gachaSystem.getPityStatus().ssrHardPity, 10);
+  assert.equal(gachaSystem.getPityStatus().remainingPulls, 10);
+  assert.ok(container.innerHTML.includes('SSR Pity 0 / 10'));
+  assert.ok(container.innerHTML.includes('SSR Guarantee in 10 pulls'));
+
+  const origRandom = Math.random;
+  Math.random = () => 0.95;
+  try {
+    const tenRes = gachaSystem.pull(10);
+    assert.equal(tenRes.ok, true);
+    assert.equal(economySystem.getBalance('astrite'), 1500);
+    assert.equal(tenRes.results[9].rarity, 'SSR', '10th pull on tactical banner must guarantee SSR');
+    assert.equal(gachaSystem.getPityStatus().ssrPity, 0);
+    assert.equal(gachaSystem.getPityStatus().remainingPulls, 10);
+  } finally {
+    Math.random = origRandom;
+  }
 });

@@ -110,12 +110,12 @@ test('P2 Roster Targets: 10 playable units, 10 enemies, 28 cards, 5 commanders, 
   assert.equal(cmdBanner.tenCost, 1000);
   assert.equal(cmdBanner.pityConfig.ssrHardPity, 30);
 
-  // Verify tactical banner remains unmodified
+  // Verify tactical banner uses 50/500 Astrite costs and 10 hard pity while preserving rates
   const tacBanner = registry.bannersById.get('banner_tactical_requisition');
   assert.ok(tacBanner);
-  assert.equal(tacBanner.singleCost, 160);
-  assert.equal(tacBanner.tenCost, 1600);
-  assert.equal(tacBanner.pityConfig.ssrHardPity, 80);
+  assert.equal(tacBanner.singleCost, 50);
+  assert.equal(tacBanner.tenCost, 500);
+  assert.equal(tacBanner.pityConfig.ssrHardPity, 10);
   assert.equal(tacBanner.rates.SSR, 0.03);
   assert.equal(tacBanner.rates.SR, 0.17);
   assert.equal(tacBanner.rates.R, 0.8);

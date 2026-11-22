@@ -52,9 +52,10 @@
     "repeatClearAstriteRatio": 0.35
   },
   "deck": {
-    "deckSize": 12,
+    "deckSize": 6,
     "handSlots": 6,
-    "maxCardLevel": 3
+    "maxCardLevel": 3,
+    "refillIntervalSec": 5
   },
   "speeds": [1, 2, 3],
   "ratings": {

@@ -18,7 +18,7 @@ astra-cardtemplate/
 └── assets-astra/
     ├── bg.jpeg        # 1152×1744 celestial astrolabe background (RGB)
     ├── character.png  # 1152×1744 Astra character art (RGBA with alpha)
-    ├── frame.jpeg     # 1152×1744 ornate gold frame (RGB, auto-keyed)
+    ├── frame.png      # 1152×1744 ornate gold frame (RGBA PNG)
     └── depth.jpeg     # 1152×1744 grayscale height/depth map (RGB)
 ```
 
@@ -75,7 +75,7 @@ const card = new AstraCard(container, {
   assets: {
     bg: './assets-astra/bg.jpeg',
     character: './assets-astra/character.png',
-    frame: './assets-astra/frame.jpeg',
+    frame: './assets-astra/frame.png',
     depth: './assets-astra/depth.jpeg'
   },
   // Pass your game's Commander data object (arbitrary fields are preserved)

@@ -174,8 +174,8 @@ export class SummonScreen {
     const currencyLabel =
       banner?.currencyLabel || (currencyId === 'astrite' ? 'Astrite' : currencyId);
     const balance = economySystem.getBalance(currencyId);
-    const singleCost = banner?.singleCost ?? (isTactical ? 160 : 100);
-    const tenCost = banner?.tenCost ?? (isTactical ? 1600 : 1000);
+    const singleCost = banner?.singleCost ?? (isTactical ? 50 : 100);
+    const tenCost = banner?.tenCost ?? (isTactical ? 500 : 1000);
     const canAffordSingle = !isExpired && balance >= singleCost;
     const canAffordTen = !isExpired && balance >= tenCost;
     const results = gameState.ui.lastSummonResults || [];

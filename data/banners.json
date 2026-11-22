@@ -50,10 +50,10 @@
       "featuredCardIds": ["card_astral_construct", "card_skill_chain_lightning", "card_solar_pyromancer"],
       "featuredAssetId": "hero_portrait_seraphina",
       "currency": "astrite",
-      "singleCost": 160,
-      "tenCost": 1600,
+      "singleCost": 50,
+      "tenCost": 500,
       "pityConfig": {
-        "ssrHardPity": 80,
+        "ssrHardPity": 10,
         "tenPullMinRarity": "SR"
       },
       "rates": {

@@ -105,60 +105,65 @@ test('P2 FormationSystem: enforces unit unlock gating, unlocks new units, and up
   assert.ok(s.gameState.resources.credits < creditsBefore);
 });
 
-test('P2 CardSystem: validates custom 12-card battle deck, enforces 3-copy & >=4 unit limits, and loads saved deck', () => {
+test('P2 CardSystem: validates custom 6-card unique battle deck, rejects duplicates & locked cards, allows same-category cards, and loads saved deck', () => {
   const s = createSystems();
 
-  // Rejects deck with < 12 cards
+  // Rejects deck with != 6 cards
   assert.equal(s.cardSystem.setCustomDeck(['card_shield_guard']).ok, false);
+  assert.equal(s.cardSystem.setCustomDeck([]).ok, false);
 
   // Rejects deck with locked card
   const lockedDeck = [
-    'card_shield_guard', 'card_shield_guard', 'card_wind_cavalry', 'card_arcane_archer',
+    'card_shield_guard',
+    'card_wind_cavalry',
+    'card_arcane_archer',
     'card_astral_construct', // locked by default
-    'card_field_cleric', 'card_skill_astral_nova', 'card_skill_sanctuary_wave',
-    'card_tactic_full_assault', 'card_tactic_focus_fire', 'card_support_aegis_blessing', 'card_support_overclock_core',
+    'card_field_cleric',
+    'card_skill_astral_nova',
   ];
   assert.equal(s.cardSystem.setCustomDeck(lockedDeck).ok, false);
 
-  // Rejects deck with > 3 copies of same card
-  const overCopyDeck = [
-    'card_shield_guard', 'card_shield_guard', 'card_shield_guard', 'card_shield_guard',
-    'card_wind_cavalry', 'card_arcane_archer', 'card_skill_astral_nova', 'card_skill_sanctuary_wave',
-    'card_tactic_full_assault', 'card_tactic_focus_fire', 'card_support_aegis_blessing', 'card_support_overclock_core',
+  // Rejects deck with duplicate card IDs
+  const duplicateDeck = [
+    'card_shield_guard',
+    'card_shield_guard',
+    'card_wind_cavalry',
+    'card_arcane_archer',
+    'card_skill_astral_nova',
+    'card_tactic_full_assault',
   ];
-  assert.equal(s.cardSystem.setCustomDeck(overCopyDeck).ok, false);
+  assert.equal(s.cardSystem.setCustomDeck(duplicateDeck).ok, false);
 
-  // Rejects deck with < 4 unit cards
-  const lowUnitDeck = [
-    'card_shield_guard', 'card_wind_cavalry', 'card_arcane_archer',
-    'card_skill_astral_nova', 'card_skill_astral_nova', 'card_skill_sanctuary_wave',
-    'card_tactic_full_assault', 'card_tactic_full_assault', 'card_tactic_focus_fire',
-    'card_support_aegis_blessing', 'card_support_overclock_core', 'card_support_cleanse_beacon',
+  // Accepts 6 different unlocked cards even if all share the same category
+  const sameCategoryDeck = [
+    'card_shield_guard',
+    'card_wind_cavalry',
+    'card_arcane_archer',
+    'card_field_cleric',
+    'card_vanguard_breaker',
+    'card_pulse_skirmisher',
   ];
-  assert.equal(s.cardSystem.setCustomDeck(lowUnitDeck).ok, false);
+  assert.equal(s.cardSystem.setCustomDeck(sameCategoryDeck).ok, true);
 
-  // Accepts a valid 12-card unlocked custom deck and uses it during initHand()
+  // Accepts a valid 6-card mixed custom deck and generates copies from it during initHand()
   const validDeck = [
-    'card_vanguard_breaker', 'card_vanguard_breaker',
-    'card_pulse_skirmisher', 'card_field_cleric',
-    'card_skill_astral_nova', 'card_tactic_flank_maneuver',
-    'card_support_cleanse_beacon', 'card_shield_guard',
-    'card_wind_cavalry', 'card_arcane_archer',
-    'card_tactic_full_assault', 'card_support_aegis_blessing',
+    'card_vanguard_breaker',
+    'card_pulse_skirmisher',
+    'card_field_cleric',
+    'card_skill_astral_nova',
+    'card_tactic_flank_maneuver',
+    'card_support_cleanse_beacon',
   ];
   const saved = s.cardSystem.setCustomDeck(validDeck);
   assert.equal(saved.ok, true);
 
+  s.cardSystem.setRandomSource(() => 0);
   const hand = s.cardSystem.initHand();
   assert.equal(hand.length, 6);
   assert.equal(hand[0].cardId, 'card_vanguard_breaker');
   assert.equal(hand[1].cardId, 'card_vanguard_breaker');
   assert.equal(s.cardSystem.canMerge(0, 1), true);
-  assert.equal(s.cardSystem.getRemainingDeckCount(), 6);
-
-  // Clearing custom deck resets to auto-deck cleanly
-  assert.equal(s.cardSystem.setCustomDeck([]).ok, true);
-  assert.equal(s.cardSystem.getCustomDeck().length, 0);
+  assert.deepEqual(s.cardSystem.getActiveDeckIds(), validDeck);
 });
 
 test('P2 ProgressionSystem: enforces stage unlock progression, first-clear vs repeat-clear rewards, bonus units, and reload-safe duplicate protection', () => {

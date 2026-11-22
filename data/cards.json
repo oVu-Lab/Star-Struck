@@ -1,25 +1,19 @@
 {
   "schemaVersion": 3,
   "handConfig": {
-    "deckSize": 12,
+    "deckSize": 6,
     "slotCount": 6,
-    "autoReplaceOnPlay": true,
-    "mergeRule": "adjacent_identical_only",
+    "refillIntervalSec": 5,
+    "mergeRule": "any_identical_pair",
     "maxTier": 3
   },
   "defaultBattleDeck": [
     "card_shield_guard",
-    "card_shield_guard",
     "card_arcane_archer",
-    "card_arcane_archer",
-    "card_wind_cavalry",
     "card_field_cleric",
     "card_skill_astral_nova",
-    "card_skill_sanctuary_wave",
     "card_tactic_full_assault",
-    "card_tactic_focus_fire",
-    "card_support_aegis_blessing",
-    "card_support_overclock_core"
+    "card_support_aegis_blessing"
   ],
   "cards": [
     {

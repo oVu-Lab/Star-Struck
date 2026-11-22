@@ -5,8 +5,18 @@
 
 import { deepClone, resolveStorage, safeJsonParse } from '../utils/StorageUtils.js';
 
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 export const DEFAULT_SAVE_KEY = 'astral_command_save_v1';
+export const DECK_SIZE = 6;
+
+export const DEFAULT_BATTLE_DECK = Object.freeze([
+  'card_shield_guard',
+  'card_arcane_archer',
+  'card_field_cleric',
+  'card_skill_astral_nova',
+  'card_tactic_full_assault',
+  'card_support_aegis_blessing',
+]);
 
 const VALID_GRAPHICS = new Set(['low', 'medium', 'high']);
 const VALID_SPEEDS = new Set([1, 2, 3]);
@@ -47,6 +57,69 @@ function createDefaultOwnedUnits() {
   return owned;
 }
 
+/**
+ * Deterministically migrates any saved battle deck (including legacy 12-card or duplicate decks)
+ * to at most 6 unique valid owned cards while leaving unlockedCards completely intact.
+ */
+export function migrateBattleDeck(rawDeck, unlockedCards = DEFAULT_UNLOCKED_CARDS, validCardsById = null) {
+  const unlockedList = Array.isArray(unlockedCards)
+    ? Array.from(new Set(unlockedCards.filter((id) => typeof id === 'string' && id.trim())))
+    : [...DEFAULT_UNLOCKED_CARDS];
+  const unlockedSet = new Set(unlockedList);
+
+  const getCardDef = (id) => {
+    if (!validCardsById) return null;
+    if (typeof validCardsById.get === 'function') return validCardsById.get(id) || null;
+    return validCardsById[id] || null;
+  };
+  const isKnownCard = (id) => (!validCardsById ? true : Boolean(getCardDef(id)));
+  const getNormName = (id) => {
+    const def = getCardDef(id);
+    return def?.name ? String(def.name).trim().toLowerCase() : null;
+  };
+
+  const result = [];
+  const seenIds = new Set();
+  const seenNames = new Set();
+
+  const tryAdd = (cid) => {
+    if (result.length >= DECK_SIZE) return false;
+    if (typeof cid !== 'string' || !cid.trim()) return false;
+    if (!isKnownCard(cid)) return false;
+    if (!unlockedSet.has(cid)) return false;
+    if (seenIds.has(cid)) return false;
+    const normName = getNormName(cid);
+    if (normName && seenNames.has(normName)) return false;
+    seenIds.add(cid);
+    if (normName) seenNames.add(normName);
+    result.push(cid);
+    return true;
+  };
+
+  if (Array.isArray(rawDeck)) {
+    for (const cid of rawDeck) {
+      if (result.length >= DECK_SIZE) break;
+      tryAdd(cid);
+    }
+  }
+
+  if (result.length < DECK_SIZE) {
+    for (const cid of DEFAULT_BATTLE_DECK) {
+      if (result.length >= DECK_SIZE) break;
+      tryAdd(cid);
+    }
+  }
+
+  if (result.length < DECK_SIZE) {
+    for (const cid of unlockedList) {
+      if (result.length >= DECK_SIZE) break;
+      tryAdd(cid);
+    }
+  }
+
+  return result;
+}
+
 export function createDefaultSave() {
   return {
     version: SAVE_VERSION,
@@ -80,7 +153,7 @@ export function createDefaultSave() {
         'arcane_archer',
         'field_cleric',
       ],
-      battleDeck: [],
+      battleDeck: [...DEFAULT_BATTLE_DECK],
     },
     progression: {
       selectedStageId: 'stage_1_1',
@@ -153,6 +226,11 @@ export function createDefaultSave() {
       sfxMuted: false,
       battleSpeed: 1,
       graphicsQuality: 'high',
+    },
+    tutorial: {
+      completed: false,
+      skipped: false,
+      completedAt: null,
     },
   };
 }
@@ -246,6 +324,23 @@ export class SaveManager {
           next.missions?.seasonal && typeof next.missions.seasonal === 'object'
             ? deepClone(next.missions.seasonal)
             : {},
+      };
+      return next;
+    });
+
+    // Built-in migration from v4 -> v5: preserves player collection and all unrelated
+    // progress while migrating legacy 12-card or duplicate battle decks to the 6-card unique format.
+    this.registerMigration(4, (v4) => {
+      const defaults = createDefaultSave();
+      const next = deepClone(v4);
+      const unlockedCards = Array.isArray(next.progression?.unlockedCards)
+        ? [...next.progression.unlockedCards]
+        : [...defaults.progression.unlockedCards];
+
+      next.formation = {
+        ...defaults.formation,
+        ...(next.formation || {}),
+        battleDeck: migrateBattleDeck(next.formation?.battleDeck, unlockedCards),
       };
       return next;
     });
@@ -418,9 +513,9 @@ export class SaveManager {
       }
 
       if (Array.isArray(migrated.formation.battleDeck)) {
-        result.formation.battleDeck = migrated.formation.battleDeck
-          .filter((c) => typeof c === 'string')
-          .slice(0, 12);
+        result.formation.battleDeck = Array.from(
+          new Set(migrated.formation.battleDeck.filter((c) => typeof c === 'string' && c.trim())),
+        ).slice(0, DECK_SIZE);
       }
     } else {
       notes.push('Recovered missing formation.');
@@ -576,6 +671,18 @@ export class SaveManager {
         : defaults.settings.graphicsQuality;
     } else {
       notes.push('Recovered missing settings.');
+    }
+
+    // Tutorial onboarding state
+    if (migrated.tutorial && typeof migrated.tutorial === 'object') {
+      result.tutorial = {
+        completed: Boolean(migrated.tutorial.completed),
+        skipped: Boolean(migrated.tutorial.skipped),
+        completedAt:
+          typeof migrated.tutorial.completedAt === 'string' && migrated.tutorial.completedAt.trim()
+            ? migrated.tutorial.completedAt.slice(0, 48)
+            : null,
+      };
     }
 
     return { data: result, recovered: notes.length > 0, notes };

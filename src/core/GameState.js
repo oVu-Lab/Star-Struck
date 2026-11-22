@@ -54,7 +54,6 @@ export class GameState {
       ultimateEnergy: 0,
       ultimateMaxEnergy: 100,
       selectedCardSlot: -1,
-      remainingDeckCount: 6,
       activeTactic: null,
       bannerText: '',
       bossInfo: null, // { name, hp, maxHp, castingName }
@@ -104,6 +103,10 @@ export class GameState {
 
   get settings() {
     return this._persistent.settings;
+  }
+
+  get tutorial() {
+    return this._persistent.tutorial;
   }
 
   replacePersistent(nextPersistent) {
