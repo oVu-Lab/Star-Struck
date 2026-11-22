@@ -1,17 +1,18 @@
 /**
- * CardMergeVfxController — Fast, high-impact on-demand 2D Canvas behind-card
- * merge burst, expanding geometric energy rings, radial light streaks, and
- * outward spark particles (520ms Lv.II, 620ms Lv.III).
+ * CardMergeVfxController — Balanced multi-stage on-demand 2D Canvas behind-card
+ * merge evolution effect (1080ms Lv.II, 1260ms Lv.III).
  *
- * Uses rich burnished-gold outer contrast paired with warm white-gold cores so
- * effects read crisply against both the dark arena and warm-ivory command dock.
+ * Coordinates three overlapping stages — Impact, Upgrade (rings, light streaks,
+ * outward sparks), and Reveal (finishing glow pulse) — using rich burnished-gold
+ * contrast strokes paired with warm white-gold cores so every element reads
+ * cleanly over both the dark arena and warm-ivory command dock.
  */
 
 const TWO_PI = Math.PI * 2;
 const MAX_ACTIVE_EVOLUTIONS = 6;
 
 const RARITY_ACCENTS = Object.freeze({
-  r: '#e8b63a',
+  r: '#f0bc42',
   sr: '#b882f2',
   ssr: '#ffd14d',
 });
@@ -55,6 +56,20 @@ function drawPolygonRing(ctx, cx, cy, radius, sides, rotation) {
     const a = rotation + (i / sides) * TWO_PI;
     const x = cx + Math.cos(a) * radius;
     const y = cy + Math.sin(a) * radius;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+}
+
+function drawStarGlint(ctx, cx, cy, radius, rotation = 0) {
+  const inner = radius * 0.36;
+  ctx.beginPath();
+  for (let i = 0; i < 8; i += 1) {
+    const r = i % 2 === 0 ? radius : inner;
+    const a = rotation + (i * Math.PI) / 4;
+    const x = cx + Math.cos(a) * r;
+    const y = cy + Math.sin(a) * r;
     if (i === 0) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);
   }
@@ -152,40 +167,40 @@ export class CardMergeVfxController {
 
     const normalizedToTier = toTier >= 3 ? 3 : 2;
     const normalizedFromTier = Math.max(1, normalizedToTier - 1);
-    const durationMs = reducedMotion ? 240 : normalizedToTier >= 3 ? 620 : 520;
+    const durationMs = reducedMotion ? 320 : normalizedToTier >= 3 ? 1260 : 1080;
     const rarityKey = String(rarity || 'r').toLowerCase();
     const accentColor = RARITY_ACCENTS[rarityKey] || RARITY_ACCENTS.r;
 
     const seq = ++this._seq;
     const rng = createSeededRng(seq * 97 + sourceIndex * 19 + targetIndex * 31 + normalizedToTier * 13);
 
-    // Tapered radial burst streaks concentrated behind the card
-    const streakCount = normalizedToTier >= 3 ? 14 : 8;
+    // Prominent tapered radial light streaks behind and around the target card
+    const streakCount = normalizedToTier >= 3 ? 16 : 10;
     const streaks = [];
     for (let i = 0; i < streakCount; i += 1) {
-      const baseAngle = (i / streakCount) * TWO_PI - Math.PI / 2 + (rng() - 0.5) * 0.18;
+      const baseAngle = (i / streakCount) * TWO_PI - Math.PI / 2 + (rng() - 0.5) * 0.16;
       streaks.push({
         angle: baseAngle,
-        innerR: tgtBox.w * (0.28 + rng() * 0.1),
-        outerR: tgtBox.h * ((normalizedToTier >= 3 ? 0.96 : 0.78) + rng() * 0.2),
-        width: (normalizedToTier >= 3 ? 3.2 : 2.3) + rng() * 1.4,
-        delay: rng() * 0.05,
+        innerR: tgtBox.w * (0.3 + rng() * 0.12),
+        outerR: tgtBox.h * ((normalizedToTier >= 3 ? 1.1 : 0.95) + rng() * 0.25),
+        width: (normalizedToTier >= 3 ? 4.2 : 3.4) + rng() * (normalizedToTier >= 3 ? 1.8 : 1.6),
+        delay: rng() * 0.08,
       });
     }
 
-    // Fast outward spark particles with directional velocity trails
-    const sparkCount = normalizedToTier >= 3 ? 32 : 18;
+    // Large, clearly visible gold and white particle sparks with directional tails & diamond glint heads
+    const sparkCount = normalizedToTier >= 3 ? 40 : 26;
     const sparks = [];
     for (let i = 0; i < sparkCount; i += 1) {
-      const baseAngle = (i / sparkCount) * TWO_PI + (rng() - 0.5) * 0.28;
+      const baseAngle = (i / sparkCount) * TWO_PI + (rng() - 0.5) * 0.26;
       sparks.push({
         angle: baseAngle,
-        startDist: tgtBox.w * (0.22 + rng() * 0.18),
-        travel: (normalizedToTier >= 3 ? 68 : 48) + rng() * (normalizedToTier >= 3 ? 52 : 34),
-        lift: 10 + rng() * (normalizedToTier >= 3 ? 28 : 18),
-        size: 1.8 + rng() * (normalizedToTier >= 3 ? 2.4 : 1.7),
-        trailLen: (normalizedToTier >= 3 ? 16 : 11) + rng() * 10,
-        delay: rng() * 0.08,
+        startDist: tgtBox.w * (0.28 + rng() * 0.2),
+        travel: (normalizedToTier >= 3 ? 82 : 64) + rng() * (normalizedToTier >= 3 ? 66 : 54),
+        lift: 14 + rng() * (normalizedToTier >= 3 ? 34 : 24),
+        size: (normalizedToTier >= 3 ? 3.4 : 3.0) + rng() * (normalizedToTier >= 3 ? 2.4 : 2.0),
+        trailLen: (normalizedToTier >= 3 ? 20 : 16) + rng() * (normalizedToTier >= 3 ? 14 : 10),
+        delay: rng() * 0.12,
         isWhite: i % 3 === 0 || rng() > 0.62,
       });
     }
@@ -328,28 +343,28 @@ export class CardMergeVfxController {
   _drawImpactBurst(ctx, ev, p) {
     const { tgtBox, tgtCenter, srcCenter, toTier, accentColor, streaks, sparks } = ev;
     const isApex = toTier >= 3;
-    const cy = tgtCenter.y - 10;
+    const cy = tgtCenter.y - 12;
 
     ctx.save();
     ctx.globalCompositeOperation = 'source-over';
 
-    // 1. Snappy energy transfer streak from source -> target (0.00 -> 0.26)
-    const linkT = segmentProgress(p, 0.0, 0.26);
+    // Stage 1 (Impact): Snappy energy transfer streak from source -> target (0.00 -> 0.18)
+    const linkT = segmentProgress(p, 0.0, 0.18);
     if (linkT > 0 && linkT < 1 && Math.hypot(tgtCenter.x - srcCenter.x, tgtCenter.y - srcCenter.y) > 8) {
       const head = easeOutExpo(linkT);
-      const tail = easeOutCubic(clamp01((linkT - 0.16) * 1.35));
+      const tail = easeOutCubic(clamp01((linkT - 0.14) * 1.35));
       const x1 = srcCenter.x + (tgtCenter.x - srcCenter.x) * tail;
       const y1 = srcCenter.y + (cy - srcCenter.y) * tail;
       const x2 = srcCenter.x + (tgtCenter.x - srcCenter.x) * head;
       const y2 = srcCenter.y + (cy - srcCenter.y) * head;
-      const alpha = Math.sin(linkT * Math.PI) * (isApex ? 0.92 : 0.78);
+      const alpha = Math.sin(linkT * Math.PI) * (isApex ? 0.96 : 0.86);
 
       ctx.save();
       ctx.globalAlpha = alpha;
       ctx.lineCap = 'round';
       // Gold outer contrast stroke
-      ctx.strokeStyle = 'rgba(202, 134, 16, 0.62)';
-      ctx.lineWidth = isApex ? 8 : 6;
+      ctx.strokeStyle = 'rgba(202, 134, 16, 0.72)';
+      ctx.lineWidth = isApex ? 9 : 7;
       ctx.beginPath();
       ctx.moveTo(x1, y1);
       ctx.lineTo(x2, y2);
@@ -357,11 +372,11 @@ export class CardMergeVfxController {
 
       // White-gold core streak
       const lineGrad = ctx.createLinearGradient(x1, y1, x2, y2);
-      lineGrad.addColorStop(0, 'rgba(255, 224, 128, 0.1)');
+      lineGrad.addColorStop(0, 'rgba(255, 224, 128, 0.15)');
       lineGrad.addColorStop(0.55, '#ffe078');
       lineGrad.addColorStop(1, '#ffffff');
       ctx.strokeStyle = lineGrad;
-      ctx.lineWidth = isApex ? 3.5 : 2.6;
+      ctx.lineWidth = isApex ? 4.2 : 3.2;
       ctx.beginPath();
       ctx.moveTo(x1, y1);
       ctx.lineTo(x2, y2);
@@ -369,34 +384,34 @@ export class CardMergeVfxController {
       ctx.restore();
     }
 
-    // 2. Concentrated behind-card radial burst flash (0.00 -> 0.48) + finishing pulse (0.68 -> 0.98)
-    const impactBurst = segmentProgress(p, 0.0, 0.48);
-    const finishPulse = Math.sin(segmentProgress(p, 0.68, 0.98) * Math.PI) * (isApex ? 0.68 : 0.48);
-    const burstCurve = impactBurst > 0 && impactBurst < 1 ? Math.sin(Math.pow(impactBurst, 0.45) * Math.PI) : 0;
-    const haloAlpha = Math.max(burstCurve * (isApex ? 0.94 : 0.78), finishPulse);
+    // Concentrated behind-card radial burst flash (0.00 -> 0.56) + distinct final Reveal glow pulse (0.68 -> 0.98)
+    const impactBurst = segmentProgress(p, 0.0, 0.56);
+    const finishPulse = Math.sin(segmentProgress(p, 0.68, 0.98) * Math.PI) * (isApex ? 0.84 : 0.64);
+    const burstCurve = impactBurst > 0 && impactBurst < 1 ? Math.sin(Math.pow(impactBurst, 0.42) * Math.PI) : 0;
+    const haloAlpha = Math.max(burstCurve * (isApex ? 0.98 : 0.88), finishPulse);
 
     if (haloAlpha > 0.01) {
-      const haloR = Math.max(tgtBox.w, tgtBox.h) * (isApex ? 0.96 : 0.8);
-      const haloGrad = ctx.createRadialGradient(tgtCenter.x, cy, 6, tgtCenter.x, cy, haloR);
-      haloGrad.addColorStop(0, `rgba(255, 254, 245, ${haloAlpha * 0.92})`);
-      haloGrad.addColorStop(0.36, `rgba(255, 214, 86, ${haloAlpha * 0.68})`);
-      haloGrad.addColorStop(0.7, `rgba(216, 152, 24, ${haloAlpha * 0.34})`);
-      haloGrad.addColorStop(1, 'rgba(216, 152, 24, 0)');
+      const haloR = Math.max(tgtBox.w, tgtBox.h) * (isApex ? 1.18 : 0.98);
+      const haloGrad = ctx.createRadialGradient(tgtCenter.x, cy, 8, tgtCenter.x, cy, haloR);
+      haloGrad.addColorStop(0, `rgba(255, 254, 245, ${haloAlpha * 0.96})`);
+      haloGrad.addColorStop(0.38, `rgba(255, 212, 82, ${haloAlpha * 0.78})`);
+      haloGrad.addColorStop(0.72, `rgba(216, 146, 22, ${haloAlpha * 0.42})`);
+      haloGrad.addColorStop(1, 'rgba(216, 146, 22, 0)');
       ctx.fillStyle = haloGrad;
       ctx.beginPath();
       ctx.arc(tgtCenter.x, cy, haloR, 0, TWO_PI);
       ctx.fill();
     }
 
-    // 3. Fast radial light streaks behind the target card (0.02 -> 0.46)
-    const streakEnv = segmentProgress(p, 0.02, 0.46);
+    // Stage 2 (Upgrade): Bold radial light streaks shooting outward around the target card (0.02 -> 0.62)
+    const streakEnv = segmentProgress(p, 0.02, 0.62);
     if (streakEnv > 0 && streakEnv < 1) {
       for (const st of streaks) {
         const stT = clamp01((streakEnv - st.delay) / (1 - st.delay));
         if (stT <= 0 || stT >= 1) continue;
-        const fade = (1 - easeOutCubic(stT)) * Math.min(1, stT * 5) * (isApex ? 0.94 : 0.82);
+        const fade = (1 - easeOutCubic(stT)) * Math.min(1, stT * 4.5) * (isApex ? 0.98 : 0.9);
         const reach = easeOutExpo(stT);
-        const rStart = st.innerR * (0.85 + 0.18 * reach);
+        const rStart = st.innerR * (0.88 + 0.2 * reach);
         const rEnd = st.innerR + (st.outerR - st.innerR) * reach;
         const cos = Math.cos(st.angle);
         const sin = Math.sin(st.angle);
@@ -408,9 +423,9 @@ export class CardMergeVfxController {
         ctx.save();
         ctx.globalAlpha = fade;
         ctx.lineCap = 'round';
-        // Warm amber-gold outline for contrast over ivory dock
-        ctx.strokeStyle = 'rgba(196, 128, 12, 0.55)';
-        ctx.lineWidth = (st.width + 2.2) * (1 - stT * 0.3);
+        // Warm amber-gold contrast stroke over ivory dock
+        ctx.strokeStyle = 'rgba(186, 118, 10, 0.68)';
+        ctx.lineWidth = (st.width + 2.8) * (1 - stT * 0.25);
         ctx.beginPath();
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
@@ -418,10 +433,10 @@ export class CardMergeVfxController {
 
         const grad = ctx.createLinearGradient(x1, y1, x2, y2);
         grad.addColorStop(0, '#ffffff');
-        grad.addColorStop(0.55, isApex ? '#ffd652' : '#ffe388');
+        grad.addColorStop(0.55, isApex ? '#ffd652' : '#ffe48a');
         grad.addColorStop(1, 'rgba(232, 168, 32, 0)');
         ctx.strokeStyle = grad;
-        ctx.lineWidth = st.width * (1 - stT * 0.35);
+        ctx.lineWidth = st.width * (1 - stT * 0.3);
         ctx.beginPath();
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
@@ -430,75 +445,102 @@ export class CardMergeVfxController {
       }
     }
 
-    // 4. Fast expanding thin geometric rings (0.02 -> 0.66)
-    const ring1T = segmentProgress(p, 0.02, 0.54);
+    // Expanding Geometric Energy Rings: 2 for Lv.I->Lv.II, 3 layered rings + diamond vertices for Lv.II->Lv.III
+    const ring1T = segmentProgress(p, 0.03, isApex ? 0.62 : 0.64);
     if (ring1T > 0 && ring1T < 1) {
       const ease1 = easeOutQuart(ring1T);
-      const minR = tgtBox.w * 0.34;
-      const maxR = tgtBox.h * (isApex ? 0.95 : 0.8);
+      const minR = tgtBox.w * 0.42;
+      const maxR = tgtBox.h * (isApex ? 1.16 : 1.08);
       const r1 = minR + (maxR - minR) * ease1;
-      const alpha1 = (1 - easeOutCubic(ring1T)) * (isApex ? 0.96 : 0.86);
+      const alpha1 = (1 - easeOutCubic(ring1T)) * (isApex ? 0.98 : 0.92);
 
       ctx.save();
       ctx.globalAlpha = alpha1;
-      ctx.strokeStyle = 'rgba(194, 126, 14, 0.58)';
-      ctx.lineWidth = (isApex ? 4.4 : 3.4) * (1 - ring1T * 0.4);
+      ctx.strokeStyle = 'rgba(194, 122, 12, 0.72)';
+      ctx.lineWidth = (isApex ? 6.4 : 5.4) * (1 - ring1T * 0.32);
       ctx.beginPath();
       ctx.arc(tgtCenter.x, cy, r1, 0, TWO_PI);
       ctx.stroke();
 
-      ctx.strokeStyle = '#fff9df';
-      ctx.lineWidth = (isApex ? 2.1 : 1.6) * (1 - ring1T * 0.4);
+      ctx.strokeStyle = isApex ? '#ffffff' : '#fffbe6';
+      ctx.lineWidth = (isApex ? 3.2 : 2.6) * (1 - ring1T * 0.32);
       ctx.beginPath();
       ctx.arc(tgtCenter.x, cy, r1, 0, TWO_PI);
       ctx.stroke();
       ctx.restore();
     }
 
-    if (isApex) {
-      // Layered second geometric octagon ring + delayed outer gold shockwave ring for Lv.III
-      const hexT = segmentProgress(p, 0.06, 0.6);
-      if (hexT > 0 && hexT < 1) {
-        const rHex = tgtBox.w * 0.4 + tgtBox.h * 0.66 * easeOutQuart(hexT);
-        ctx.save();
-        ctx.globalAlpha = (1 - easeOutCubic(hexT)) * 0.85;
-        ctx.strokeStyle = '#ffd354';
-        ctx.lineWidth = 1.8 * (1 - hexT * 0.4);
-        drawPolygonRing(ctx, tgtCenter.x, cy, rHex, 8, hexT * 0.55);
-        ctx.stroke();
-        ctx.restore();
-      }
+    // Second geometric 8-sided rotating energy ring for both Lv.II and Lv.III
+    const octT = segmentProgress(p, isApex ? 0.12 : 0.15, isApex ? 0.82 : 0.82);
+    if (octT > 0 && octT < 1) {
+      const octMinR = tgtBox.w * (isApex ? 0.38 : 0.36);
+      const octMaxR = tgtBox.h * (isApex ? 1.06 : 0.94);
+      const rOct = octMinR + (octMaxR - octMinR) * easeOutQuart(octT);
+      const octAlpha = (1 - easeOutCubic(octT)) * (isApex ? 0.94 : 0.86);
+      const octRot = octT * (isApex ? 0.68 : 0.52);
 
-      const ring2T = segmentProgress(p, 0.1, 0.66);
-      if (ring2T > 0 && ring2T < 1) {
-        const ease2 = easeOutCubic(ring2T);
-        const r2 = tgtBox.w * 0.44 + tgtBox.h * 0.82 * ease2;
+      ctx.save();
+      ctx.globalAlpha = octAlpha;
+      ctx.strokeStyle = 'rgba(186, 116, 10, 0.66)';
+      ctx.lineWidth = (isApex ? 4.8 : 4.0) * (1 - octT * 0.35);
+      drawPolygonRing(ctx, tgtCenter.x, cy, rOct, 8, octRot);
+      ctx.stroke();
+
+      ctx.strokeStyle = isApex ? '#ffd652' : '#ffdc6a';
+      ctx.lineWidth = (isApex ? 2.4 : 2.0) * (1 - octT * 0.35);
+      drawPolygonRing(ctx, tgtCenter.x, cy, rOct, 8, octRot);
+      ctx.stroke();
+
+      // Luminous diamond vertices on Lv.III geometric ring
+      if (isApex) {
+        const vertexR = 3.5 * (1 - octT * 0.35);
+        for (let v = 0; v < 8; v += 1) {
+          const va = octRot + (v / 8) * TWO_PI;
+          const vx = tgtCenter.x + Math.cos(va) * rOct;
+          const vy = cy + Math.sin(va) * rOct;
+          ctx.fillStyle = 'rgba(202, 130, 12, 0.75)';
+          drawStarGlint(ctx, vx, vy, vertexR * 1.4, va);
+          ctx.fill();
+          ctx.fillStyle = '#fffef6';
+          drawStarGlint(ctx, vx, vy, vertexR * 0.95, va);
+          ctx.fill();
+        }
+      }
+      ctx.restore();
+    }
+
+    // Third outer golden shockwave ring for Lv.II -> Lv.III
+    if (isApex) {
+      const ring3T = segmentProgress(p, 0.2, 0.84);
+      if (ring3T > 0 && ring3T < 1) {
+        const ease3 = easeOutCubic(ring3T);
+        const r3 = tgtBox.w * 0.46 + (tgtBox.h * 1.28 - tgtBox.w * 0.46) * ease3;
         ctx.save();
-        ctx.globalAlpha = (1 - ring2T) * 0.86;
-        ctx.strokeStyle = 'rgba(186, 120, 12, 0.55)';
-        ctx.lineWidth = 3.2 * (1 - ring2T * 0.45);
+        ctx.globalAlpha = (1 - ring3T) * 0.9;
+        ctx.strokeStyle = 'rgba(184, 114, 10, 0.66)';
+        ctx.lineWidth = 5.0 * (1 - ring3T * 0.38);
         ctx.beginPath();
-        ctx.arc(tgtCenter.x, cy, r2, 0, TWO_PI);
+        ctx.arc(tgtCenter.x, cy, r3, 0, TWO_PI);
         ctx.stroke();
 
         ctx.strokeStyle = accentColor;
-        ctx.lineWidth = 1.6 * (1 - ring2T * 0.45);
+        ctx.lineWidth = 2.4 * (1 - ring3T * 0.38);
         ctx.beginPath();
-        ctx.arc(tgtCenter.x, cy, r2, 0, TWO_PI);
+        ctx.arc(tgtCenter.x, cy, r3, 0, TWO_PI);
         ctx.stroke();
         ctx.restore();
       }
     }
 
-    // 5. Crisp shooting spark particles with short directional trails (0.00 -> 0.84)
-    const sparkEnv = segmentProgress(p, 0.0, 0.84);
+    // Large, bright gold & white particle sparks with directional velocity trails & 4-point diamond heads (0.02 -> 0.88)
+    const sparkEnv = segmentProgress(p, 0.02, 0.88);
     if (sparkEnv > 0 && sparkEnv < 1) {
       for (const sp of sparks) {
         const st = clamp01((sparkEnv - sp.delay) / (1 - sp.delay));
         if (st <= 0 || st >= 1) continue;
         const eased = easeOutQuart(st);
         const dist = sp.startDist + sp.travel * eased;
-        const tailDist = Math.max(sp.startDist, dist - sp.trailLen * (1 - st * 0.65));
+        const tailDist = Math.max(sp.startDist, dist - sp.trailLen * (1 - st * 0.55));
         const cos = Math.cos(sp.angle);
         const sin = Math.sin(sp.angle);
         const liftY = sp.lift * st;
@@ -507,29 +549,33 @@ export class CardMergeVfxController {
         const hy = cy + sin * dist - liftY;
         const tx = tgtCenter.x + cos * tailDist;
         const ty = cy + sin * tailDist - liftY * 0.72;
-        const alpha = Math.min(1, st * 6) * (1 - easeOutCubic(st)) * (isApex ? 0.96 : 0.86);
+        const alpha = Math.min(1, st * 5.2) * (1 - easeOutCubic(st)) * (isApex ? 0.98 : 0.92);
         const coreColor = sp.isWhite ? '#ffffff' : accentColor;
 
         ctx.save();
         ctx.globalAlpha = alpha;
         ctx.lineCap = 'round';
-        ctx.strokeStyle = 'rgba(202, 134, 14, 0.65)';
-        ctx.lineWidth = sp.size * 1.45;
+        ctx.strokeStyle = 'rgba(196, 126, 12, 0.74)';
+        ctx.lineWidth = sp.size * 1.35;
         ctx.beginPath();
         ctx.moveTo(tx, ty);
         ctx.lineTo(hx, hy);
         ctx.stroke();
 
         ctx.strokeStyle = coreColor;
-        ctx.lineWidth = sp.size * 0.85;
+        ctx.lineWidth = sp.size * 0.75;
         ctx.beginPath();
         ctx.moveTo(tx, ty);
         ctx.lineTo(hx, hy);
         ctx.stroke();
 
+        // Crisp 4-point diamond glint head so every spark reads cleanly at 1280x800
+        ctx.fillStyle = 'rgba(210, 138, 16, 0.78)';
+        drawStarGlint(ctx, hx, hy, sp.size * 1.45, sp.angle);
+        ctx.fill();
+
         ctx.fillStyle = '#fffef9';
-        ctx.beginPath();
-        ctx.arc(hx, hy, sp.size * 0.75, 0, TWO_PI);
+        drawStarGlint(ctx, hx, hy, sp.size * 1.05, sp.angle);
         ctx.fill();
         ctx.restore();
       }

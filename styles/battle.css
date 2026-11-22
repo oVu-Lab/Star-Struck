@@ -632,7 +632,6 @@
 
 /* Left Zone: Command Energy & Deck Telemetry */
 .dock-energy-core,
-.card-slots-grid,
 .dock-commander-module {
   position: relative;
   z-index: 3;
@@ -707,6 +706,7 @@
 
 .tactical-card {
   position: relative;
+  z-index: 3;
   width: var(--card-w);
   height: var(--card-h);
   padding: 2px;
@@ -1070,16 +1070,16 @@
 .tactical-card.is-just-merged,
 .tactical-card.is-just-merged:hover,
 .tactical-card.is-just-merged.is-merge-ready {
-  animation: card-merge-evolve-t2 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  z-index: 9;
+  animation: card-merge-evolve-t2 1080ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  z-index: 10;
 }
 .tactical-card.is-just-merged.is-merge-tier-3,
 .tactical-card.is-just-merged.is-merge-tier-3:hover,
 .tactical-card.is-just-merged.is-merge-tier-3.is-merge-ready {
-  animation: card-merge-evolve-t3 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  z-index: 10;
+  animation: card-merge-evolve-t3 1260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  z-index: 11;
 }
-.tactical-card.is-merge-departed { animation: card-merge-depart 200ms var(--ease-tactical) both; }
+.tactical-card.is-merge-departed { animation: card-merge-depart 320ms var(--ease-tactical) both; }
 .tactical-card.is-invalid-shake { animation: card-invalid-shake 250ms ease-in-out; }
 
 @keyframes card-draw {
@@ -1089,8 +1089,8 @@
 
 @keyframes card-merge-depart {
   0% {
-    box-shadow: 0 0 0 2px rgba(255, 248, 220, 0.92), 0 0 18px rgba(244, 198, 78, 0.65);
-    filter: brightness(1.18);
+    box-shadow: 0 0 0 2.5px rgba(255, 248, 220, 0.96), 0 0 22px rgba(244, 198, 78, 0.78);
+    filter: brightness(1.24);
   }
   100% {
     box-shadow: none;
@@ -1098,41 +1098,52 @@
   }
 }
 
-/* Fast Tactile Card Impact: Quick Lift + Scale + Tilt -> Sharp Overshoot -> Finishing Glow Pulse (Lv.I -> Lv.II, 520ms) */
+/* Balanced Multi-Stage Card Evolution: Impact -> Upgrade Float -> Overshoot Return -> Final Glow Pulse (Lv.I -> Lv.II, 1080ms) */
 @keyframes card-merge-evolve-t2 {
   0% {
     transform: perspective(420px) translateY(0) scale(1) rotateZ(0deg);
     filter: brightness(1);
   }
-  20% {
+  16% {
     transform: perspective(420px) translateY(-24px) scale(1.09) rotateZ(-3.2deg) rotateX(5deg);
-    filter: brightness(1.38);
-    box-shadow:
-      0 22px 32px rgba(20, 14, 6, 0.44),
-      0 0 0 3px #fffef5,
-      0 0 0 5.5px rgba(235, 174, 34, 0.78),
-      0 0 28px rgba(255, 206, 68, 0.96);
-  }
-  44% {
-    transform: perspective(420px) translateY(3px) scale(0.975) rotateZ(1.4deg);
-    filter: brightness(1.12);
-    box-shadow:
-      0 8px 18px rgba(20, 14, 6, 0.3),
-      0 0 0 2px #ffe89e,
-      0 0 18px rgba(238, 180, 44, 0.72);
-  }
-  60% {
-    transform: perspective(420px) translateY(0) scale(1) rotateZ(0deg);
-    filter: brightness(1.04);
-    box-shadow: 0 6px 14px rgba(20, 14, 6, 0.24), 0 0 0 1px rgba(244, 198, 78, 0.45);
-  }
-  78% {
-    transform: perspective(420px) translateY(-2px) scale(1.028);
     filter: brightness(1.16);
     box-shadow:
-      0 10px 20px rgba(20, 14, 6, 0.3),
-      0 0 0 2.5px #fff8dc,
-      0 0 24px rgba(255, 208, 74, 0.88);
+      0 24px 36px rgba(20, 14, 6, 0.48),
+      0 0 0 3px #fffef5,
+      0 0 0 6px rgba(235, 174, 34, 0.88),
+      0 0 34px rgba(255, 206, 68, 0.98);
+  }
+  42% {
+    transform: perspective(420px) translateY(-16px) scale(1.06) rotateZ(1.6deg) rotateX(2deg);
+    filter: brightness(1.08);
+    box-shadow:
+      0 18px 28px rgba(20, 14, 6, 0.36),
+      0 0 0 2.5px #fff7d6,
+      0 0 0 5px rgba(238, 180, 44, 0.72),
+      0 0 26px rgba(255, 208, 72, 0.88);
+  }
+  64% {
+    transform: perspective(420px) translateY(3px) scale(0.98) rotateZ(-0.6deg);
+    filter: brightness(1.03);
+    box-shadow:
+      0 6px 14px rgba(20, 14, 6, 0.24),
+      0 0 0 1.5px rgba(244, 198, 78, 0.52);
+  }
+  74% {
+    transform: perspective(420px) translateY(0) scale(1) rotateZ(0deg);
+    filter: brightness(1.02);
+    box-shadow:
+      0 6px 14px rgba(20, 14, 6, 0.24),
+      0 0 0 1.5px rgba(244, 198, 78, 0.45);
+  }
+  84% {
+    transform: perspective(420px) translateY(-4px) scale(1.035) rotateZ(0deg);
+    filter: brightness(1.14);
+    box-shadow:
+      0 14px 24px rgba(20, 14, 6, 0.34),
+      0 0 0 3px #fffbe8,
+      0 0 0 5.5px rgba(245, 188, 42, 0.76),
+      0 0 30px rgba(255, 212, 74, 0.96);
   }
   100% {
     transform: perspective(420px) translateY(0) scale(1) rotateZ(0deg);
@@ -1140,41 +1151,52 @@
   }
 }
 
-/* Fast Tactile Apex Card Impact: Stronger Lift + Scale + Double Edge Outline -> Sharp Overshoot -> Prominent Pulse (Lv.II -> Lv.III, 620ms) */
+/* Balanced Apex Card Evolution: Stronger Lift + Scale + Double Edge Outline -> Float -> Overshoot -> Prominent Pulse (Lv.II -> Lv.III, 1260ms) */
 @keyframes card-merge-evolve-t3 {
   0% {
     transform: perspective(420px) translateY(0) scale(1) rotateZ(0deg);
     filter: brightness(1);
   }
-  18% {
+  15% {
     transform: perspective(420px) translateY(-30px) scale(1.12) rotateZ(-4deg) rotateX(6deg);
-    filter: brightness(1.52);
+    filter: brightness(1.22);
     box-shadow:
-      0 26px 38px rgba(18, 12, 4, 0.5),
+      0 28px 42px rgba(18, 12, 4, 0.54),
       0 0 0 3.5px #ffffff,
-      0 0 0 7px rgba(244, 180, 28, 0.88),
-      0 0 42px rgba(255, 212, 64, 1);
+      0 0 0 7.5px rgba(244, 180, 28, 0.94),
+      0 0 46px rgba(255, 212, 64, 1);
   }
   42% {
-    transform: perspective(420px) translateY(3px) scale(0.97) rotateZ(1.8deg);
-    filter: brightness(1.2);
+    transform: perspective(420px) translateY(-20px) scale(1.08) rotateZ(2.2deg) rotateX(2.5deg);
+    filter: brightness(1.12);
     box-shadow:
-      0 12px 22px rgba(18, 12, 4, 0.36),
-      0 0 0 2.5px #fff3c0,
-      0 0 26px rgba(248, 194, 54, 0.86);
+      0 20px 32px rgba(18, 12, 4, 0.42),
+      0 0 0 3px #fff8d6,
+      0 0 0 6px rgba(248, 190, 42, 0.84),
+      0 0 34px rgba(255, 212, 72, 0.94);
   }
-  58% {
+  64% {
+    transform: perspective(420px) translateY(3px) scale(0.98) rotateZ(-0.6deg);
+    filter: brightness(1.04);
+    box-shadow:
+      0 8px 16px rgba(18, 12, 4, 0.28),
+      0 0 0 2px rgba(255, 210, 82, 0.62);
+  }
+  74% {
     transform: perspective(420px) translateY(0) scale(1) rotateZ(0deg);
-    filter: brightness(1.06);
-    box-shadow: 0 8px 16px rgba(18, 12, 4, 0.28), 0 0 0 1.5px rgba(255, 210, 82, 0.6);
-  }
-  78% {
-    transform: perspective(420px) translateY(-3px) scale(1.036);
-    filter: brightness(1.24);
+    filter: brightness(1.03);
     box-shadow:
-      0 14px 26px rgba(18, 12, 4, 0.36),
-      0 0 0 3px #fffbe6,
-      0 0 34px rgba(255, 212, 72, 0.96);
+      0 8px 16px rgba(18, 12, 4, 0.28),
+      0 0 0 1.5px rgba(255, 210, 82, 0.55);
+  }
+  84% {
+    transform: perspective(420px) translateY(-5px) scale(1.048) rotateZ(0deg);
+    filter: brightness(1.18);
+    box-shadow:
+      0 16px 30px rgba(18, 12, 4, 0.4),
+      0 0 0 3.5px #ffffff,
+      0 0 0 6.5px rgba(250, 192, 44, 0.86),
+      0 0 38px rgba(255, 216, 76, 1);
   }
   100% {
     transform: perspective(420px) translateY(0) scale(1) rotateZ(0deg);
@@ -1182,7 +1204,7 @@
   }
 }
 
-/* Crisp White-Gold Surface Flash Sweep (100-180ms impact sweep) */
+/* White-Gold Surface Impact Flash + Diagonal Light Sweep Across Card Artwork */
 .tactical-card__flash {
   position: absolute;
   inset: 0;
@@ -1200,66 +1222,70 @@
   background: linear-gradient(
     115deg,
     transparent 34%,
-    rgba(255, 254, 248, 0.96) 48%,
-    rgba(255, 224, 128, 0.72) 56%,
-    transparent 70%
+    rgba(255, 254, 248, 0.86) 47%,
+    rgba(255, 224, 124, 0.56) 55%,
+    transparent 68%
   );
-  transform: translateX(-65%);
+  transform: translateX(-75%);
 }
 
 .tactical-card.is-just-merged .tactical-card__flash {
-  animation: card-flash-opacity-t2 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: card-flash-opacity-t2 760ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .tactical-card.is-just-merged .tactical-card__flash::before {
-  animation: card-flash-sweep 190ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: card-flash-sweep 760ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .tactical-card.is-just-merged.is-merge-tier-3 .tactical-card__flash {
-  animation: card-flash-opacity-t3 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: card-flash-opacity-t3 860ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .tactical-card.is-just-merged.is-merge-tier-3 .tactical-card__flash::before {
   background: linear-gradient(
     115deg,
     transparent 32%,
-    #ffffff 48%,
-    rgba(255, 216, 92, 0.85) 57%,
-    transparent 72%
+    rgba(255, 255, 255, 0.92) 47%,
+    rgba(255, 218, 96, 0.68) 56%,
+    transparent 70%
   );
-  animation: card-flash-sweep 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: card-flash-sweep 860ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @keyframes card-flash-opacity-t2 {
   0% { opacity: 0; background: transparent; }
-  25% { opacity: 1; background: rgba(255, 252, 234, 0.62); }
-  70% { opacity: 0.55; background: rgba(255, 238, 176, 0.16); }
+  12% { opacity: 0.95; background: rgba(255, 252, 236, 0.28); }
+  28% { opacity: 0.82; background: transparent; }
+  78% { opacity: 0.72; background: transparent; }
   100% { opacity: 0; background: transparent; }
 }
 
 @keyframes card-flash-opacity-t3 {
   0% { opacity: 0; background: transparent; }
-  24% { opacity: 1; background: rgba(255, 254, 244, 0.78); }
-  68% { opacity: 0.7; background: rgba(255, 226, 124, 0.25); }
+  12% { opacity: 1; background: rgba(255, 254, 244, 0.36); }
+  28% { opacity: 0.88; background: transparent; }
+  80% { opacity: 0.78; background: transparent; }
   100% { opacity: 0; background: transparent; }
 }
 
 @keyframes card-flash-sweep {
-  0% { transform: translateX(-65%); }
-  100% { transform: translateX(72%); }
+  0% { transform: translateX(-75%); }
+  28% { transform: translateX(-48%); }
+  82% { transform: translateX(74%); }
+  100% { transform: translateX(85%); }
 }
 
-/* Bold, High-Contrast LEVEL UP Label Above Target Card (380ms / 440ms) */
+/* Bold, High-Contrast LEVEL UP Label Above Target Card (920ms / 1080ms) */
 .tactical-card__levelup {
   position: absolute;
-  top: -34px;
+  top: -36px;
   left: 50%;
   transform: translateX(-50%) scale(0.75);
-  z-index: 14;
+  z-index: 16;
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 10px;
+  padding: 4px 11px;
   border-radius: 999px;
   font-family: var(--font-display);
   line-height: 1.25;
@@ -1268,8 +1294,8 @@
   background: linear-gradient(180deg, #332512 0%, #1d1409 100%);
   border: 1.5px solid #ffd870;
   box-shadow:
-    0 5px 14px rgba(12, 8, 2, 0.56),
-    0 0 14px rgba(255, 206, 68, 0.8);
+    0 6px 16px rgba(12, 8, 2, 0.58),
+    0 0 18px rgba(255, 206, 68, 0.86);
   opacity: 0;
 }
 
@@ -1278,7 +1304,7 @@
 }
 
 .tactical-card__levelup-main {
-  font-size: 0.66rem;
+  font-size: 0.68rem;
   font-weight: 800;
   letter-spacing: 0.09em;
   color: #fffdf4;
@@ -1289,7 +1315,7 @@
   padding: 1px 6px;
   border-radius: 999px;
   font-family: var(--font-ui);
-  font-size: 0.64rem;
+  font-size: 0.66rem;
   font-weight: 800;
   letter-spacing: 0.04em;
   color: #1f1406;
@@ -1297,17 +1323,18 @@
 }
 
 .tactical-card__levelup.is-visible {
-  animation: card-levelup-pop 410ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: card-levelup-pop 920ms cubic-bezier(0.22, 1, 0.36, 1) 120ms both;
 }
 
 .tactical-card__levelup.is-visible.is-tier-3 {
-  padding: 3px 11px;
+  padding: 4px 12px;
   border-color: #fff6cf;
   background: linear-gradient(180deg, #422e12 0%, #241808 100%);
   box-shadow:
-    0 6px 18px rgba(12, 8, 2, 0.64),
-    0 0 22px rgba(255, 212, 72, 0.96);
-  animation-duration: 460ms;
+    0 7px 20px rgba(12, 8, 2, 0.66),
+    0 0 26px rgba(255, 212, 72, 0.98);
+  animation-duration: 1080ms;
+  animation-delay: 120ms;
 }
 
 .tactical-card__levelup.is-visible.is-tier-3 .tactical-card__levelup-tier {
@@ -1317,23 +1344,23 @@
 @keyframes card-levelup-pop {
   0% {
     opacity: 0;
-    transform: translate(-50%, 6px) scale(0.72);
+    transform: translate(-50%, 6px) scale(0.74);
   }
   16% {
     opacity: 1;
-    transform: translate(-50%, -6px) scale(1.12);
+    transform: translate(-50%, -8px) scale(1.14);
   }
-  34% {
+  30% {
     opacity: 1;
-    transform: translate(-50%, -8px) scale(1.02);
+    transform: translate(-50%, -10px) scale(1.03);
   }
-  76% {
+  78% {
     opacity: 1;
-    transform: translate(-50%, -10px) scale(1);
+    transform: translate(-50%, -12px) scale(1);
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, -16px) scale(0.94);
+    transform: translate(-50%, -18px) scale(0.95);
   }
 }
 
@@ -1389,11 +1416,11 @@
 }
 
 .tactical-card__tier.is-tier-evolving {
-  animation: tier-badge-evolve-in 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: tier-badge-evolve-in 680ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .tactical-card.is-merge-tier-3 .tactical-card__tier.is-tier-evolving {
-  animation-duration: 480ms;
+  animation-duration: 780ms;
 }
 
 .tactical-card__tier.is-tier-evolving::before {
@@ -1403,11 +1430,11 @@
   color: var(--text-secondary);
   white-space: nowrap;
   pointer-events: none;
-  animation: tier-badge-prev-fade 420ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: tier-badge-prev-fade 680ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 .tactical-card.is-merge-tier-3 .tactical-card__tier.is-tier-evolving::before {
-  animation-duration: 480ms;
+  animation-duration: 780ms;
 }
 
 @keyframes tier-badge-prev-fade {
@@ -2770,10 +2797,10 @@
 
 .merge-vfx-canvas {
   position: absolute;
-  inset: -96px -44px -24px -44px;
-  width: calc(100% + 88px);
-  height: calc(100% + 120px);
-  z-index: 1;
+  inset: -130px -64px -36px -64px;
+  width: calc(100% + 128px);
+  height: calc(100% + 166px);
+  z-index: 6;
   pointer-events: none;
 }
 
@@ -2783,7 +2810,7 @@
   .tactical-card.is-just-merged.is-merge-tier-3,
   .tactical-card.is-just-merged.is-merge-tier-3:hover,
   .tactical-card.is-merge-departed {
-    animation-duration: 280ms;
+    animation-duration: 320ms;
   }
   .tactical-card__flash,
   .tactical-card__flash::before,

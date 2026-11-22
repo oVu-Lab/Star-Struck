@@ -802,11 +802,11 @@ export class BattleScreen {
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     if (sourceNode?.root && sourceIndex !== targetIndex) {
-      const departMs = reducedMotion ? 160 : 200;
+      const departMs = reducedMotion ? 180 : 320;
       this._triggerSlotAnimation(sourceIndex, 'is-merge-departed', departMs);
     }
 
-    const targetDurMs = reducedMotion ? 240 : toTier >= 3 ? 620 : 520;
+    const targetDurMs = reducedMotion ? 320 : toTier >= 3 ? 1260 : 1080;
     this._triggerSlotAnimation(
       targetIndex,
       'is-just-merged',

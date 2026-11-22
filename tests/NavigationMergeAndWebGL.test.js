@@ -559,9 +559,9 @@ test('Merge VFX: triggers tier II and tier III VFX on valid merges, ignores inva
     assert.equal(h.cardSystem.getSlots()[5].tier, 2, 'Target slot 5 must retain upgraded Lv.II state');
     assert.equal(vfxCtrl.activeCount, 1);
     assert.ok(
-      vfxCtrl.getActiveEvolutions()[0].durationMs >= 450 &&
-        vfxCtrl.getActiveEvolutions()[0].durationMs <= 650,
-      'Lv.II upgrade duration must be within 450-650ms',
+      vfxCtrl.getActiveEvolutions()[0].durationMs >= 1000 &&
+        vfxCtrl.getActiveEvolutions()[0].durationMs <= 1300,
+      'Lv.II upgrade duration must be within 1000-1300ms',
     );
     assert.deepEqual(
       {
@@ -601,8 +601,8 @@ test('Merge VFX: triggers tier II and tier III VFX on valid merges, ignores inva
     assert.equal(evList[2].sourceIndex, 4);
     assert.equal(evList[2].targetIndex, 5);
     assert.ok(
-      evList[2].durationMs >= 450 && evList[2].durationMs <= 650,
-      'Lv.III upgrade duration must finish within 450-650ms',
+      evList[2].durationMs >= 1000 && evList[2].durationMs <= 1300,
+      'Lv.III upgrade duration must finish within 1000-1300ms',
     );
     assert.ok(evList[2].durationMs > evList[0].durationMs, 'Lv.III upgrade must have richer duration than Lv.II');
 
