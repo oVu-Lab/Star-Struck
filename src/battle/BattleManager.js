@@ -11,6 +11,7 @@ import { Battlefield } from './Battlefield.js';
 import { Pathfinder } from './Pathfinder.js';
 import { UNIT_STATES } from './UnitManager.js';
 import { CARD_CATEGORIES } from '../systems/CardSystem.js';
+import { getNonUnitCardVfxProfile, isNonUnitCard } from '../rendering/NonUnitCardVfxConfig.js';
 
 export const BATTLE_PHASES = Object.freeze({
   PREPARATION: 'preparation',
@@ -142,6 +143,90 @@ export class BattleManager {
     } else {
       this._particles.spawnBurst(p.x, p.y - 10, color, count);
     }
+  }
+
+  _spawnNonUnitCardVfx(
+    card,
+    { x = 50, y = 50, radius = 24, targets = null, particleMode = 'burst', extraBurstTargets = null } = {},
+  ) {
+    const profile = getNonUnitCardVfxProfile(card);
+    if (!profile) return { x, y };
+
+    const tier = Math.max(1, Math.min(3, Number(card?.tier) || 1));
+    const pal = profile.palette;
+    const bfCfg = profile.battlefield || {};
+    const targetCoords = Array.isArray(targets)
+      ? targets
+          .filter((t) => t && typeof t.x === 'number' && typeof t.y === 'number')
+          .slice(0, 10)
+          .map((t) => ({ x: t.x, y: t.y }))
+      : null;
+
+    this._anim?.spawnWorldEffect({
+      kind: profile.worldFxKind,
+      x,
+      y,
+      radius,
+      color: pal.primary,
+      secondaryColor: pal.secondary,
+      duration: profile.duration * (1 + (tier - 1) * 0.08),
+      cardId: card?.cardId || profile.cardId,
+      tier,
+      targets: targetCoords,
+    });
+
+    if (this._renderer && this._particles && this.battlefield) {
+      const { width, height } = this._renderer.getDimensions();
+      const p = this.battlefield.worldToScreen(x, y, width, height, 3);
+      const baseCount = Math.round((bfCfg.particleCount || 16) * (1 + (tier - 1) * 0.22));
+      if (typeof this._particles.spawnThemed === 'function') {
+        this._particles.spawnThemed(p.x, p.y - 10, {
+          color: pal.primary,
+          secondaryColor: pal.secondary,
+          coreColor: pal.core,
+          count: baseCount,
+          mode: particleMode,
+          shape: bfCfg.particleShape || 'spark',
+          secondaryShape: bfCfg.secondaryParticleShape || 'star',
+          speedScale: 1 + (tier - 1) * 0.14,
+          spreadX: particleMode === 'rising' ? 38 : 22,
+          spreadY: particleMode === 'rising' ? 16 : 12,
+        });
+        if (Array.isArray(extraBurstTargets) && extraBurstTargets.length > 0) {
+          for (let i = 0; i < Math.min(extraBurstTargets.length, 6); i += 1) {
+            const et = extraBurstTargets[i];
+            if (!et || typeof et.x !== 'number' || typeof et.y !== 'number') continue;
+            const ep = this.battlefield.worldToScreen(et.x, et.y, width, height, 3);
+            this._particles.spawnThemed(ep.x, ep.y - 10, {
+              color: pal.primary,
+              secondaryColor: pal.spark || pal.secondary,
+              coreColor: pal.core,
+              count: 5 + tier,
+              mode: particleMode,
+              shape: bfCfg.particleShape || 'spark',
+              secondaryShape: bfCfg.secondaryParticleShape || 'star',
+              speedScale: 0.85,
+              spreadX: 12,
+              spreadY: 8,
+            });
+          }
+        }
+      } else {
+        this._spawnWorldParticles(x, y, pal.primary, baseCount, particleMode === 'rising' ? 'rising' : 'burst');
+      }
+    }
+
+    if (bfCfg.shakeIntensity > 0) {
+      this._anim?.triggerScreenShake(
+        bfCfg.shakeIntensity * (1 + (tier - 1) * 0.14),
+        bfCfg.shakeDuration || 0.24,
+      );
+    }
+    if (bfCfg.flashAlpha > 0) {
+      this._anim?.triggerScreenFlash(pal.primary, 0.24, Math.min(0.22, bfCfg.flashAlpha * (1 + (tier - 1) * 0.12)));
+    }
+
+    return { x, y };
   }
 
   _isCombatVisualActive() {
@@ -993,6 +1078,16 @@ export class BattleManager {
     const card = result.card;
     const outcome = this._executeCardEffect(card, targetWorld);
 
+    if (isNonUnitCard(card)) {
+      this._eventBus?.emit('cards:nonUnitPlayed', {
+        slotIndex,
+        card,
+        outcome,
+        targetWorld,
+        vfxAnchor: outcome?.vfxAnchor || null,
+      });
+    }
+
     this._syncCountersToState();
     return { ok: true, card, outcome };
   }
@@ -1078,10 +1173,12 @@ export class BattleManager {
         const damage = eff.damageByTier?.[tierKey] ?? 140;
         const stunSec = eff.stunSecByTier?.[tierKey] ?? 0;
         let hitCount = 0;
+        const hitPositions = [];
 
         let statusTagged = false;
         for (const enemy of enemies) {
           if (Math.hypot(enemy.x - center.x, enemy.y - center.y) <= radius) {
+            hitPositions.push({ x: enemy.x, y: enemy.y });
             const res = this._combat.applyDamage({
               source: null,
               target: enemy,
@@ -1131,17 +1228,15 @@ export class BattleManager {
           }
         }
 
-        this._anim?.spawnWorldEffect({
-          kind: 'ring',
+        const vfxAnchor = this._spawnNonUnitCardVfx(card, {
           x: center.x,
           y: center.y,
           radius,
-          color: eff.color || '#38bdf8',
-          duration: 0.7,
+          targets: hitPositions.length > 0 ? hitPositions : [center],
+          particleMode: eff.kind === 'crowd_control' ? 'inward' : 'burst',
+          extraBurstTargets: hitPositions.slice(0, 4),
         });
-        this._spawnWorldParticles(center.x, center.y, eff.color || '#38bdf8', 12, 'burst');
-        this._anim?.triggerScreenShake(5, 0.28);
-        return { kind: eff.kind, center, radius, hitCount };
+        return { kind: eff.kind, center, radius, hitCount, vfxAnchor };
       }
 
       if (eff.kind === 'single_nuke') {
@@ -1179,19 +1274,24 @@ export class BattleManager {
               kind: 'status',
             });
           }
-          this._anim?.spawnWorldEffect({
-            kind: 'lance',
+          const vfxAnchor = this._spawnNonUnitCardVfx(card, {
             x: target.x,
             y: target.y,
-            radius: 12,
-            color: eff.color || '#f97316',
-            duration: 0.65,
+            radius: 13,
+            targets: [{ x: target.x, y: target.y }],
+            particleMode: 'burst',
           });
-          this._spawnWorldParticles(target.x, target.y, eff.color || '#f97316', 12, 'burst');
-          this._anim?.triggerScreenShake(6, 0.28);
-          return { kind: 'single_nuke', targetUid: target.uid, damage: res.amount };
+          return { kind: 'single_nuke', targetUid: target.uid, damage: res.amount, vfxAnchor };
         }
-        return { kind: 'single_nuke', targetUid: null, damage: 0 };
+        const fallbackAnchor = targetWorld || { x: 68, y: 50 };
+        const vfxAnchor = this._spawnNonUnitCardVfx(card, {
+          x: fallbackAnchor.x,
+          y: fallbackAnchor.y,
+          radius: 13,
+          targets: [fallbackAnchor],
+          particleMode: 'burst',
+        });
+        return { kind: 'single_nuke', targetUid: null, damage: 0, vfxAnchor };
       }
 
       if (eff.kind === 'aoe_debuff') {
@@ -1204,9 +1304,11 @@ export class BattleManager {
         const durationSec = eff.durationSecByTier?.[tierKey] ?? 5.5;
         let hitCount = 0;
         let debuffTagged = false;
+        const hitPositions = [];
 
         for (const enemy of enemies) {
           if (Math.hypot(enemy.x - center.x, enemy.y - center.y) <= radius) {
+            hitPositions.push({ x: enemy.x, y: enemy.y });
             const res = this._combat.applyDamage({
               source: null,
               target: enemy,
@@ -1247,16 +1349,14 @@ export class BattleManager {
             }
           }
         }
-        this._anim?.spawnWorldEffect({
-          kind: 'ring',
+        const vfxAnchor = this._spawnNonUnitCardVfx(card, {
           x: center.x,
           y: center.y,
           radius,
-          color: eff.color || '#818cf8',
-          duration: 0.75,
+          targets: hitPositions.length > 0 ? hitPositions : [center],
+          particleMode: 'inward',
         });
-        this._spawnWorldParticles(center.x, center.y, eff.color || '#818cf8', 10, 'burst');
-        return { kind: 'aoe_debuff', center, radius, hitCount };
+        return { kind: 'aoe_debuff', center, radius, hitCount, vfxAnchor };
       }
 
       if (eff.kind === 'chain_damage') {
@@ -1271,7 +1371,9 @@ export class BattleManager {
         });
         const targets = sorted.slice(0, maxTargets);
         let hitCount = 0;
+        const chainPositions = [];
         for (const enemy of targets) {
+          chainPositions.push({ x: enemy.x, y: enemy.y });
           const res = this._combat.applyDamage({
             source: null,
             target: enemy,
@@ -1290,28 +1392,17 @@ export class BattleManager {
               durationSec: eff.durationSec || 4.5,
             });
           }
-          this._anim?.spawnWorldEffect({
-            kind: 'ring',
-            x: enemy.x,
-            y: enemy.y,
-            radius: 7,
-            color: eff.color || '#22d3ee',
-            duration: 0.5,
-          });
-          this._spawnWorldParticles(enemy.x, enemy.y, eff.color || '#22d3ee', 6, 'burst');
         }
-        for (let i = 0; i < targets.length - 1; i += 1) {
-          this._anim?.spawnWorldEffect({
-            kind: 'lightning',
-            x: targets[i].x,
-            y: targets[i].y,
-            x2: targets[i + 1].x,
-            y2: targets[i + 1].y,
-            color: eff.color || '#22d3ee',
-            duration: 0.42,
-          });
-        }
-        return { kind: 'chain_damage', hitCount };
+        const primaryPos = chainPositions[0] || targetWorld || { x: 66, y: 50 };
+        const vfxAnchor = this._spawnNonUnitCardVfx(card, {
+          x: primaryPos.x,
+          y: primaryPos.y,
+          radius: 14,
+          targets: chainPositions.length > 0 ? chainPositions : [primaryPos],
+          particleMode: 'burst',
+          extraBurstTargets: chainPositions.slice(1, 5),
+        });
+        return { kind: 'chain_damage', hitCount, vfxAnchor };
       }
 
       if (eff.kind === 'group_heal') {
@@ -1336,15 +1427,22 @@ export class BattleManager {
             });
           }
         }
-        this._anim?.spawnWorldEffect({
-          kind: 'heal_wave',
-          x: 38,
-          y: 50,
+        const allyCoords = allies.map((a) => ({ x: a.x, y: a.y }));
+        const centerX = allyCoords.length > 0
+          ? allyCoords.reduce((sum, pt) => sum + pt.x, 0) / allyCoords.length
+          : 38;
+        const centerY = allyCoords.length > 0
+          ? allyCoords.reduce((sum, pt) => sum + pt.y, 0) / allyCoords.length
+          : 50;
+        const vfxAnchor = this._spawnNonUnitCardVfx(card, {
+          x: centerX,
+          y: centerY,
           radius: 38,
-          color: eff.color || '#34d399',
-          duration: 0.75,
+          targets: allyCoords,
+          particleMode: 'rising',
+          extraBurstTargets: allyCoords.slice(0, 4),
         });
-        return { kind: 'group_heal', healedCount };
+        return { kind: 'group_heal', healedCount, vfxAnchor };
       }
     }
 
@@ -1354,6 +1452,8 @@ export class BattleManager {
       const durationSec = eff.durationSecByTier?.[tierKey] ?? 7;
       const allies = this._units.getBySide('ally');
       let markedTargetUid = null;
+      let focusTarget = null;
+      let suppressedEnemies = null;
 
       if (eff.tacticMode === 'full_assault') {
         const atkBonus = eff.attackBonusByTier?.[tierKey] ?? 0.25;
@@ -1380,6 +1480,7 @@ export class BattleManager {
           [...enemies].sort((a, b) => b.attack - a.attack)[0] ||
           null;
         if (primary) {
+          focusTarget = { x: primary.x, y: primary.y };
           markedTargetUid = primary.uid;
           const defRed = eff.defenseReductionByTier?.[tierKey] ?? 0.22;
           this._units.applyStatusEffect(primary, {
@@ -1393,14 +1494,6 @@ export class BattleManager {
             type: 'debuff_defense',
             value: defRed,
             durationSec,
-          });
-          this._anim?.spawnWorldEffect({
-            kind: 'ring',
-            x: primary.x,
-            y: primary.y,
-            radius: 10,
-            color: '#f87171',
-            duration: 0.65,
           });
         }
         const atkBonus = eff.attackBonusByTier?.[tierKey] ?? 0.15;
@@ -1475,6 +1568,7 @@ export class BattleManager {
           });
         }
         const enemies = this._units.getBySide('enemy');
+        suppressedEnemies = enemies.map((e) => ({ x: e.x, y: e.y }));
         for (const enemy of enemies) {
           this._units.applyStatusEffect(enemy, {
             id: 'tactic_suppress_slow',
@@ -1493,31 +1587,43 @@ export class BattleManager {
         markedTargetUid,
         color: eff.color || '#f59e0b',
       };
-      this._anim?.spawnWorldEffect({
-        kind: 'tactic_pulse',
-        x: 34,
-        y: 50,
+
+      const allyCoords = allies.map((a) => ({ x: a.x, y: a.y }));
+      const isFocus = eff.tacticMode === 'focus_fire';
+      const isVolley = eff.tacticMode === 'suppressive_volley';
+      const isSurge =
+        eff.tacticMode === 'full_assault' ||
+        eff.tacticMode === 'flank_maneuver' ||
+        eff.tacticMode === 'siege_formation';
+      const fxX = isFocus ? (focusTarget?.x ?? 68) : isVolley ? 66 : 34;
+      const fxY = isFocus ? (focusTarget?.y ?? 50) : 50;
+
+      const vfxAnchor = this._spawnNonUnitCardVfx(card, {
+        x: fxX,
+        y: fxY,
         radius: 36,
-        color: eff.color || '#f59e0b',
-        duration: 0.72,
+        targets: isVolley ? suppressedEnemies || [] : allyCoords,
+        particleMode: isFocus ? 'burst' : isSurge ? 'surge' : 'rising',
+        extraBurstTargets: isFocus && focusTarget ? [focusTarget] : allyCoords.slice(0, 4),
       });
+
       this._anim?.spawnFloatingText({
-        x: 34,
-        y: 44,
+        x: isFocus && focusTarget ? focusTarget.x : 34,
+        y: isFocus && focusTarget ? focusTarget.y - 4 : 44,
         text: card.name.toUpperCase(),
         color: eff.color || '#fbbf24',
         isCrit: true,
         kind: 'tactic',
       });
-      this._spawnWorldParticles(34, 50, eff.color || '#f59e0b', 10, 'rising');
       this._state.setBattle({ activeTactic: { ...this._activeTactic } });
-      return { kind: 'tactic', tactic: this._activeTactic };
+      return { kind: 'tactic', tactic: this._activeTactic, vfxAnchor };
     }
 
     // 4. SUPPORT CARD — Persistent/timed buffs, shields, healing enhancement, cleanse, haste, energy/ultimate recovery
     if (card.category === CARD_CATEGORIES.SUPPORT) {
       this._audio?.playHeal();
       const allies = this._units.getBySide('ally');
+      const allyCoords = allies.map((a) => ({ x: a.x, y: a.y }));
       const durationSec = eff.durationSecByTier?.[tierKey] ?? 9;
       const anchor = allies[0] ? { x: allies[0].x, y: allies[0].y } : { x: 32, y: 50 };
 
@@ -1538,13 +1644,13 @@ export class BattleManager {
             durationSec,
           });
         }
-        this._anim?.spawnWorldEffect({
-          kind: 'heal_wave',
+        const vfxAnchor = this._spawnNonUnitCardVfx(card, {
           x: anchor.x,
           y: anchor.y,
           radius: 34,
-          color: eff.color || '#38bdf8',
-          duration: 0.65,
+          targets: allyCoords,
+          particleMode: 'rising',
+          extraBurstTargets: allyCoords.slice(0, 4),
         });
         this._anim?.spawnFloatingText({
           x: anchor.x,
@@ -1554,8 +1660,7 @@ export class BattleManager {
           isCrit: true,
           kind: 'buff',
         });
-        this._spawnWorldParticles(anchor.x, anchor.y, '#38bdf8', 10, 'rising');
-        return { kind: 'support_buff', affected: allies.length };
+        return { kind: 'support_buff', affected: allies.length, vfxAnchor };
       }
 
       if (eff.kind === 'energy_and_buff') {
@@ -1574,13 +1679,13 @@ export class BattleManager {
             durationSec,
           });
         }
-        this._anim?.spawnWorldEffect({
-          kind: 'tactic_pulse',
+        const vfxAnchor = this._spawnNonUnitCardVfx(card, {
           x: anchor.x,
           y: anchor.y,
           radius: 32,
-          color: eff.color || '#38bdf8',
-          duration: 0.6,
+          targets: allyCoords,
+          particleMode: 'rising',
+          extraBurstTargets: allyCoords.slice(0, 4),
         });
         this._anim?.spawnFloatingText({
           x: anchor.x,
@@ -1590,8 +1695,7 @@ export class BattleManager {
           isCrit: true,
           kind: 'buff',
         });
-        this._spawnWorldParticles(anchor.x, anchor.y, '#38bdf8', 10, 'rising');
-        return { kind: 'energy_and_buff', energyGained: gain, affected: allies.length };
+        return { kind: 'energy_and_buff', energyGained: gain, affected: allies.length, vfxAnchor };
       }
 
       if (eff.kind === 'heal_enhancement') {
@@ -1611,13 +1715,13 @@ export class BattleManager {
             skillSystem: this._skills,
           });
         }
-        this._anim?.spawnWorldEffect({
-          kind: 'heal_wave',
+        const vfxAnchor = this._spawnNonUnitCardVfx(card, {
           x: anchor.x,
           y: anchor.y,
           radius: 36,
-          color: eff.color || '#34d399',
-          duration: 0.7,
+          targets: allyCoords,
+          particleMode: 'rising',
+          extraBurstTargets: allyCoords.slice(0, 4),
         });
         this._anim?.spawnFloatingText({
           x: anchor.x,
@@ -1627,8 +1731,7 @@ export class BattleManager {
           isCrit: true,
           kind: 'heal',
         });
-        this._spawnWorldParticles(anchor.x, anchor.y, '#34d399', 10, 'rising');
-        return { kind: 'heal_enhancement', affected: allies.length };
+        return { kind: 'heal_enhancement', affected: allies.length, vfxAnchor };
       }
 
       if (eff.kind === 'ultimate_charge') {
@@ -1643,13 +1746,13 @@ export class BattleManager {
             durationSec,
           });
         }
-        this._anim?.spawnWorldEffect({
-          kind: 'tactic_pulse',
+        const vfxAnchor = this._spawnNonUnitCardVfx(card, {
           x: anchor.x,
           y: anchor.y,
           radius: 34,
-          color: eff.color || '#e2b75b',
-          duration: 0.65,
+          targets: allyCoords,
+          particleMode: 'rising',
+          extraBurstTargets: allyCoords.slice(0, 4),
         });
         this._anim?.spawnFloatingText({
           x: anchor.x,
@@ -1659,8 +1762,7 @@ export class BattleManager {
           isCrit: true,
           kind: 'buff',
         });
-        this._spawnWorldParticles(anchor.x, anchor.y, '#fbbf24', 12, 'rising');
-        return { kind: 'ultimate_charge', ultimateGained: ultGain, affected: allies.length };
+        return { kind: 'ultimate_charge', ultimateGained: ultGain, affected: allies.length, vfxAnchor };
       }
 
       if (eff.kind === 'cleanse_and_ward') {
@@ -1682,13 +1784,13 @@ export class BattleManager {
             durationSec,
           });
         }
-        this._anim?.spawnWorldEffect({
-          kind: 'heal_wave',
+        const vfxAnchor = this._spawnNonUnitCardVfx(card, {
           x: 38,
           y: 50,
           radius: 36,
-          color: eff.color || '#34d399',
-          duration: 0.65,
+          targets: allyCoords,
+          particleMode: 'rising',
+          extraBurstTargets: allyCoords.slice(0, 4),
         });
         this._anim?.spawnFloatingText({
           x: anchor.x,
@@ -1698,8 +1800,7 @@ export class BattleManager {
           isCrit: true,
           kind: 'heal',
         });
-        this._spawnWorldParticles(anchor.x, anchor.y, '#34d399', 10, 'rising');
-        return { kind: 'cleanse_and_ward', affected: allies.length, cleansedTotal };
+        return { kind: 'cleanse_and_ward', affected: allies.length, cleansedTotal, vfxAnchor };
       }
 
       if (eff.kind === 'haste_buff') {
@@ -1719,13 +1820,13 @@ export class BattleManager {
             durationSec,
           });
         }
-        this._anim?.spawnWorldEffect({
-          kind: 'tactic_pulse',
+        const vfxAnchor = this._spawnNonUnitCardVfx(card, {
           x: anchor.x,
           y: anchor.y,
           radius: 34,
-          color: eff.color || '#38bdf8',
-          duration: 0.6,
+          targets: allyCoords,
+          particleMode: 'surge',
+          extraBurstTargets: allyCoords.slice(0, 4),
         });
         this._anim?.spawnFloatingText({
           x: anchor.x,
@@ -1735,8 +1836,7 @@ export class BattleManager {
           isCrit: true,
           kind: 'buff',
         });
-        this._spawnWorldParticles(anchor.x, anchor.y, '#7dd3fc', 10, 'rising');
-        return { kind: 'haste_buff', affected: allies.length };
+        return { kind: 'haste_buff', affected: allies.length, vfxAnchor };
       }
     }
 

@@ -73,6 +73,11 @@ export class AnimationManager {
     color = '#38bdf8',
     secondaryColor = '#ffffff',
     duration = 0.65,
+    cardId = null,
+    tier = 1,
+    targets = null,
+    seed = 0,
+    reducedMotion = false,
   }) {
     if (this._effects.length >= this._maxEffects) {
       const oldest = this._effects.shift();
@@ -82,6 +87,7 @@ export class AnimationManager {
     // Supported kinds:
     // 'ring' | 'starfall' | 'volley' | 'tempest' | 'sanctuary' | 'bastion'
     // 'heal_wave' | 'deploy' | 'death' | 'slash' | 'lightning' | 'boss_entrance' | 'tactic_pulse' | 'lance'
+    // plus all 18 bespoke non-Unit card effect kinds ('fx_*')
     fx.kind = kind;
     fx.x = x;
     fx.y = y;
@@ -91,6 +97,11 @@ export class AnimationManager {
     fx.radius = radius;
     fx.color = color;
     fx.secondaryColor = secondaryColor;
+    fx.cardId = cardId;
+    fx.tier = tier;
+    fx.targets = Array.isArray(targets) ? targets : null;
+    fx.seed = seed || Math.floor(Math.random() * 100000);
+    fx.reducedMotion = Boolean(reducedMotion);
     fx.age = 0;
     fx.duration = duration;
     this._effects.push(fx);

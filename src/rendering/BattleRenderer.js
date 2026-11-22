@@ -11,6 +11,7 @@
 
 import { UNIT_STATES } from '../battle/UnitManager.js';
 import { renderHolographicCardEffects } from './AstraGlitterEffects.js';
+import { drawNonUnitWorldEffect, isNonUnitWorldEffect } from './NonUnitCardVfxRenderer.js';
 
 export const TERRAIN_THEMES = Object.freeze({
   orbital_bastion: {
@@ -1625,6 +1626,10 @@ export class BattleRenderer {
 
     for (let i = 0; i < effects.length; i += 1) {
       const fx = effects[i];
+      if (isNonUnitWorldEffect(fx.kind)) {
+        drawNonUnitWorldEffect(ctx, bf, w, h, fx, layer);
+        continue;
+      }
       const t = Math.min(1, fx.age / Math.max(0.05, fx.duration));
       const alpha = Math.max(0, 1 - t);
       const isSky = skyKinds.has(fx.kind);

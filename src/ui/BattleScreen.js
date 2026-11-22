@@ -9,6 +9,8 @@ import { BATTLE_PHASES } from '../battle/BattleManager.js';
 import { createTutorialStageConfig } from '../battle/TutorialBattleConfig.js';
 import { CardUltimateFxController } from '../rendering/AstraGlitterEffects.js';
 import { CardMergeVfxController } from '../rendering/CardMergeVfxController.js';
+import { NonUnitCardPlayVfx } from '../rendering/NonUnitCardPlayVfx.js';
+import { isNonUnitCard } from '../rendering/NonUnitCardVfxConfig.js';
 import { formatNumber } from '../utils/MathUtils.js';
 
 const COMMANDER_FX_THEMES = {
@@ -57,6 +59,7 @@ export class BattleScreen {
     this._hudCache = {};
     this._ultFxController = null;
     this._mergeVfxController = null;
+    this._cardPlayVfx = null;
     this._slotNodes = [];
     this._slotMeta = [];
     this._pendingMergeSlot = -1;
@@ -294,6 +297,9 @@ export class BattleScreen {
           </aside>
         </div>
 
+        <div id="card-play-ghost-layer" class="card-play-ghost-layer" aria-hidden="true"></div>
+        <canvas id="card-play-vfx-canvas" class="card-play-vfx-canvas" aria-hidden="true"></canvas>
+
         <div id="ultimate-cutin" class="ultimate-cutin ${themeClass}" aria-live="assertive">
           <div class="ultimate-cutin__band">
             <div class="ultimate-cutin__portrait">
@@ -325,6 +331,11 @@ export class BattleScreen {
     this._mergeVfxController = new CardMergeVfxController(
       container.querySelector('#merge-vfx-canvas'),
       container.querySelector('#merge-vfx-fg-canvas'),
+    );
+    this._cardPlayVfx = new NonUnitCardPlayVfx(
+      container.querySelector('#card-play-vfx-canvas'),
+      container.querySelector('#card-play-ghost-layer'),
+      { assetManager },
     );
 
     const avatarEl = container.querySelector('#battle-commander-avatar');
@@ -481,7 +492,10 @@ export class BattleScreen {
       }
     });
 
-    this._resizeHandler = () => battleManager.handleResize();
+    this._resizeHandler = () => {
+      battleManager.handleResize();
+      this._cardPlayVfx?.resize();
+    };
     window.addEventListener('resize', this._resizeHandler);
 
     // Keyboard controls: 1-6 cards, Space/Q Ultimate, P Pause, S Speed, Enter Start, Esc Deselect, Shift+D Debug
@@ -579,6 +593,7 @@ export class BattleScreen {
       eventBus.on('cards:refillTick', () => this._syncRefillIndicators()),
       eventBus.on('cards:refilled', () => this._renderCardSlots()),
       eventBus.on('cards:updated', () => this._renderCardSlots()),
+      eventBus.on('cards:nonUnitPlayed', (payload) => this._playNonUnitCardVfx(payload)),
       eventBus.on('commander:ultimateActivated', ({ commander: cmd, skill, summary }) => {
         this._showCutin(cmd, skill);
         if (summary && (summary.enemiesHit > 0 || summary.alliesHealed > 0)) {
@@ -591,6 +606,7 @@ export class BattleScreen {
         }
       }),
       eventBus.on('battle:completed', (results) => {
+        this._cardPlayVfx?.stop();
         this._scheduleResultsReveal(results);
       }),
     );
@@ -599,6 +615,8 @@ export class BattleScreen {
   unmount() {
     this._clearMergeVfx();
     this._clearUltimateBarFx();
+    this._cardPlayVfx?.stop();
+    this._cardPlayVfx = null;
     this._mergeVfxController?.stop();
     this._mergeVfxController = null;
     this._ctx.tutorialManager?.abortSession?.();
@@ -648,6 +666,7 @@ export class BattleScreen {
       : this._ctx.progressionSystem.getSelectedStage();
     this._hudCache = {};
     this._clearUltimateBarFx();
+    this._cardPlayVfx?.stop();
     this._isInitialHandSync = true;
     const canvas = this._container.querySelector('#battle-canvas');
     const sessionInfo = this._ctx.battleManager.startSession(canvas, {
@@ -873,6 +892,7 @@ export class BattleScreen {
       'is-merge-tier-2',
       'is-merge-tier-3',
       'is-merge-departed',
+      'is-nonunit-dispatched',
     ];
     node.root.classList.remove(...animClasses);
     if (node.tier) {
@@ -910,6 +930,7 @@ export class BattleScreen {
           'is-merge-tier-2',
           'is-merge-tier-3',
           'is-merge-departed',
+          'is-nonunit-dispatched',
         );
         if (node.tier) {
           node.tier.classList?.remove('is-tier-evolving');
@@ -923,7 +944,83 @@ export class BattleScreen {
       }
     }
     this._mergeVfxController?.stop?.();
+    this._cardPlayVfx?.stop?.();
     this._lastMergedInstanceId = null;
+  }
+
+  _playNonUnitCardVfx({ slotIndex, card, vfxAnchor } = {}) {
+    if (!isNonUnitCard(card) || !this._cardPlayVfx || !this._container) return;
+
+    const slotNode = Number.isInteger(slotIndex) ? this._slotNodes[slotIndex] : null;
+    const slotRect =
+      slotNode?.root && typeof slotNode.root.getBoundingClientRect === 'function'
+        ? slotNode.root.getBoundingClientRect()
+        : null;
+
+    const theaterEl = this._container.querySelector?.('.battle-theater') || this._container;
+    const theaterRect =
+      theaterEl && typeof theaterEl.getBoundingClientRect === 'function'
+        ? theaterEl.getBoundingClientRect()
+        : null;
+
+    const energyCoreEl = this._container.querySelector?.('.dock-energy-core');
+    const energyCoreRect =
+      energyCoreEl && typeof energyCoreEl.getBoundingClientRect === 'function'
+        ? energyCoreEl.getBoundingClientRect()
+        : null;
+
+    const cmdBtnEl = this._container.querySelector?.('#btn-trigger-ultimate');
+    const commanderCardRect =
+      cmdBtnEl && typeof cmdBtnEl.getBoundingClientRect === 'function'
+        ? cmdBtnEl.getBoundingClientRect()
+        : null;
+
+    const canvasEl = this._container.querySelector?.('#battle-canvas');
+    const canvasRect =
+      canvasEl && typeof canvasEl.getBoundingClientRect === 'function'
+        ? canvasEl.getBoundingClientRect()
+        : theaterRect;
+
+    const bf = this._ctx.battleManager?.battlefield;
+    const dims = this._ctx.battleManager?._renderer?.getDimensions?.() || {
+      width: canvasRect?.width || 1200,
+      height: canvasRect?.height || 700,
+    };
+
+    let targetScreenPos = null;
+    if (bf && vfxAnchor && typeof vfxAnchor.x === 'number' && typeof vfxAnchor.y === 'number') {
+      const p = bf.worldToScreen(vfxAnchor.x, vfxAnchor.y, dims.width, dims.height, 2);
+      const offsetX =
+        canvasRect && theaterRect && Number.isFinite(canvasRect.left) && Number.isFinite(theaterRect.left)
+          ? canvasRect.left - theaterRect.left
+          : 0;
+      const offsetY =
+        canvasRect && theaterRect && Number.isFinite(canvasRect.top) && Number.isFinite(theaterRect.top)
+          ? canvasRect.top - theaterRect.top
+          : 0;
+      targetScreenPos = { x: p.x + offsetX, y: p.y + offsetY };
+    }
+
+    const reducedMotion = Boolean(
+      typeof window !== 'undefined' &&
+        typeof window.matchMedia === 'function' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    );
+
+    if (slotNode?.root) {
+      this._triggerSlotAnimation(slotIndex, 'is-nonunit-dispatched', reducedMotion ? 160 : 340);
+    }
+
+    this._cardPlayVfx.playNonUnitCard({
+      card,
+      slotIndex,
+      slotRect,
+      theaterRect,
+      targetScreenPos,
+      energyCoreRect,
+      commanderCardRect,
+      reducedMotion,
+    });
   }
 
   _playMergeSuccessVfx({ sourceIndex, targetIndex, upgradedCard } = {}) {
@@ -1895,6 +1992,7 @@ export class BattleScreen {
       this._clearUltimateBarFx();
       this._isInitialHandSync = true;
       this._clearMergeVfx();
+      this._cardPlayVfx?.stop();
       const canvas = this._container.querySelector('#battle-canvas');
       this._ctx.battleManager.startSession(canvas, {
         stageId: results.stageId,
