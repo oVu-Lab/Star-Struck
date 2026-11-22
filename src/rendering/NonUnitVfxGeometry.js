@@ -1239,3 +1239,489 @@ export function drawSteppedLightningBolt(ctx, x1, y1, x2, y2, {
 
   ctx.restore();
 }
+
+// ============================================================================
+// Round 2 Artistic Layer Primitives — Depth, Atmosphere, Starfields & Motes
+// ============================================================================
+
+/**
+ * Fast deterministic 32-bit PRNG for rock-solid frame-to-frame particle & star
+ * motion with zero per-frame flickering.
+ */
+export function createDetRng(seed = 1337) {
+  let s = (Number(seed) >>> 0) || 1337;
+  return () => {
+    s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+    return (s & 0xfffffff) / 0x10000000;
+  };
+}
+
+/**
+ * Draws a localized translucent atmospheric nebula / aura depth veil around a
+ * battlefield focal point. Alpha is intentionally restrained so units stay readable.
+ */
+export function drawNebulaAtmosphere(ctx, cx, cy, rx, ry, {
+  innerColor = '#38bdf8',
+  midColor = '#1e3a8a',
+  outerColor = '#0f172a',
+  accentColor = '#fb923c',
+  alpha = 0.4,
+  rotation = 0,
+  lobes = 3,
+} = {}) {
+  if (alpha <= 0.01 || rx <= 4 || ry <= 2) return;
+  ctx.save();
+  ctx.translate(cx, cy);
+
+  // Deep atmospheric outer shadow/tint envelope (soft contrast bed)
+  ctx.save();
+  ctx.scale(1, ry / Math.max(1, rx));
+  if (typeof ctx.createRadialGradient === 'function') {
+    const bed = ctx.createRadialGradient(0, 0, rx * 0.08, 0, 0, rx * 1.15);
+    bed.addColorStop(0, withAlpha(midColor, alpha * 0.46));
+    bed.addColorStop(0.52, withAlpha(outerColor, alpha * 0.34));
+    bed.addColorStop(1, withAlpha(outerColor, 0));
+    ctx.fillStyle = bed;
+  } else {
+    ctx.fillStyle = withAlpha(outerColor, alpha * 0.28);
+  }
+  ctx.beginPath();
+  ctx.arc(0, 0, rx * 1.15, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // Offset luminous nebula clouds for organic spatial depth
+  const count = Math.max(2, Math.min(5, lobes));
+  for (let i = 0; i < count; i += 1) {
+    const a = rotation + (i * Math.PI * 2) / count + 0.35;
+    const ox = Math.cos(a) * rx * 0.28;
+    const oy = Math.sin(a) * ry * 0.28;
+    const lobeRx = rx * (0.64 + (i % 2) * 0.14);
+    const lobeRy = ry * (0.58 + (i % 2) * 0.14);
+    const col = i % 2 === 0 ? innerColor : accentColor;
+
+    ctx.save();
+    ctx.translate(ox, oy);
+    ctx.scale(1, lobeRy / Math.max(1, lobeRx));
+    if (typeof ctx.createRadialGradient === 'function') {
+      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, lobeRx);
+      g.addColorStop(0, withAlpha(col, alpha * 0.34));
+      g.addColorStop(0.48, withAlpha(midColor, alpha * 0.16));
+      g.addColorStop(1, withAlpha(midColor, 0));
+      ctx.fillStyle = g;
+    } else {
+      ctx.fillStyle = withAlpha(col, alpha * 0.18);
+    }
+    ctx.beginPath();
+    ctx.arc(0, 0, lobeRx, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
+/**
+ * Draws a localized battlefield floor illumination pool so major spells visibly
+ * cast luminous light onto the arena around their focal area.
+ */
+export function drawAmbientGroundLight(ctx, cx, cy, rx, ry, {
+  color = '#38bdf8',
+  secondaryColor = '#f5d37a',
+  coreColor = '#fffdf4',
+  alpha = 0.5,
+} = {}) {
+  if (alpha <= 0.01 || rx <= 2 || ry <= 1) return;
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(1, ry / Math.max(1, rx));
+  if (typeof ctx.createRadialGradient === 'function') {
+    const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+    grad.addColorStop(0, withAlpha(coreColor, alpha * 0.52));
+    grad.addColorStop(0.28, withAlpha(secondaryColor, alpha * 0.34));
+    grad.addColorStop(0.62, withAlpha(color, alpha * 0.18));
+    grad.addColorStop(1, withAlpha(color, 0));
+    ctx.fillStyle = grad;
+  } else {
+    ctx.fillStyle = withAlpha(color, alpha * 0.24);
+  }
+  ctx.beginPath();
+  ctx.arc(0, 0, rx, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+/**
+ * Draws a multi-band translucent spatial energy shockwave ripple with an outer
+ * soft refraction veil, crisp primary energy crest, and specular white-gold rim.
+ */
+export function drawShockwaveRipple(ctx, cx, cy, rx, ry, {
+  width = 5.0,
+  color = '#38bdf8',
+  secondaryColor = '#f5d37a',
+  coreColor = '#fffdf4',
+  alpha = 0.85,
+  rotation = 0,
+} = {}) {
+  if (alpha <= 0.015 || rx <= 3 || ry <= 1.5) return;
+  ctx.save();
+  ctx.lineCap = 'round';
+
+  // Soft outer spatial distortion haze band
+  ctx.strokeStyle = withAlpha(color, alpha * 0.2);
+  ctx.lineWidth = width * 2.5;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, rx * 1.03, ry * 1.03, rotation, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Primary translucent wave band
+  ctx.strokeStyle = withAlpha(color, alpha * 0.62);
+  ctx.lineWidth = width;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, rx, ry, rotation, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Secondary warm chromatic harmonic slightly inset
+  ctx.strokeStyle = withAlpha(secondaryColor, alpha * 0.45);
+  ctx.lineWidth = Math.max(1.0, width * 0.55);
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, rx * 0.94, ry * 0.94, rotation, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Razor specular highlight crest
+  ctx.strokeStyle = withAlpha(coreColor, alpha * 0.92);
+  ctx.lineWidth = Math.max(0.85, width * 0.34);
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, rx * 1.005, ry * 1.005, rotation, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+/**
+ * Multi-depth parallax starfield layer supporting:
+ * - 'converge_disperse': Stars gather gracefully inward during Anticipation/Build-up
+ *   (0..phaseSplit) and disperse outward with trailing starlight during Peak/Dissipation.
+ * - 'ambient_twinkle': Gently drifting background/foreground stars with subtle parallax.
+ */
+export function drawStarfieldLayer(ctx, cx, cy, rx, ry, {
+  count = 44,
+  t = 0.4,
+  phaseSplit = 0.36,
+  seed = 101,
+  colors = ['#7dd3fc', '#f5d37a', '#fed7aa', '#fffdf4'],
+  coreColor = '#fffdf4',
+  alpha = 1,
+  vs = 1,
+  reduced = false,
+  mode = 'converge_disperse',
+} = {}) {
+  if (alpha <= 0.015 || count <= 0) return;
+  const rng = createDetRng(seed);
+  const effectiveCount = reduced ? Math.max(12, Math.round(count * 0.45)) : count;
+  const split = Math.max(0.15, Math.min(0.6, phaseSplit));
+
+  ctx.save();
+  for (let i = 0; i < effectiveCount; i += 1) {
+    const baseAngle = rng() * Math.PI * 2;
+    const baseDist = 0.28 + Math.pow(rng(), 0.72) * 0.98;
+    const depth = 0.35 + rng() * 0.65; // 0.35 = distant dust, 1.0 = foreground bright star
+    const tierKind = rng();
+    const twinkleFreq = 6 + rng() * 10;
+    const twinklePhase = rng() * Math.PI * 2;
+    const col = colors[Math.floor(rng() * colors.length)] || '#7dd3fc';
+    const swirlDir = rng() > 0.5 ? 1 : -1;
+    const dispersalSpeed = 0.75 + rng() * 0.75;
+
+    let dist = baseDist;
+    let angle = baseAngle;
+    let prevDist = baseDist;
+    let prevAngle = baseAngle;
+    let starAlpha = alpha;
+
+    if (mode === 'converge_disperse') {
+      if (t < split) {
+        // Anticipation + Build-up: controlled inward convergence with subtle orbital parallax
+        const p = clamp01(t / split);
+        const pull = reduced ? 0.35 : Math.pow(p, 1.45) * (0.58 + depth * 0.28);
+        const prevP = Math.max(0, p - 0.14);
+        const prevPull = reduced ? 0.3 : Math.pow(prevP, 1.45) * (0.58 + depth * 0.28);
+        dist = Math.max(0.06, baseDist * (1.22 - pull));
+        prevDist = Math.max(0.08, baseDist * (1.22 - prevPull));
+        angle = baseAngle + swirlDir * p * (0.28 + depth * 0.22);
+        prevAngle = baseAngle + swirlDir * prevP * (0.28 + depth * 0.22);
+        starAlpha *= smoothWindow(p, 0.22, 1.0, 1.2) * (0.55 + depth * 0.45);
+      } else {
+        // Peak + Dissipation: explosive radial dispersal with natural deceleration & trailing starlight
+        const p = clamp01((t - split) / Math.max(0.05, 1 - split));
+        const burstEased = reduced ? 0.45 : easeOutQuart(p);
+        const prevEased = reduced ? 0.4 : easeOutQuart(Math.max(0, p - 0.072));
+        const startDist = Math.max(0.06, baseDist * (1.22 - (0.58 + depth * 0.28)));
+        const maxOut = (0.72 + baseDist * 0.85) * dispersalSpeed * (0.7 + depth * 0.42);
+        dist = startDist + burstEased * maxOut;
+        prevDist = startDist + prevEased * maxOut;
+        angle = baseAngle + swirlDir * (0.28 + depth * 0.22 + p * 0.14);
+        prevAngle = baseAngle + swirlDir * (0.28 + depth * 0.22 + Math.max(0, p - 0.072) * 0.14);
+        const fadeOut = Math.pow(1 - p, 1.25);
+        starAlpha *= fadeOut * (0.5 + depth * 0.5);
+      }
+    } else {
+      // Ambient twinkle & gentle parallax drift
+      const drift = reduced ? 0 : t * (0.14 + depth * 0.18);
+      angle = baseAngle + swirlDir * drift;
+      dist = baseDist * (0.94 + drift * 0.12);
+      prevAngle = angle;
+      prevDist = dist;
+      starAlpha *= smoothWindow(t, 0.14, 0.55, 1) * (0.45 + depth * 0.55);
+    }
+
+    const twinkle = 0.65 + 0.35 * Math.sin(t * twinkleFreq + twinklePhase);
+    const finalAlpha = starAlpha * twinkle;
+    if (finalAlpha <= 0.025) continue;
+
+    const sx = cx + Math.cos(angle) * rx * dist;
+    const sy = cy + Math.sin(angle) * ry * dist;
+    const px = cx + Math.cos(prevAngle) * rx * prevDist;
+    const py = cy + Math.sin(prevAngle) * ry * prevDist;
+
+    // Brief starlight motion trail during convergence & dispersal
+    const trailLen = Math.hypot(sx - px, sy - py);
+    if (!reduced && trailLen > 2.2 * vs && depth > 0.48) {
+      ctx.strokeStyle = withAlpha(col, finalAlpha * 0.42);
+      ctx.lineWidth = Math.max(0.7, (0.85 + depth * 0.95) * vs);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.lineTo(sx, sy);
+      ctx.stroke();
+    }
+
+    if (tierKind > 0.78 && depth > 0.62) {
+      // Hero foreground 4-point stellar glint
+      const glintR = (3.4 + depth * 3.8) * vs;
+      drawStarFlare(ctx, sx, sy, glintR, 0.16, col, coreColor, finalAlpha * 0.96, angle * 0.25, 4);
+    } else if (tierKind > 0.42) {
+      // Mid-depth glowing luminous star with micro halo
+      const r = (1.35 + depth * 1.4) * vs;
+      ctx.fillStyle = withAlpha(col, finalAlpha * 0.36);
+      ctx.beginPath();
+      ctx.arc(sx, sy, r * 2.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = withAlpha(coreColor, finalAlpha * 0.96);
+      ctx.beginPath();
+      ctx.arc(sx, sy, r, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // Distant fine pinpoint star / stardust
+      const r = (0.8 + depth * 0.85) * vs;
+      ctx.fillStyle = withAlpha(col, finalAlpha * 0.88);
+      ctx.beginPath();
+      ctx.arc(sx, sy, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+/**
+ * Places fine moving stardust motes & occasional bright 4-point star glints
+ * gliding cleanly along any analytical parametric curve.
+ */
+export function drawLuminousTrailParticles(ctx, sampleFn, {
+  uStart = 0,
+  uEnd = 1,
+  count = 14,
+  t = 0.3,
+  seed = 77,
+  color = '#7dd3fc',
+  secondaryColor = '#f5d37a',
+  coreColor = '#fffdf4',
+  alpha = 0.9,
+  vs = 1,
+  scatter = 4.2,
+  glintEvery = 4,
+} = {}) {
+  if (alpha <= 0.02 || count <= 0 || uEnd <= uStart + 0.01) return;
+  const rng = createDetRng(seed);
+  ctx.save();
+  for (let i = 0; i < count; i += 1) {
+    const baseFrac = rng();
+    const speed = 0.55 + rng() * 0.65;
+    const localU = uStart + ((baseFrac + t * speed * 0.55) % 1) * (uEnd - uStart);
+    const offset = (rng() * 2 - 1) * scatter * vs;
+    const size = (0.9 + rng() * 1.7) * vs;
+    const pt = sampleFn(localU);
+    const len = Math.hypot(pt.tx, pt.ty) || 1;
+    const nx = -pt.ty / len;
+    const ny = pt.tx / len;
+
+    const px = pt.x + nx * offset;
+    const py = pt.y + ny * offset;
+    const edgeEnv = Math.sin(clamp01((localU - uStart) / Math.max(0.01, uEnd - uStart)) * Math.PI);
+    const a = alpha * (0.35 + 0.65 * edgeEnv);
+    if (a <= 0.02) continue;
+
+    if (glintEvery > 0 && i % glintEvery === 0) {
+      drawStarFlare(
+        ctx,
+        px,
+        py,
+        (3.4 + rng() * 2.4) * vs,
+        0.18,
+        i % 2 === 0 ? secondaryColor : color,
+        coreColor,
+        a * 0.95,
+        (t + i) * 0.4,
+        4,
+      );
+    } else {
+      ctx.fillStyle = withAlpha(i % 2 === 0 ? color : secondaryColor, a * 0.4);
+      ctx.beginPath();
+      ctx.arc(px, py, size * 1.9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = withAlpha(coreColor, a * 0.94);
+      ctx.beginPath();
+      ctx.arc(px, py, size, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+/**
+ * Multi-purpose deterministic artistic particles tailored per card identity:
+ * - shape: 'spark' | 'petal' | 'diamond' | 'ember' | 'shard' | 'star'
+ * - motion: 'radial' | 'rise' | 'swirl' | 'converge' | 'forward' | 'fall'
+ */
+export function drawArtisticParticles(ctx, cx, cy, rx, ry, {
+  count = 16,
+  t = 0.4,
+  seed = 42,
+  shape = 'spark',
+  motion = 'radial',
+  color = '#38bdf8',
+  secondaryColor = '#f5d37a',
+  coreColor = '#fffdf4',
+  alpha = 0.85,
+  vs = 1,
+  reduced = false,
+} = {}) {
+  if (alpha <= 0.015 || count <= 0) return;
+  const rng = createDetRng(seed);
+  const n = reduced ? Math.max(6, Math.round(count * 0.45)) : count;
+  ctx.save();
+
+  for (let i = 0; i < n; i += 1) {
+    const a0 = rng() * Math.PI * 2;
+    const r0 = 0.15 + rng() * 0.85;
+    const vel = 0.6 + rng() * 0.85;
+    const sz = (1.6 + rng() * 2.4) * vs;
+    const delay = rng() * 0.22;
+    const lt = clamp01((t - delay) / Math.max(0.25, 1 - delay));
+    if (lt <= 0 || lt >= 1) continue;
+
+    const ease = easeOutCubic(lt);
+    const prevEase = easeOutCubic(Math.max(0, lt - 0.12));
+    let x = cx;
+    let y = cy;
+    let px = cx;
+    let py = cy;
+
+    if (motion === 'radial') {
+      const d = (0.14 + ease * 1.05 * vel) * r0;
+      const pd = (0.14 + prevEase * 1.05 * vel) * r0;
+      x = cx + Math.cos(a0) * rx * d;
+      y = cy + Math.sin(a0) * ry * d;
+      px = cx + Math.cos(a0) * rx * pd;
+      py = cy + Math.sin(a0) * ry * pd;
+    } else if (motion === 'rise') {
+      const spreadX = (rng() * 2 - 1) * rx;
+      const baseY = (rng() * 2 - 1) * ry * 0.42;
+      const sway = Math.sin(lt * 5 + i) * 7 * vs;
+      const prevSway = Math.sin(Math.max(0, lt - 0.1) * 5 + i) * 7 * vs;
+      x = cx + spreadX + sway;
+      y = cy + baseY - ease * ry * (1.25 + vel * 0.7);
+      px = cx + spreadX + prevSway;
+      py = cy + baseY - prevEase * ry * (1.25 + vel * 0.7);
+    } else if (motion === 'swirl') {
+      const ang = a0 - lt * (2.2 + vel * 1.4);
+      const prevAng = a0 - Math.max(0, lt - 0.1) * (2.2 + vel * 1.4);
+      const dist = r0 * (1.05 - ease * 0.65);
+      const pDist = r0 * (1.05 - prevEase * 0.65);
+      x = cx + Math.cos(ang) * rx * dist;
+      y = cy + Math.sin(ang) * ry * dist;
+      px = cx + Math.cos(prevAng) * rx * pDist;
+      py = cy + Math.sin(prevAng) * ry * pDist;
+    } else if (motion === 'converge') {
+      const dist = r0 * (1.2 - ease * 0.96);
+      const pDist = r0 * (1.2 - prevEase * 0.96);
+      x = cx + Math.cos(a0) * rx * dist;
+      y = cy + Math.sin(a0) * ry * dist;
+      px = cx + Math.cos(a0) * rx * pDist;
+      py = cy + Math.sin(a0) * ry * pDist;
+    } else if (motion === 'forward') {
+      const laneY = (rng() * 2 - 1) * ry;
+      const startX = -rx * (0.45 + rng() * 0.5);
+      x = cx + startX + ease * rx * (1.35 + vel * 0.6);
+      y = cy + laneY;
+      px = cx + startX + prevEase * rx * (1.35 + vel * 0.6);
+      py = cy + laneY;
+    } else {
+      // 'fall'
+      const spreadX = (rng() * 2 - 1) * rx;
+      x = cx + spreadX + Math.sin(lt * 4 + i) * 5 * vs;
+      y = cy - ry * 1.1 + ease * ry * (1.5 + vel * 0.5);
+      px = x;
+      py = cy - ry * 1.1 + prevEase * ry * (1.5 + vel * 0.5);
+    }
+
+    const pAlpha = alpha * smoothWindow(lt, 0.12, 0.42, 1);
+    if (pAlpha <= 0.02) continue;
+    const col = i % 2 === 0 ? color : secondaryColor;
+
+    if (shape === 'spark' || shape === 'ember') {
+      // Crisp trailing light filament + bright tip
+      ctx.strokeStyle = withAlpha(col, pAlpha * 0.68);
+      ctx.lineWidth = Math.max(0.9, sz * 0.55);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+
+      ctx.fillStyle = withAlpha(coreColor, pAlpha * 0.96);
+      ctx.beginPath();
+      ctx.arc(x, y, Math.max(0.9, sz * 0.48), 0, Math.PI * 2);
+      ctx.fill();
+    } else if (shape === 'petal') {
+      const rot = Math.atan2(y - py, x - px) + 0.4;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(rot);
+      ctx.beginPath();
+      ctx.moveTo(-sz * 1.3, 0);
+      ctx.quadraticCurveTo(0, -sz * 0.72, sz * 1.3, 0);
+      ctx.quadraticCurveTo(0, sz * 0.72, -sz * 1.3, 0);
+      ctx.closePath();
+      ctx.fillStyle = withAlpha(col, pAlpha * 0.72);
+      ctx.fill();
+      ctx.strokeStyle = withAlpha(coreColor, pAlpha * 0.84);
+      ctx.lineWidth = 0.7;
+      ctx.stroke();
+      ctx.restore();
+    } else if (shape === 'diamond' || shape === 'shard') {
+      drawDiamondPrism(ctx, x, y, sz * 0.72, sz * (shape === 'shard' ? 1.5 : 1.05), a0 * 0.5 + lt, {
+        color: col,
+        secondaryColor,
+        coreColor,
+        alpha: pAlpha * 0.9,
+      });
+    } else {
+      // 'star'
+      drawStarFlare(ctx, x, y, sz * 1.8, 0.18, col, coreColor, pAlpha * 0.94, lt + i, 4);
+    }
+  }
+
+  ctx.restore();
+}
+

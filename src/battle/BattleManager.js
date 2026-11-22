@@ -216,14 +216,43 @@ export class BattleManager {
       }
     }
 
+    const durationScale = 1 + (tier - 1) * 0.08;
+    const reducedMotion =
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
     if (bfCfg.shakeIntensity > 0) {
-      this._anim?.triggerScreenShake(
-        bfCfg.shakeIntensity * (1 + (tier - 1) * 0.14),
-        bfCfg.shakeDuration || 0.24,
-      );
+      const shakeIntensity = bfCfg.shakeIntensity * (1 + (tier - 1) * 0.14);
+      const shakeDuration = bfCfg.shakeDuration || 0.24;
+      const shakeDelay = (bfCfg.shakeDelay || 0) * durationScale;
+      if (typeof this._anim?.scheduleCameraImpulse === 'function') {
+        this._anim.scheduleCameraImpulse({
+          delaySec: shakeDelay,
+          intensity: shakeIntensity,
+          durationSec: shakeDuration,
+          dirX: bfCfg.shakeDirX || 0,
+          dirY: bfCfg.shakeDirY || 0,
+          reducedMotion,
+        });
+      } else {
+        this._anim?.triggerScreenShake(shakeIntensity, shakeDuration);
+      }
     }
     if (bfCfg.flashAlpha > 0) {
-      this._anim?.triggerScreenFlash(pal.primary, 0.24, Math.min(0.22, bfCfg.flashAlpha * (1 + (tier - 1) * 0.12)));
+      const flashAlpha = Math.min(0.22, bfCfg.flashAlpha * (1 + (tier - 1) * 0.12));
+      const flashDuration = bfCfg.flashDuration || 0.24;
+      const flashDelay = (bfCfg.flashDelay || 0) * durationScale;
+      if (typeof this._anim?.scheduleScreenFlash === 'function') {
+        this._anim.scheduleScreenFlash({
+          delaySec: flashDelay,
+          color: bfCfg.flashColor || pal.primary,
+          durationSec: flashDuration,
+          maxAlpha: flashAlpha,
+        });
+      } else {
+        this._anim?.triggerScreenFlash(bfCfg.flashColor || pal.primary, flashDuration, flashAlpha);
+      }
     }
 
     return { x, y };

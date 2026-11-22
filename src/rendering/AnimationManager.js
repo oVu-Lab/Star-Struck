@@ -5,10 +5,23 @@
  * commander ultimate visual effects in world coordinates.
  */
 
+function isReducedMotionActive() {
+  return (
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  );
+}
+
+const MAX_COMBINED_SHAKE = 9.0;
+
 export class AnimationManager {
   constructor({ maxFloatingTexts = 72, maxEffects = 56 } = {}) {
     this._shakeRemaining = 0;
     this._shakeIntensity = 0;
+    this._impulses = [];
+    this._scheduledFlashes = [];
+    this._impulseCounter = 0;
     this._flashRemaining = 0;
     this._flashDuration = 0.25;
     this._flashColor = '#e2b75b';
@@ -23,15 +36,64 @@ export class AnimationManager {
   }
 
   triggerScreenShake(intensity = 6, durationSec = 0.35) {
-    this._shakeIntensity = Math.max(this._shakeIntensity, intensity);
+    if (intensity <= 0 || durationSec <= 0 || isReducedMotionActive()) return;
+    this._shakeIntensity = Math.min(MAX_COMBINED_SHAKE, Math.max(this._shakeIntensity, intensity));
     this._shakeRemaining = Math.max(this._shakeRemaining, durationSec);
+  }
+
+  /**
+   * Schedules a peak-synchronized, damped-harmonic camera impulse.
+   * Respects prefers-reduced-motion and caps combined amplitude under simultaneous casts.
+   */
+  scheduleCameraImpulse({
+    delaySec = 0,
+    intensity = 5,
+    durationSec = 0.26,
+    dirX = 0,
+    dirY = 0,
+    reducedMotion = false,
+  } = {}) {
+    if (reducedMotion || intensity <= 0 || durationSec <= 0 || isReducedMotionActive()) return;
+    if (this._impulses.length >= 10) {
+      this._impulses.shift();
+    }
+    this._impulseCounter += 1;
+    const dirLen = Math.hypot(dirX, dirY);
+    this._impulses.push({
+      delay: Math.max(0, Number(delaySec) || 0),
+      elapsed: 0,
+      duration: Math.max(0.06, Number(durationSec) || 0.24),
+      intensity: Math.min(MAX_COMBINED_SHAKE, Math.max(0, Number(intensity) || 0)),
+      dirX: dirLen > 1e-4 ? dirX / dirLen : 0,
+      dirY: dirLen > 1e-4 ? dirY / dirLen : 0,
+      hasDir: dirLen > 1e-4,
+      seed: this._impulseCounter * 1.6180339,
+    });
   }
 
   triggerScreenFlash(color = '#e2b75b', durationSec = 0.32, maxAlpha = 0.24) {
     this._flashColor = color;
     this._flashDuration = Math.max(0.08, durationSec);
     this._flashRemaining = Math.max(this._flashRemaining, this._flashDuration);
-    this._flashMaxAlpha = Math.min(0.42, Math.max(0.05, maxAlpha));
+    this._flashMaxAlpha = Math.min(0.42, Math.max(0.04, maxAlpha));
+  }
+
+  scheduleScreenFlash({ delaySec = 0, color = '#e2b75b', durationSec = 0.24, maxAlpha = 0.14 } = {}) {
+    if (maxAlpha <= 0.005) return;
+    const delay = Math.max(0, Number(delaySec) || 0);
+    if (delay <= 0.001) {
+      this.triggerScreenFlash(color, durationSec, maxAlpha);
+      return;
+    }
+    if (this._scheduledFlashes.length >= 10) {
+      this._scheduledFlashes.shift();
+    }
+    this._scheduledFlashes.push({
+      delay,
+      color,
+      durationSec: Math.max(0.08, Number(durationSec) || 0.24),
+      maxAlpha: Math.min(0.32, Math.max(0.04, Number(maxAlpha) || 0.12)),
+    });
   }
 
   getScreenFlash() {
@@ -39,7 +101,7 @@ export class AnimationManager {
     const ratio = this._flashRemaining / Math.max(0.05, this._flashDuration);
     return {
       color: this._flashColor,
-      alpha: ratio * this._flashMaxAlpha,
+      alpha: ratio * ratio * this._flashMaxAlpha,
     };
   }
 
@@ -123,6 +185,32 @@ export class AnimationManager {
         this._shakeIntensity = 0;
       }
     }
+
+    for (let i = this._impulses.length - 1; i >= 0; i -= 1) {
+      const imp = this._impulses[i];
+      if (imp.delay > 0) {
+        imp.delay -= dt;
+        if (imp.delay < 0) {
+          imp.elapsed += -imp.delay;
+          imp.delay = 0;
+        }
+      } else {
+        imp.elapsed += dt;
+      }
+      if (imp.delay <= 0 && imp.elapsed >= imp.duration) {
+        this._impulses.splice(i, 1);
+      }
+    }
+
+    for (let i = this._scheduledFlashes.length - 1; i >= 0; i -= 1) {
+      const sf = this._scheduledFlashes[i];
+      sf.delay -= dt;
+      if (sf.delay <= 0) {
+        this.triggerScreenFlash(sf.color, sf.durationSec, sf.maxAlpha);
+        this._scheduledFlashes.splice(i, 1);
+      }
+    }
+
     if (this._flashRemaining > 0) {
       this._flashRemaining = Math.max(0, this._flashRemaining - dt);
     }
@@ -152,26 +240,74 @@ export class AnimationManager {
     return this._elapsed;
   }
 
+  getActiveShakeIntensity() {
+    if (isReducedMotionActive()) return 0;
+    let total = 0;
+    if (this._shakeRemaining > 0 && this._shakeIntensity > 0) {
+      total += this._shakeIntensity * Math.min(1, this._shakeRemaining * 2.5);
+    }
+    for (let i = 0; i < this._impulses.length; i += 1) {
+      const imp = this._impulses[i];
+      if (imp.delay > 0) continue;
+      const p = Math.max(0, Math.min(1, imp.elapsed / imp.duration));
+      const env = Math.pow(1 - p, 1.75) * Math.exp(-2.0 * p);
+      total += imp.intensity * env;
+    }
+    return Math.min(MAX_COMBINED_SHAKE, total);
+  }
+
   getShakeOffset() {
-    if (this._shakeRemaining <= 0 || this._shakeIntensity <= 0) {
+    if (isReducedMotionActive()) {
       return { x: 0, y: 0 };
     }
-    const factor = this._shakeRemaining * 2.5;
-    const amp = this._shakeIntensity * Math.min(1, factor);
-    return {
-      x: (Math.random() * 2 - 1) * amp,
-      y: (Math.random() * 2 - 1) * amp,
-    };
+    let ox = 0;
+    let oy = 0;
+
+    if (this._shakeRemaining > 0 && this._shakeIntensity > 0) {
+      const factor = this._shakeRemaining * 2.5;
+      const amp = this._shakeIntensity * Math.min(1, factor);
+      ox += (Math.random() * 2 - 1) * amp;
+      oy += (Math.random() * 2 - 1) * amp;
+    }
+
+    for (let i = 0; i < this._impulses.length; i += 1) {
+      const imp = this._impulses[i];
+      if (imp.delay > 0) continue;
+      const p = Math.max(0, Math.min(1, imp.elapsed / imp.duration));
+      // Brief strong impact impulse with smooth exponential damped-harmonic decay
+      const env = Math.pow(1 - p, 1.75) * Math.exp(-2.0 * p);
+      const amp = imp.intensity * env;
+      const oscX = Math.cos(p * 26 + imp.seed * 7.1);
+      const oscY = Math.sin(p * 31 + imp.seed * 11.3);
+      if (imp.hasDir) {
+        const kick = Math.exp(-6.5 * p);
+        ox += (imp.dirX * kick * 0.85 + oscX * 0.45) * amp;
+        oy += (imp.dirY * kick * 0.85 + oscY * 0.45) * amp;
+      } else {
+        ox += oscX * amp;
+        oy += oscY * amp * 0.85;
+      }
+    }
+
+    const mag = Math.hypot(ox, oy);
+    if (mag > MAX_COMBINED_SHAKE) {
+      const clampScale = MAX_COMBINED_SHAKE / mag;
+      ox *= clampScale;
+      oy *= clampScale;
+    }
+    return { x: ox, y: oy };
   }
 
   clearScreenShake() {
     this._shakeRemaining = 0;
     this._shakeIntensity = 0;
+    this._impulses.length = 0;
   }
 
   clearScreenEffects() {
     this.clearScreenShake();
     this._flashRemaining = 0;
+    this._scheduledFlashes.length = 0;
   }
 
   reset() {

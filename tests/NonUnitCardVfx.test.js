@@ -642,3 +642,84 @@ test('NonUnitVfxGeometry guarantees exact mirror symmetry for arrows/chevrons an
   assert.ok(spiralGeom.left.every((pt) => Number.isFinite(pt.x) && Number.isFinite(pt.y)));
 });
 
+test('AnimationManager peak-synchronized camera impulses: zero before delay, damped peak impulse, bounded simultaneous casts, and strict reduced-motion safety', () => {
+  const anim = new AnimationManager();
+
+  // 1. Schedule Astral Nova-style delayed impulse (0.44s delay, 6.4 intensity, 0.30s duration)
+  anim.scheduleCameraImpulse({ delaySec: 0.44, intensity: 6.4, durationSec: 0.30 });
+  assert.equal(anim.getActiveShakeIntensity(), 0, 'Shake must remain 0 before peak delay');
+  assert.deepEqual(anim.getShakeOffset(), { x: 0, y: 0 });
+
+  // Advance into Anticipation / Build-up (0.30s < 0.44s) — still zero shake!
+  anim.update(0.30);
+  assert.equal(anim.getActiveShakeIntensity(), 0, 'Shake must remain 0 during Anticipation & Build-up');
+
+  // Advance to Peak Release (0.46s >= 0.44s) — impulse fires!
+  anim.update(0.16);
+  const peakAmp = anim.getActiveShakeIntensity();
+  const peakOff = anim.getShakeOffset();
+  assert.ok(peakAmp > 2.5, `Peak impulse must fire cleanly at release (got ${peakAmp})`);
+  assert.ok(Math.hypot(peakOff.x, peakOff.y) > 0.5, 'Peak camera offset must be non-zero');
+
+  // Advance into Decay (0.62s) — amplitude smoothly decays
+  anim.update(0.16);
+  const decayAmp = anim.getActiveShakeIntensity();
+  assert.ok(decayAmp < peakAmp, `Impulse must decay smoothly (${decayAmp} < ${peakAmp})`);
+
+  // Advance past impulse completion (0.85s) — returns cleanly to 0
+  anim.update(0.25);
+  assert.equal(anim.getActiveShakeIntensity(), 0, 'Impulse must decay back to exact 0');
+  assert.deepEqual(anim.getShakeOffset(), { x: 0, y: 0 });
+
+  // 2. Multiple simultaneous heavy casts stay strictly bounded <= 9.0px
+  for (let i = 0; i < 6; i += 1) {
+    anim.scheduleCameraImpulse({ delaySec: 0, intensity: 7.5, durationSec: 0.3 });
+  }
+  anim.update(0.016);
+  const multiOff = anim.getShakeOffset();
+  assert.ok(
+    Math.hypot(multiOff.x, multiOff.y) <= 9.01,
+    `Simultaneous camera impulses must stay strictly capped <= 9px (got ${Math.hypot(multiOff.x, multiOff.y)})`,
+  );
+
+  // 3. Reduced-motion explicitly suppresses camera impulse
+  anim.clearScreenEffects();
+  anim.scheduleCameraImpulse({ delaySec: 0, intensity: 7, durationSec: 0.3, reducedMotion: true });
+  anim.update(0.05);
+  assert.equal(anim.getActiveShakeIntensity(), 0, 'Reduced-motion impulse must remain 0');
+  assert.deepEqual(anim.getShakeOffset(), { x: 0, y: 0 });
+
+  // 4. Selective shake policy: restorative, defensive, maneuver & all 6 support cards must NOT shake
+  const zeroShakeCards = [
+    'card_skill_sanctuary_wave',
+    'card_tactic_emergency_defense',
+    'card_tactic_flank_maneuver',
+    'card_support_aegis_blessing',
+    'card_support_overclock_core',
+    'card_support_mending_aura',
+    'card_support_starlight_catalyst',
+    'card_support_cleanse_beacon',
+    'card_support_haste_relay',
+  ];
+  for (const id of zeroShakeCards) {
+    const prof = NON_UNIT_CARD_VFX_PROFILES[id];
+    assert.equal(prof.battlefield.shakeIntensity, 0, `${id} must have zero camera shake`);
+  }
+
+  // Impact-justified cards have positive peak-synchronized shakeDelay
+  const syncedShakeCards = [
+    'card_skill_astral_nova',
+    'card_skill_orbital_lance',
+    'card_skill_stasis_pulse',
+    'card_skill_gravity_vortex',
+    'card_skill_chain_lightning',
+    'card_tactic_siege_formation',
+  ];
+  for (const id of syncedShakeCards) {
+    const prof = NON_UNIT_CARD_VFX_PROFILES[id];
+    assert.ok(prof.battlefield.shakeIntensity > 0, `${id} should have controlled impact shake`);
+    assert.ok(prof.battlefield.shakeDelay > 0, `${id} shake must be peak-synchronized (shakeDelay > 0)`);
+  }
+});
+
+
