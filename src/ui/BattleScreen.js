@@ -63,6 +63,9 @@ export class BattleScreen {
     this._isInitialHandSync = true;
     this._slotAnimTimers = new Map();
     this._lastMergedInstanceId = null;
+    this._ultPulseTimer = null;
+    this._ultCompleteTimer = null;
+    this._lastUltPulseMs = 0;
   }
 
   mount(container, params = {}) {
@@ -104,10 +107,19 @@ export class BattleScreen {
 
     const stage = launchingTutorial
       ? createTutorialStageConfig()
-      : progressionSystem.getSelectedStage();
+      : progressionSystem.resolveBattleEntryStage
+        ? progressionSystem.resolveBattleEntryStage({
+            requestedStageId: params?.stageId || null,
+            preserveSelected: params?.preserveSelectedStage ?? null,
+          })
+        : progressionSystem.getSelectedStage();
     const commander = heroSystem.getActiveCommander();
     const themeClass = commander?.id ? `theme-${commander.id}` : 'theme-astra';
     const isMuted = Boolean(gameState.settings?.muted);
+    const isTutorialStage = Boolean(stage?.isTutorial);
+    const stageDisplayLabel = isTutorialStage
+      ? `Tutorial · ${stage.name}`
+      : `Stage ${stage?.code || '1-1'} · ${stage?.name || 'Outer Bastion'}`;
 
     container.innerHTML = `
       <section class="battle-theater" aria-label="Tactical Battlefield">
@@ -115,11 +127,26 @@ export class BattleScreen {
 
         <header class="battle-topbar" aria-label="Battle Status Bar">
           <div class="hud-pill-group hud-pill-group--left">
-            <span id="hud-stage-name" class="hud-stage-name">${
-              stage?.isTutorial
-                ? `Tutorial · ${stage.name}`
-                : `Stage ${stage?.code || '1-1'} · ${stage?.name || 'Outer Bastion'}`
-            }</span>
+            <button
+              type="button"
+              id="hud-stage-name"
+              class="hud-stage-name hud-stage-name--clickable${isTutorialStage ? ' is-tutorial' : ''}"
+              aria-label="${
+                isTutorialStage
+                  ? stageDisplayLabel
+                  : `${stageDisplayLabel} — Select Stage in Main Missions`
+              }"
+              title="${
+                isTutorialStage
+                  ? 'Complete or skip tutorial to select campaign stages'
+                  : 'Select Battle Stage (Main Missions)'
+              }"
+              ${isTutorialStage ? 'disabled' : ''}
+            ><span class="hud-stage-name__text">${stageDisplayLabel}</span>${
+              isTutorialStage
+                ? ''
+                : '<svg class="hud-stage-name__arrow" viewBox="0 0 12 12" width="11" height="11" fill="none" aria-hidden="true"><path d="M4.25 2.5L7.75 6L4.25 9.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+            }</button>
           </div>
 
           <div class="hud-pill-group hud-pill-group--center">
@@ -226,15 +253,41 @@ export class BattleScreen {
                 <span class="dock-commander-card__flare dock-commander-card__flare--a"></span>
                 <span class="dock-commander-card__flare dock-commander-card__flare--b"></span>
                 <span class="dock-commander-card__flare dock-commander-card__flare--c"></span>
-                <span class="dock-commander-card__ready-badge">ULT READY</span>
+                <span id="hud-ult-ready-badge" class="dock-commander-card__ready-badge">ULT READY</span>
               </div>
-              <div class="dock-commander-card__bar-wrap" aria-hidden="true">
+              <div
+                id="hud-ult-bar-wrap"
+                class="dock-commander-card__bar-wrap"
+                data-ult-tier="empty"
+                style="--ult-pct: 0%; --ult-ratio: 0;"
+                aria-hidden="true"
+              >
                 <div class="dock-commander-card__ult-meta">
                   <span id="hud-ult-name" class="dock-commander-card__ult-name">${commander?.ultimateSkill?.name || 'Starfall Judgment'}</span>
                   <span id="hud-ult-pct" class="dock-commander-card__ult-pct tabular-nums">0%</span>
                 </div>
-                <div class="dock-commander-card__track">
-                  <div id="hud-ult-bar" class="dock-commander-card__fill" style="width: 0%;"></div>
+                <div class="dock-commander-card__track-stage">
+                  <div class="dock-commander-card__bar-aura"></div>
+                  <div id="hud-ult-track" class="dock-commander-card__track">
+                    <div id="hud-ult-bar" class="dock-commander-card__fill" style="width: 0%;">
+                      <span class="ult-bar__flow"></span>
+                      <span class="ult-bar__particles"></span>
+                      <span class="ult-bar__highlight"></span>
+                      <span class="ult-bar__pulse"></span>
+                      <span class="ult-bar__edge"></span>
+                    </div>
+                    <span class="ult-bar__complete-sweep"></span>
+                  </div>
+                  <div id="hud-ult-sparks" class="ult-bar__sparks">
+                    <span class="ult-bar__spark ult-bar__spark--1"></span>
+                    <span class="ult-bar__spark ult-bar__spark--2"></span>
+                    <span class="ult-bar__spark ult-bar__spark--3"></span>
+                    <span class="ult-bar__spark ult-bar__spark--4"></span>
+                    <span class="ult-bar__spark ult-bar__spark--5"></span>
+                    <span class="ult-bar__spark ult-bar__spark--6"></span>
+                    <span class="ult-bar__ambient-spark ult-bar__ambient-spark--a"></span>
+                    <span class="ult-bar__ambient-spark ult-bar__ambient-spark--b"></span>
+                  </div>
                 </div>
               </div>
             </button>
@@ -281,6 +334,7 @@ export class BattleScreen {
       if (cutinPortraitEl) assetManager.bindImageElement(cutinPortraitEl, commander.portraitAssetId);
     }
 
+    this._hudCache.stageId = stage?.id || null;
     const canvas = container.querySelector('#battle-canvas');
     if (launchingTutorial && tutorialManager) {
       tutorialManager.startSession({
@@ -289,7 +343,15 @@ export class BattleScreen {
         isReplay: Boolean(params?.replay),
       });
     } else {
-      battleManager.startSession(canvas);
+      const sessionInfo = battleManager.startSession(canvas, {
+        stageId: stage?.id || null,
+        enforceUnlock: true,
+      });
+      const activeStage = sessionInfo?.stage || stage;
+      if (activeStage && this._hudEls?.stageBtn) {
+        this._updateStageIndicator(this._hudEls.stageBtn, activeStage);
+        this._hudCache.stageId = activeStage.id;
+      }
     }
 
     this._renderCardSlots();
@@ -323,6 +385,40 @@ export class BattleScreen {
       }
       this._syncPrepControls();
       this._renderCardSlots();
+    });
+
+    container.querySelector('#hud-stage-name')?.addEventListener('click', () => {
+      if (battleManager.isTutorialSession?.() || tutorialManager?.isActive?.()) {
+        return;
+      }
+      this._ctx.audioManager?.playClick?.();
+      const activeStageId =
+        this._ctx.gameState.battle?.stageId ||
+        progressionSystem.getSelectedStage?.()?.id ||
+        null;
+      const navParams = {
+        category: 'main',
+        ...(activeStageId ? { stageId: activeStageId } : {}),
+      };
+      const phase = battleManager.getPhase?.();
+      if (
+        !phase ||
+        phase === BATTLE_PHASES.PREPARATION ||
+        phase === BATTLE_PHASES.RESULTS
+      ) {
+        screenManager.navigate('missions', navParams);
+        return;
+      }
+      battleManager.setPaused?.(true);
+      this._syncHud();
+      this._ctx.confirmDialog?.({
+        title: 'Select Battle Stage',
+        message: 'Leaving now will end the current battle attempt without granting rewards and open Main Missions stage selection.',
+        confirmLabel: 'Select Stage',
+        onConfirm: () => {
+          screenManager.navigate('missions', navParams);
+        },
+      });
     });
 
     container.querySelector('#btn-battle-guide')?.addEventListener('click', () => {
@@ -502,6 +598,7 @@ export class BattleScreen {
 
   unmount() {
     this._clearMergeVfx();
+    this._clearUltimateBarFx();
     this._mergeVfxController?.stop();
     this._mergeVfxController = null;
     this._ctx.tutorialManager?.abortSession?.();
@@ -546,19 +643,54 @@ export class BattleScreen {
       this._ctx.screenManager?.navigate?.('formation');
       return;
     }
-    const stage = this._ctx.progressionSystem.getSelectedStage();
-    const stageEl = this._container.querySelector('#hud-stage-name');
-    if (stageEl && stage) {
-      stageEl.textContent = `Stage ${stage.code || '1-1'} · ${stage.name || 'Outer Bastion'}`;
-    }
+    const stage = this._ctx.progressionSystem.resolveBattleEntryStage
+      ? this._ctx.progressionSystem.resolveBattleEntryStage()
+      : this._ctx.progressionSystem.getSelectedStage();
     this._hudCache = {};
+    this._clearUltimateBarFx();
     this._isInitialHandSync = true;
     const canvas = this._container.querySelector('#battle-canvas');
-    this._ctx.battleManager.startSession(canvas);
+    const sessionInfo = this._ctx.battleManager.startSession(canvas, {
+      stageId: stage?.id || null,
+      enforceUnlock: true,
+    });
+    const activeStage = sessionInfo?.stage || stage;
+    const stageEl = this._container.querySelector('#hud-stage-name');
+    if (stageEl && activeStage) {
+      this._updateStageIndicator(stageEl, activeStage);
+      this._hudCache.stageId = activeStage.id;
+    }
     this._renderCardSlots();
     this._isInitialHandSync = false;
     this._syncHud();
     this._syncPrepControls();
+  }
+
+  _updateStageIndicator(stageEl, stage) {
+    if (!stageEl || !stage) return;
+    const isTutorialStage = Boolean(stage.isTutorial);
+    const label = isTutorialStage
+      ? `Tutorial · ${stage.name}`
+      : `Stage ${stage.code || '1-1'} · ${stage.name || 'Outer Bastion'}`;
+
+    stageEl.disabled = isTutorialStage;
+    if (isTutorialStage) {
+      stageEl.setAttribute('disabled', '');
+      stageEl.classList?.add('is-tutorial');
+      stageEl.setAttribute('aria-label', label);
+      stageEl.title = 'Complete or skip tutorial to select campaign stages';
+    } else {
+      stageEl.removeAttribute?.('disabled');
+      stageEl.classList?.remove('is-tutorial');
+      stageEl.setAttribute('aria-label', `${label} — Select Stage in Main Missions`);
+      stageEl.title = 'Select Battle Stage (Main Missions)';
+    }
+
+    stageEl.innerHTML = `<span class="hud-stage-name__text">${label}</span>${
+      isTutorialStage
+        ? ''
+        : '<svg class="hud-stage-name__arrow" viewBox="0 0 12 12" width="11" height="11" fill="none" aria-hidden="true"><path d="M4.25 2.5L7.75 6L4.25 9.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+    }`;
   }
 
   _syncMuteBtn() {
@@ -573,6 +705,7 @@ export class BattleScreen {
   _cacheHudRefs() {
     const q = (sel) => this._container?.querySelector(sel) || null;
     this._hudEls = {
+      stageBtn: q('#hud-stage-name'),
       waveInd: q('#hud-wave-indicator'),
       waveLbl: q('#hud-wave-label'),
       tacticWrap: q('#hud-tactic-wrap'),
@@ -587,6 +720,10 @@ export class BattleScreen {
       ultName: q('#hud-ult-name'),
       ultPct: q('#hud-ult-pct'),
       ultBar: q('#hud-ult-bar'),
+      ultBarWrap: q('#hud-ult-bar-wrap'),
+      ultTrack: q('#hud-ult-track'),
+      ultSparks: q('#hud-ult-sparks'),
+      ultReadyBadge: q('#hud-ult-ready-badge'),
       ultBtn: q('#btn-trigger-ultimate'),
       cmdConsole: q('#commander-console'),
       pauseBtn: q('#btn-battle-pause'),
@@ -932,11 +1069,89 @@ export class BattleScreen {
     el.textContent = nextText;
   }
 
+  _setStyleVar(el, name, value) {
+    if (!el?.style) return;
+    if (typeof el.style.setProperty === 'function') {
+      el.style.setProperty(name, value);
+    } else {
+      el.style[name] = value;
+    }
+  }
+
+  _clearUltimateBarFx() {
+    if (this._ultPulseTimer) {
+      clearTimeout(this._ultPulseTimer);
+      this._ultPulseTimer = null;
+    }
+    if (this._ultCompleteTimer) {
+      clearTimeout(this._ultCompleteTimer);
+      this._ultCompleteTimer = null;
+    }
+    this._lastUltPulseMs = 0;
+    const wrap = this._hudEls?.ultBarWrap;
+    if (wrap) {
+      wrap.classList?.remove('is-ult-charging', 'is-ult-just-full', 'is-ult-ready', 'is-ult-full', 'has-ult-energy');
+      wrap.setAttribute?.('data-ult-tier', 'empty');
+      this._setStyleVar(wrap, '--ult-pct', '0%');
+      this._setStyleVar(wrap, '--ult-ratio', '0');
+    }
+  }
+
+  _triggerUltChargeFeedback(wrap, { isMajorGain = false } = {}) {
+    if (!wrap) return;
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const isActive = wrap.classList?.contains('is-ult-charging');
+    const minInterval = isMajorGain ? 90 : 240;
+    if (isActive && now - this._lastUltPulseMs < minInterval) {
+      return;
+    }
+    this._lastUltPulseMs = now;
+    if (this._ultPulseTimer) {
+      clearTimeout(this._ultPulseTimer);
+      this._ultPulseTimer = null;
+    }
+    wrap.classList?.remove('is-ult-charging');
+    void wrap.offsetWidth;
+    wrap.classList?.add('is-ult-charging');
+    this._ultPulseTimer = setTimeout(() => {
+      this._ultPulseTimer = null;
+      wrap.classList?.remove('is-ult-charging');
+    }, 440);
+  }
+
+  _triggerUltCompleteFeedback(wrap) {
+    if (!wrap) return;
+    if (this._ultPulseTimer) {
+      clearTimeout(this._ultPulseTimer);
+      this._ultPulseTimer = null;
+    }
+    wrap.classList?.remove('is-ult-charging');
+    if (this._ultCompleteTimer) {
+      clearTimeout(this._ultCompleteTimer);
+      this._ultCompleteTimer = null;
+    }
+    wrap.classList?.remove('is-ult-just-full');
+    void wrap.offsetWidth;
+    wrap.classList?.add('is-ult-just-full');
+    this._ultCompleteTimer = setTimeout(() => {
+      this._ultCompleteTimer = null;
+      wrap.classList?.remove('is-ult-just-full');
+    }, 760);
+  }
+
   _syncHud() {
     if (!this._container || !this._hudEls) return;
     const b = this._ctx.gameState.battle;
     const phase = b.phase;
     const h = this._hudEls;
+
+    if (h.stageBtn && b.stageId && !b.isTutorial && this._hudCache.stageId !== b.stageId) {
+      const stageDef = this._ctx.dataRegistry?.stagesById?.get?.(b.stageId) || null;
+      if (stageDef) {
+        this._updateStageIndicator(h.stageBtn, stageDef);
+        this._hudCache.stageId = b.stageId;
+      }
+    }
 
     this._setTextIfChanged('waveInd', h.waveInd, `Wave ${b.waveIndex} / ${b.totalWaves}`);
 
@@ -984,15 +1199,70 @@ export class BattleScreen {
     this._setTextIfChanged('deckRem', h.deckRem, `${deckCount}-Card Pool · ${refillSec}s Refill`);
 
     const ultMax = Math.max(1, b.ultimateMaxEnergy || 100);
-    const ultRaw = b.ultimateEnergy || 0;
-    const ultPctNum = Math.min(100, Math.floor((ultRaw / ultMax) * 100));
+    const ultRaw = Math.max(0, b.ultimateEnergy || 0);
+    const ultRatio = Math.max(0, Math.min(1, ultRaw / ultMax));
+    const ultPctNum = Math.min(100, Math.floor(ultRatio * 100));
     const ultReady =
       ultRaw >= ultMax &&
       (phase === BATTLE_PHASES.ACTIVE_COMBAT || phase === BATTLE_PHASES.WAVE_TRANSITION);
-    if (this._hudCache.ultVal !== ultPctNum || this._hudCache.ultReady !== ultReady) {
+    const prevUltRaw = this._hudCache.ultRaw;
+    const prevUltVal = this._hudCache.ultVal;
+    const prevUltReady = this._hudCache.ultReady;
+    const ultChanged =
+      prevUltRaw !== ultRaw || prevUltVal !== ultPctNum || prevUltReady !== ultReady;
+
+    if (ultChanged) {
+      const gainedEnergy = typeof prevUltRaw === 'number' && ultRaw > prevUltRaw + 0.01;
+      const spentOrReset = typeof prevUltRaw === 'number' && ultRaw < prevUltRaw - 0.01;
+      const justBecameReady = ultReady && !prevUltReady;
+      const gainDelta = gainedEnergy ? ultRaw - prevUltRaw : 0;
+
+      this._hudCache.ultRaw = ultRaw;
       this._hudCache.ultVal = ultPctNum;
       this._hudCache.ultReady = ultReady;
+
+      const hasEnergy = ultRatio > 0.001;
+      const isFull = ultPctNum >= 100;
+      const ultTier = !hasEnergy
+        ? 'empty'
+        : isFull
+          ? 'full'
+          : ultPctNum >= 75
+            ? 'high'
+            : ultPctNum >= 40
+              ? 'mid'
+              : 'low';
+
       if (h.ultBar) h.ultBar.style.width = `${ultPctNum}%`;
+      if (h.ultBarWrap) {
+        this._setStyleVar(h.ultBarWrap, '--ult-pct', `${ultPctNum}%`);
+        this._setStyleVar(h.ultBarWrap, '--ult-ratio', ultRatio.toFixed(4));
+        h.ultBarWrap.setAttribute?.('data-ult-tier', ultTier);
+        h.ultBarWrap.classList?.toggle('has-ult-energy', hasEnergy);
+        h.ultBarWrap.classList?.toggle('is-ult-full', isFull);
+        h.ultBarWrap.classList?.toggle('is-ult-ready', ultReady);
+
+        if (spentOrReset || !hasEnergy) {
+          if (this._ultPulseTimer) {
+            clearTimeout(this._ultPulseTimer);
+            this._ultPulseTimer = null;
+          }
+          if (this._ultCompleteTimer) {
+            clearTimeout(this._ultCompleteTimer);
+            this._ultCompleteTimer = null;
+          }
+          h.ultBarWrap.classList?.remove('is-ult-charging', 'is-ult-just-full');
+        } else if (justBecameReady) {
+          this._triggerUltCompleteFeedback(h.ultBarWrap);
+        } else if (gainedEnergy && !ultReady) {
+          this._triggerUltChargeFeedback(h.ultBarWrap, { isMajorGain: gainDelta >= 8 });
+        } else if (!ultReady && this._ultCompleteTimer) {
+          clearTimeout(this._ultCompleteTimer);
+          this._ultCompleteTimer = null;
+          h.ultBarWrap.classList?.remove('is-ult-just-full');
+        }
+      }
+
       if (h.ultPct) {
         h.ultPct.textContent = ultReady ? 'READY [SPC]' : `${ultPctNum}%`;
       }
@@ -1622,10 +1892,14 @@ export class BattleScreen {
       overlay.hidden = true;
       overlay.innerHTML = '';
       this._hudCache = {};
+      this._clearUltimateBarFx();
       this._isInitialHandSync = true;
       this._clearMergeVfx();
       const canvas = this._container.querySelector('#battle-canvas');
-      this._ctx.battleManager.startSession(canvas, { stageId: results.stageId });
+      this._ctx.battleManager.startSession(canvas, {
+        stageId: results.stageId,
+        enforceUnlock: true,
+      });
       this._renderCardSlots();
       this._isInitialHandSync = false;
       this._syncHud();
@@ -1638,10 +1912,13 @@ export class BattleScreen {
         this._resultsRevealTimer = null;
       }
       this._resultsShownSessionId = null;
-      this._ctx.progressionSystem.selectStage(results.nextStageId);
+      this._ctx.progressionSystem.selectStage(results.nextStageId, { explicit: true });
       overlay.hidden = true;
       overlay.innerHTML = '';
-      this._ctx.screenManager.navigate('battle');
+      this._ctx.screenManager.navigate('battle', {
+        stageId: results.nextStageId,
+        preserveSelectedStage: true,
+      });
     });
   }
 

@@ -891,7 +891,7 @@ test('Returning players skip tutorial automatically and enter normal battle flow
 
     assert.equal(h.tutorialManager.isActive(), false);
     assert.equal(h.battleManager.isTutorialSession(), false);
-    assert.equal(h.gameState.battle.stageId, 'stage_1_1');
+    assert.equal(h.gameState.battle.stageId, 'stage_1_3');
     assert.equal(h.battleManager.getPhase(), BATTLE_PHASES.PREPARATION);
     assert.equal(h.gameState.battle.energy, 60, 'Normal battle keeps standard balance energy 60');
     assert.equal(viewportEl.querySelector('#tutorial-overlay-root').hidden, true);
@@ -927,7 +927,7 @@ test('Skip Tutorial opens confirmation dialog, cancel keeps tutorial active, and
     assert.equal(h.tutorialManager.isSkipped(), true);
     assert.equal(h.tutorialManager.isCompleted(), false);
     assert.equal(h.battleManager.isTutorialSession(), false);
-    assert.equal(h.gameState.battle.stageId, 'stage_1_1');
+    assert.equal(h.gameState.battle.stageId, 'stage_1_3');
     assert.equal(h.battleManager.getPhase(), BATTLE_PHASES.PREPARATION);
     assert.equal(h.eventBus.listenerCount('cards:played'), 0);
 

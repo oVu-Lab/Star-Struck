@@ -928,8 +928,8 @@ test('BattleScreen upper HUD displays only stage in top-left pill and only Start
     assert.ok(leftGroupMatch, 'Expected .hud-pill-group--left markup');
     assert.match(
       leftGroupMatch[1].trim(),
-      /^<span id="hud-stage-name" class="hud-stage-name">Stage 1-1 · Outer Bastion<\/span>$/,
-      'Top-left HUD pill must render only #hud-stage-name',
+      /^<button[\s\S]*id="hud-stage-name"[\s\S]*class="hud-stage-name hud-stage-name--clickable"[\s\S]*><span class="hud-stage-name__text">Stage 1-3 · Obsidian Spire<\/span><svg class="hud-stage-name__arrow"[\s\S]*<\/svg><\/button>$/,
+      'Top-left HUD pill must render only clickable #hud-stage-name button',
     );
 
     // Preparation bar contains only #btn-start-battle

@@ -44,6 +44,97 @@ export class ProgressionSystem {
   }
 
   /**
+   * Returns the furthest campaign stage currently unlocked according to saved progression.
+   * Preserves chronological order from data/stages.json and never returns a locked stage.
+   */
+  getHighestUnlockedStage() {
+    const stages = this.getStages();
+    if (stages.length === 0) return null;
+    const unlocked = stages.filter((s) => s.unlocked);
+    return unlocked[unlocked.length - 1] || stages[0];
+  }
+
+  /**
+   * Resolves which unlocked stage should be loaded for Battle entry:
+   * - If an unlocked requestedStageId is provided, uses it and preserves explicit selection.
+   * - If the player explicitly chose an unlocked stage via Main Missions / Formation / Next Stage,
+   *   preserves that unlocked selection.
+   * - Otherwise (fresh Battle entry / after page reload / after unlocking a new frontier stage),
+   *   defaults to the highest currently unlocked stage.
+   */
+  resolveBattleEntryStage({
+    requestedStageId = null,
+    preserveSelected = null,
+    sync = true,
+  } = {}) {
+    let resolved = null;
+    let isExplicit = false;
+
+    if (requestedStageId && this.isStageUnlocked(requestedStageId)) {
+      resolved = this._data.stagesById.get(requestedStageId) || null;
+      isExplicit = Boolean(resolved);
+    }
+
+    if (!resolved) {
+      const pickedId = this._state.ui?.missionsPickedStageId;
+      if (pickedId && this.isStageUnlocked(pickedId)) {
+        resolved = this._data.stagesById.get(pickedId) || null;
+        isExplicit = Boolean(resolved);
+      }
+    }
+
+    if (!resolved) {
+      const shouldPreserve =
+        preserveSelected !== null
+          ? Boolean(preserveSelected)
+          : Boolean(this._state.ui?.battleStageExplicitlySelected);
+      if (shouldPreserve) {
+        const savedId = this._state.progression?.selectedStageId;
+        if (savedId && this.isStageUnlocked(savedId)) {
+          resolved = this._data.stagesById.get(savedId) || null;
+          isExplicit = Boolean(resolved);
+        }
+      }
+    }
+
+    if (!resolved) {
+      resolved = this.getHighestUnlockedStage();
+      isExplicit = false;
+    }
+
+    if (resolved && !this.isStageUnlocked(resolved.id)) {
+      resolved = this.getHighestUnlockedStage();
+      isExplicit = false;
+    }
+
+    if (sync && resolved) {
+      if (this._state.progression?.selectedStageId !== resolved.id) {
+        this._state.mutatePersistent('progression', (draft) => {
+          draft.progression.selectedStageId = resolved.id;
+        });
+        this._save?.save(this._state.toSerializableSave());
+      }
+      if (this._state.battle?.stageId !== resolved.id) {
+        this._state.setBattle?.({ stageId: resolved.id });
+      }
+      if (this._state.setUI && this._state.ui) {
+        const uiPatch = {};
+        if (this._state.ui.missionsPickedStageId) {
+          uiPatch.missionsPickedStageId = null;
+        }
+        if (Boolean(this._state.ui.battleStageExplicitlySelected) !== isExplicit) {
+          uiPatch.battleStageExplicitlySelected = isExplicit;
+        }
+        if (Object.keys(uiPatch).length > 0) {
+          this._state.setUI(uiPatch);
+        }
+      }
+    }
+
+    return resolved;
+  }
+
+  /**
    * Resolves the player's actual current campaign progression stage without mutating saved state.
    * Priority:
    * 1. Saved selectedStageId if unlocked and not yet cleared.
@@ -157,7 +248,7 @@ export class ProgressionSystem {
     });
   }
 
-  selectStage(stageId) {
+  selectStage(stageId, { explicit = true } = {}) {
     if (!this._data.stagesById.has(stageId)) {
       return { ok: false, reason: 'Unknown stage.' };
     }
@@ -173,6 +264,10 @@ export class ProgressionSystem {
       draft.progression.selectedStageId = stageId;
     });
     this._state.setBattle({ stageId });
+    this._state.setUI?.({
+      battleStageExplicitlySelected: Boolean(explicit),
+      missionsPickedStageId: null,
+    });
     this._save.save(this._state.toSerializableSave());
     this._eventBus?.emit('progression:stageSelected', { stageId });
     return { ok: true };
@@ -307,6 +402,8 @@ export class ProgressionSystem {
       }
     }
 
+    let unlockedNewStage = false;
+
     // Persistent progression, inventory materials, unlocked bonus cards & bonus units
     this._state.mutatePersistent('progression', (draft) => {
       if (!Array.isArray(draft.progression.claimedSessions)) {
@@ -332,6 +429,7 @@ export class ProgressionSystem {
         const nextStageId = this.getNextStageId(stageId);
         if (nextStageId && !draft.progression.unlockedStages.includes(nextStageId)) {
           draft.progression.unlockedStages.push(nextStageId);
+          unlockedNewStage = true;
         }
         for (const candidate of this._data.stages) {
           if (
@@ -339,6 +437,7 @@ export class ProgressionSystem {
             !draft.progression.unlockedStages.includes(candidate.id)
           ) {
             draft.progression.unlockedStages.push(candidate.id);
+            unlockedNewStage = true;
           }
         }
         if (!draft.progression.stageRatings) draft.progression.stageRatings = {};
@@ -386,6 +485,13 @@ export class ProgressionSystem {
         }
       }
     });
+
+    if (unlockedNewStage && this._state.setUI) {
+      this._state.setUI({
+        battleStageExplicitlySelected: false,
+        missionsPickedStageId: null,
+      });
+    }
 
     this._save.save(this._state.toSerializableSave());
     this._eventBus?.emit('progression:battleRecorded', {

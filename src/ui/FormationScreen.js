@@ -110,7 +110,9 @@ export class FormationScreen {
     } = this._ctx;
 
     const activeTab = gameState.ui.formationTab || 'squad';
-    const selectedStage = progressionSystem.getSelectedStage();
+    const selectedStage = progressionSystem.resolveBattleEntryStage
+      ? progressionSystem.resolveBattleEntryStage({ sync: false })
+      : progressionSystem.getSelectedStage();
     const stages = progressionSystem.getStages();
     const clearedCount = stages.filter((s) => s.cleared).length;
     const savedDeck = cardSystem.getCustomDeck();
@@ -1047,7 +1049,9 @@ export class FormationScreen {
   _renderStagesTab(bodyEl, tabChanged = false) {
     const { progressionSystem, dataRegistry, gameState, audioManager, screenManager } = this._ctx;
     const stages = progressionSystem.getStages();
-    const selectedStage = progressionSystem.getSelectedStage();
+    const selectedStage = progressionSystem.resolveBattleEntryStage
+      ? progressionSystem.resolveBattleEntryStage({ sync: false })
+      : progressionSystem.getSelectedStage();
     const chapterFilter = String(gameState.ui.chapterFilter || 'all').toLowerCase();
     const chapters = Array.from(new Set(stages.map((s) => s.chapter || 1))).sort((a, b) => a - b);
     const visibleStages =

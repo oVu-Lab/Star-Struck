@@ -402,15 +402,33 @@ export class BattleManager {
       cardGenerator = null,
       stageConfig = null,
       isTutorial = false,
+      enforceUnlock = false,
     } = {},
   ) {
     this.stopSession();
 
-    const stage =
-      stageConfig ||
-      (stageId ? this._data?.stagesById?.get(stageId) : null) ||
-      this._progression?.getSelectedStage() ||
-      this._data?.stages?.[0];
+    let stage = null;
+    if (stageConfig) {
+      stage = stageConfig;
+    } else if (stageId) {
+      const candidate = this._data?.stagesById?.get(stageId) || null;
+      if (candidate && (!enforceUnlock || !this._progression || this._progression.isStageUnlocked(candidate.id))) {
+        stage = candidate;
+      }
+    }
+    if (!stage && this._progression) {
+      const selected = this._progression.getSelectedStage();
+      if (selected && this._progression.isStageUnlocked(selected.id)) {
+        stage = selected;
+      } else if (typeof this._progression.getHighestUnlockedStage === 'function') {
+        stage = this._progression.getHighestUnlockedStage();
+      } else {
+        stage = selected;
+      }
+    }
+    if (!stage) {
+      stage = this._data?.stages?.[0] || null;
+    }
     this._activeStage = stage;
     this._isTutorial = Boolean(isTutorial || stage?.isTutorial);
     this._tutorialCombatPaused = false;

@@ -189,7 +189,7 @@ export class MissionsScreen {
     }
 
     if (requested === 'main') {
-      this._syncToCurrentProgression({ missionsCategory: 'main' });
+      this._syncToCurrentProgression({ missionsCategory: 'main' }, params?.stageId || null);
     } else {
       this._ctx.gameState.setUI({ missionsCategory: requested });
     }
@@ -237,17 +237,27 @@ export class MissionsScreen {
 
   /**
    * Aligns transient Main Mission browse state with the player's actual saved
-   * progression without mutating persistent save data.
+   * progression (or an explicit unlocked stageId from Battle HUD) without mutating persistent save data.
    */
-  _syncToCurrentProgression(extraUi = {}) {
-    const { progressionSystem, gameState } = this._ctx;
-    const currentStage = progressionSystem.getCurrentProgressionStage();
-    const currentChapter = currentStage?.chapter || 1;
+  _syncToCurrentProgression(extraUi = {}, preferredStageId = null) {
+    const { progressionSystem, gameState, dataRegistry } = this._ctx;
+    let targetStage = null;
+    if (preferredStageId && progressionSystem.isStageUnlocked?.(preferredStageId)) {
+      targetStage =
+        progressionSystem.getStages?.().find((s) => s.id === preferredStageId) ||
+        dataRegistry?.stagesById?.get?.(preferredStageId) ||
+        null;
+    }
+    if (!targetStage) {
+      targetStage = progressionSystem.getCurrentProgressionStage();
+    }
+    const targetChapter = targetStage?.chapter || 1;
     this._shouldScrollTimeline = true;
     gameState.setUI({
       ...extraUi,
-      missionsSelectedChapter: currentChapter,
-      missionsSelectedStageId: currentStage?.id || null,
+      missionsSelectedChapter: targetChapter,
+      missionsSelectedStageId: targetStage?.id || null,
+      missionsPickedStageId: null,
     });
   }
 
@@ -259,7 +269,10 @@ export class MissionsScreen {
       this._syncToCurrentProgression({ missionsCategory: 'main' });
     } else {
       this._ctx.missionSystem?.ensureResets?.();
-      this._ctx.gameState.setUI({ missionsCategory: categoryId });
+      this._ctx.gameState.setUI({
+        missionsCategory: categoryId,
+        missionsPickedStageId: null,
+      });
     }
     this.render();
   }
@@ -289,11 +302,17 @@ export class MissionsScreen {
     const { progressionSystem, gameState, screenManager, audioManager } = this._ctx;
 
     if (dest.screenId === 'battle') {
-      const selected = progressionSystem?.getSelectedStage?.();
-      if (!selected || !progressionSystem?.isStageUnlocked?.(selected.id)) {
-        const fallback = progressionSystem?.getCurrentProgressionStage?.();
-        if (fallback && progressionSystem?.isStageUnlocked?.(fallback.id)) {
-          progressionSystem.selectStage(fallback.id);
+      if (typeof progressionSystem?.resolveBattleEntryStage === 'function') {
+        progressionSystem.resolveBattleEntryStage();
+      } else {
+        const selected = progressionSystem?.getSelectedStage?.();
+        if (!selected || !progressionSystem?.isStageUnlocked?.(selected.id)) {
+          const fallback =
+            progressionSystem?.getHighestUnlockedStage?.() ||
+            progressionSystem?.getCurrentProgressionStage?.();
+          if (fallback && progressionSystem?.isStageUnlocked?.(fallback.id)) {
+            progressionSystem.selectStage(fallback.id, { explicit: false });
+          }
         }
       }
     } else if (dest.screenId === 'formation' && dest.formationTab) {
@@ -1091,6 +1110,7 @@ export class MissionsScreen {
         gameState.setUI({
           missionsSelectedChapter: chNum,
           missionsSelectedStageId: nextStageId,
+          missionsPickedStageId: null,
         });
         this.render();
       });
@@ -1103,13 +1123,17 @@ export class MissionsScreen {
       this.render();
     });
 
-    // Stage card clicks (browse only — never mutates saved progression)
+    // Stage card clicks (browse & inspect; unlocked clicks record transient pick for Battle return without mutating saved progression)
     for (const card of bodyEl.querySelectorAll('.mission-stage-card[data-stage-id]')) {
       card.addEventListener('click', () => {
         const stageId = card.getAttribute('data-stage-id');
         if (!stageId) return;
+        const isUnlocked = progressionSystem.isStageUnlocked(stageId);
         audioManager?.playClick?.();
-        gameState.setUI({ missionsSelectedStageId: stageId });
+        gameState.setUI({
+          missionsSelectedStageId: stageId,
+          missionsPickedStageId: isUnlocked ? stageId : null,
+        });
         this.render();
       });
     }
@@ -1118,16 +1142,20 @@ export class MissionsScreen {
     bodyEl.querySelector('[data-action="start-battle"]')?.addEventListener('click', () => {
       if (!selectedStage) return;
       if (!progressionSystem.isStageUnlocked(selectedStage.id)) {
+        audioManager?.playInvalid?.();
         notify?.('This stage is still locked.', 'warn');
         return;
       }
-      const res = progressionSystem.selectStage(selectedStage.id);
+      const res = progressionSystem.selectStage(selectedStage.id, { explicit: true });
       if (!res.ok) {
         notify?.(res.reason || 'Unable to select stage.', 'warn');
         return;
       }
       audioManager?.playClick?.();
-      screenManager.navigate('battle');
+      screenManager.navigate('battle', {
+        stageId: selectedStage.id,
+        preserveSelectedStage: true,
+      });
     });
 
     this._lastChapter = selectedChapter?.chapter ?? null;

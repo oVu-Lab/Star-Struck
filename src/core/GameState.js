@@ -29,6 +29,8 @@ export class GameState {
       missionsCategory: 'main',
       missionsSelectedChapter: null,
       missionsSelectedStageId: null,
+      missionsPickedStageId: null,
+      battleStageExplicitlySelected: false,
     };
 
     // Transient battle session state (never persisted to localStorage)
@@ -112,6 +114,8 @@ export class GameState {
   replacePersistent(nextPersistent) {
     this._persistent = deepClone(nextPersistent);
     this.ui.selectedHeroId = this._persistent.formation.commanderId;
+    this.ui.missionsPickedStageId = null;
+    this.ui.battleStageExplicitlySelected = false;
     this.battle.stageId = this._persistent.progression.selectedStageId;
     this.battle.speedMultiplier = this._persistent.settings.battleSpeed;
     this._eventBus?.emit('state:changed', { scope: 'all' });
