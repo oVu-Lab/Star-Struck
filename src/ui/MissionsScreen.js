@@ -992,78 +992,77 @@ export class MissionsScreen {
                   selectedStage
                     ? `
                       <div class="surface stage-briefing-panel" aria-label="Selected Stage Briefing">
-                        <div class="stage-briefing-panel__main">
+                        <div class="stage-briefing-panel__top">
                           <div class="stage-briefing-panel__head">
-                            <div>
-                              <div class="section-kicker">
-                                Stage ${selectedStage.code} · ${terrainDef?.realmTitle || terrainDef?.name || selectedChapter.realm}
-                                ${selectedStage.id === currentProgStage?.id ? ' · Active Progression' : ''}
-                              </div>
-                              <h3 class="stage-briefing-panel__title">${selectedStage.name}</h3>
+                            <div class="section-kicker">
+                              Stage ${selectedStage.code} · ${terrainDef?.realmTitle || terrainDef?.name || selectedChapter.realm}
+                              ${selectedStage.id === currentProgStage?.id ? ' · Active Progression' : ''}
                             </div>
-                            <span class="meta-line tabular-nums">
-                              ${
-                                !selectedStage.unlocked
-                                  ? 'Locked'
-                                  : selectedStage.cleared
-                                    ? `Best Rating: ${selectedStage.bestRating || 'Cleared'}`
-                                    : 'First-Clear Bonus Ready'
-                              }
-                            </span>
+                            <div class="stage-briefing-panel__title-row">
+                              <h3 class="stage-briefing-panel__title">${selectedStage.name}</h3>
+                              <span class="meta-line stage-briefing-panel__status tabular-nums">
+                                ${
+                                  !selectedStage.unlocked
+                                    ? 'Locked'
+                                    : selectedStage.cleared
+                                      ? `Best Rating: ${selectedStage.bestRating || 'Cleared'}`
+                                      : 'First-Clear Bonus Ready'
+                                }
+                              </span>
+                            </div>
+                            <p class="stage-briefing-panel__desc">${selectedStage.description}</p>
                           </div>
 
-                          <p class="stage-briefing-panel__desc">${selectedStage.description}</p>
-
-                          <div class="stage-briefing-meta-grid">
-                            <div class="stage-briefing-cell">
-                              <span class="home-metric__label">Encounter</span>
-                              <span class="stage-briefing-cell__val tabular-nums">
-                                ${selectedStage.difficulty} · ${selectedStage.waves?.length || 0} Waves · Rec. Lv.${selectedStage.recommendedLevel}
-                              </span>
-                            </div>
-                            <div class="stage-briefing-cell">
-                              <span class="home-metric__label">Boss Threat</span>
-                              <span class="stage-briefing-cell__val ${bossDef ? 'boss-threat-value' : ''}">
-                                ${bossDef ? `${bossDef.name} (${bossDef.title || 'Boss'})` : 'Standard Garrison'}
-                              </span>
-                            </div>
-                            <div class="stage-briefing-cell stage-briefing-cell--wide">
-                              <span class="home-metric__label">${selectedStage.cleared ? 'Repeat & Base Rewards' : 'First-Clear Rewards'}</span>
-                              <div class="mission-reward-list tabular-nums">
-                                ${renderRewardChips(selectedStage.rewards)}
-                                ${
-                                  !selectedStage.cleared && firstClearUnlocks.length > 0
-                                    ? `<span class="mission-reward-item is-gold">Unlocks: ${firstClearUnlocks.join(', ')}</span>`
-                                    : ''
-                                }
-                              </div>
-                            </div>
+                          <div class="stage-briefing-panel__cta">
+                            <button
+                              type="button"
+                              class="btn btn-primary btn-lg"
+                              data-action="start-battle"
+                              data-stage-id="${selectedStage.id}"
+                              ${selectedStage.unlocked ? '' : 'disabled'}
+                            >
+                              ${selectedStage.unlocked ? `Start Battle · ${selectedStage.code}` : 'Stage Locked'}
+                            </button>
+                            ${
+                              !selectedStage.unlocked
+                                ? `
+                                  <p class="stage-locked-hint">
+                                    ${
+                                      stageUnlockReq
+                                        ? `Clear Stage ${stageUnlockReq.code} (${stageUnlockReq.name}) to unlock.`
+                                        : 'Complete preceding campaign stages to unlock.'
+                                    }
+                                  </p>
+                                `
+                                : ''
+                            }
                           </div>
                         </div>
 
-                        <div class="stage-briefing-panel__cta">
-                          ${
-                            !selectedStage.unlocked
-                              ? `
-                                <p class="stage-locked-hint">
-                                  ${
-                                    stageUnlockReq
-                                      ? `Clear Stage ${stageUnlockReq.code} (${stageUnlockReq.name}) to unlock.`
-                                      : 'Complete preceding campaign stages to unlock.'
-                                  }
-                                </p>
-                              `
-                              : ''
-                          }
-                          <button
-                            type="button"
-                            class="btn btn-primary btn-lg"
-                            data-action="start-battle"
-                            data-stage-id="${selectedStage.id}"
-                            ${selectedStage.unlocked ? '' : 'disabled'}
-                          >
-                            ${selectedStage.unlocked ? `Start Battle · ${selectedStage.code}` : 'Stage Locked'}
-                          </button>
+                        <div class="stage-briefing-meta-grid">
+                          <div class="stage-briefing-cell">
+                            <span class="home-metric__label">Encounter</span>
+                            <span class="stage-briefing-cell__val tabular-nums">
+                              ${selectedStage.difficulty} · ${selectedStage.waves?.length || 0} Waves · Rec. Lv.${selectedStage.recommendedLevel}
+                            </span>
+                          </div>
+                          <div class="stage-briefing-cell">
+                            <span class="home-metric__label">Boss Threat</span>
+                            <span class="stage-briefing-cell__val ${bossDef ? 'boss-threat-value' : ''}">
+                              ${bossDef ? `${bossDef.name} (${bossDef.title || 'Boss'})` : 'Standard Garrison'}
+                            </span>
+                          </div>
+                          <div class="stage-briefing-cell stage-briefing-cell--wide">
+                            <span class="home-metric__label">${selectedStage.cleared ? 'Repeat & Base Rewards' : 'First-Clear Rewards'}</span>
+                            <div class="mission-reward-list tabular-nums">
+                              ${renderRewardChips(selectedStage.rewards)}
+                              ${
+                                !selectedStage.cleared && firstClearUnlocks.length > 0
+                                  ? `<span class="mission-reward-item is-gold">Unlocks: ${firstClearUnlocks.join(', ')}</span>`
+                                  : ''
+                              }
+                            </div>
+                          </div>
                         </div>
                       </div>
                     `
