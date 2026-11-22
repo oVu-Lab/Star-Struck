@@ -540,6 +540,40 @@ export class CardSystem {
     return cardA.tier < this.getMaxTier();
   }
 
+  /**
+   * Returns all valid merge partner slot indices for the given slot.
+   */
+  getMergePartners(slotIndex) {
+    const slotCount = this.getSlotCount();
+    if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex >= slotCount) {
+      return [];
+    }
+    const partners = [];
+    for (let j = 0; j < slotCount; j += 1) {
+      if (this.canMerge(slotIndex, j)) {
+        partners.push(j);
+      }
+    }
+    return partners;
+  }
+
+  /**
+   * Returns a Set of all slot indices that have at least one valid merge partner.
+   */
+  getMergeableSlotIndices() {
+    const slotCount = this.getSlotCount();
+    const mergeable = new Set();
+    for (let i = 0; i < slotCount; i += 1) {
+      for (let j = i + 1; j < slotCount; j += 1) {
+        if (this.canMerge(i, j)) {
+          mergeable.add(i);
+          mergeable.add(j);
+        }
+      }
+    }
+    return mergeable;
+  }
+
   mergeAdjacent(sourceIndex, targetIndex) {
     const slotCount = this.getSlotCount();
     if (

@@ -449,6 +449,7 @@ export class BattleScreen {
 
     this._unsubs.push(
       eventBus.on('state:changed', () => this._syncMuteBtn()),
+      eventBus.on('battle:phaseChanged', () => this._renderCardSlots()),
       eventBus.on('battle:stateChanged', () => {
         this._syncHud();
         const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
@@ -632,6 +633,7 @@ export class BattleScreen {
             <span class="tactical-card__cooldown-text tabular-nums"></span>
           </div>
         </div>
+        <span class="tactical-card__merge-badge" hidden aria-hidden="true"></span>
       `;
 
       btn.addEventListener('mouseenter', () => {
@@ -675,6 +677,7 @@ export class BattleScreen {
         refillFill: btn.querySelector('.tactical-card__refill-fill'),
         cdWrap: btn.querySelector('.tactical-card__cooldown'),
         cdText: btn.querySelector('.tactical-card__cooldown-text'),
+        mergeBadge: btn.querySelector('.tactical-card__merge-badge'),
       });
       this._slotMeta.push({
         instanceId: null,
@@ -955,17 +958,10 @@ export class BattleScreen {
       b.phase === BATTLE_PHASES.ACTIVE_COMBAT || b.phase === BATTLE_PHASES.WAVE_TRANSITION;
 
     // Precompute all eligible merge pairs across any slot positions so players spot all merge opportunities
-    const passiveMergeSlots = new Set();
-    if (inCombat) {
-      for (let i = 0; i < 6; i += 1) {
-        for (let j = i + 1; j < 6; j += 1) {
-          if (cardSystem.canMerge(i, j)) {
-            passiveMergeSlots.add(i);
-            passiveMergeSlots.add(j);
-          }
-        }
-      }
-    }
+    const passiveMergeSlots = inCombat ? cardSystem.getMergeableSlotIndices() : new Set();
+    const selectedMergePartners =
+      inCombat && selected !== -1 ? new Set(cardSystem.getMergePartners(selected)) : new Set();
+    const hasSelectedMergePartners = selectedMergePartners.size > 0;
 
     let drewNewCard = false;
     let hasMergeOption = false;
@@ -977,6 +973,11 @@ export class BattleScreen {
 
       if (!slot) {
         const refill = cardSystem.getRefillState(idx);
+        if (node.mergeBadge) {
+          node.mergeBadge.hidden = true;
+          node.mergeBadge.textContent = '';
+          node.mergeBadge.className = 'tactical-card__merge-badge';
+        }
         if (!meta.isEmpty) {
           node.root.className = 'tactical-card tactical-card--empty';
           node.top.hidden = true;
@@ -1017,9 +1018,12 @@ export class BattleScreen {
       const isMergedHere = instanceChanged && this._pendingMergeSlot === idx;
       const isDrawnHere = instanceChanged && !isMergedHere && !this._isInitialHandSync;
 
-      const isSelected = selected === idx;
-      const canMergeTarget = selected !== -1 && selected !== idx && cardSystem.canMerge(selected, idx);
-      const isPassiveMergeReady = selected === -1 && passiveMergeSlots.has(idx);
+      const isSelected = inCombat && selected === idx;
+      const canMergeTarget = inCombat && selectedMergePartners.has(idx);
+      const isMergeSource = isSelected && hasSelectedMergePartners;
+      const isPassiveMergeReady = inCombat && selected === -1 && passiveMergeSlots.has(idx);
+      const isMergeUnrelated =
+        inCombat && hasSelectedMergePartners && !isSelected && !canMergeTarget;
       if (canMergeTarget) hasMergeOption = true;
 
       const cooldown = cardSystem.getCardCooldown(slot.cardId);
@@ -1039,15 +1043,32 @@ export class BattleScreen {
         `tactical-card--${slot.category}`,
         `tactical-card--${rarityLower}`,
         isSelected ? 'is-selected' : '',
+        isMergeSource ? 'is-merge-source' : '',
         canMergeTarget ? 'is-merge-target' : '',
         isPassiveMergeReady ? 'is-merge-ready' : '',
+        isMergeUnrelated ? 'is-merge-unrelated' : '',
         slot.tier > 1 ? 'is-upgraded' : '',
         slot.tier >= 3 ? 'is-max-tier' : '',
-        !usable && !canMergeTarget ? 'is-unusable' : '',
+        !usable && !canMergeTarget && !isPassiveMergeReady && !isMergeSource ? 'is-unusable' : '',
         ...keepAnim,
       ]
         .filter(Boolean)
         .join(' ');
+
+      if (node.mergeBadge) {
+        if (canMergeTarget || isPassiveMergeReady) {
+          const nextRoman = slot.tier + 1 === 3 ? 'III' : 'II';
+          node.mergeBadge.textContent = `Merge → ${nextRoman}`;
+          node.mergeBadge.className = `tactical-card__merge-badge ${
+            canMergeTarget ? 'is-target' : 'is-ready'
+          }`;
+          node.mergeBadge.hidden = false;
+        } else {
+          node.mergeBadge.hidden = true;
+          node.mergeBadge.textContent = '';
+          node.mergeBadge.className = 'tactical-card__merge-badge';
+        }
+      }
 
       node.top.hidden = false;
       node.art.hidden = false;
@@ -1063,20 +1084,20 @@ export class BattleScreen {
       let hint = '';
       if (!inCombat) {
         hint = b.phase === BATTLE_PHASES.PREPARATION ? 'Combat ready' : 'Ended';
-      } else if (canMergeTarget) {
+      } else if (canMergeTarget || isPassiveMergeReady) {
         const nextRoman = slot.tier + 1 === 3 ? 'III' : 'II';
         hint = `Merge → ${nextRoman}`;
+      } else if (isSelected) {
+        if (onCooldown) hint = `CD ${cooldown.toFixed(1)}s`;
+        else if (capped) hint = `Cap ${b.friendlyCap}/${b.friendlyCap}`;
+        else if (!affordable) hint = `Need ${slot.cost}E`;
+        else hint = slot.category === 'unit' ? 'Deploy Ally' : 'Cast / Click';
       } else if (onCooldown) {
         hint = `CD ${cooldown.toFixed(1)}s`;
       } else if (capped) {
         hint = `Cap ${b.friendlyCap}/${b.friendlyCap}`;
       } else if (!affordable) {
         hint = `Need ${slot.cost}E`;
-      } else if (isSelected) {
-        hint = slot.category === 'unit' ? 'Deploy Ally' : 'Cast / Click';
-      } else if (isPassiveMergeReady) {
-        const nextRoman = slot.tier + 1 === 3 ? 'III' : 'II';
-        hint = `Merge → ${nextRoman}`;
       } else {
         hint = CATEGORY_LABELS[slot.category] || 'Ready';
       }

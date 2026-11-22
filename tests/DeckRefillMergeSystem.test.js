@@ -971,53 +971,148 @@ test('BattleScreen UI: highlights non-adjacent merge partners, displays live ref
     });
 
     screen.mount(container);
+
+    // Before combat starts (Preparation phase), merge highlights are not active
+    assert.equal(screen._slotNodes[0].root.classList.contains('is-merge-ready'), false);
+    assert.equal(screen._slotNodes[0].mergeBadge.hidden, true);
+
     h.battleManager.beginBattle();
     for (let i = 0; i < 65; i += 1) h.battleManager.stepSimulation(1 / 60);
+    // battle:phaseChanged -> ACTIVE_COMBAT triggers _renderCardSlots automatically
+
+    // Force 0 energy and cooldown on Shield Guard to prove merge-ready highlights NEVER dim as unusable
+    h.gameState.setBattle({ energy: 0 });
+    h.cardSystem._cooldowns.set('card_shield_guard', 2.0);
     screen._renderCardSlots();
 
-    // Non-adjacent pair in slots 0 & 5 highlights as merge-ready and indicates Merge -> II
+    // Non-adjacent pair in slots 0 & 5 highlights as merge-ready with Merge -> II badge & no is-unusable
     assert.equal(screen._slotNodes[0].root.classList.contains('is-merge-ready'), true);
     assert.equal(screen._slotNodes[5].root.classList.contains('is-merge-ready'), true);
+    assert.equal(screen._slotNodes[0].root.classList.contains('is-unusable'), false);
+    assert.equal(screen._slotNodes[5].root.classList.contains('is-unusable'), false);
+    assert.equal(screen._slotNodes[0].mergeBadge.hidden, false);
+    assert.equal(screen._slotNodes[0].mergeBadge.textContent, 'Merge → II');
+    assert.equal(screen._slotNodes[0].mergeBadge.classList.contains('is-ready'), true);
+    assert.equal(screen._slotNodes[5].mergeBadge.hidden, false);
+    assert.equal(screen._slotNodes[5].mergeBadge.textContent, 'Merge → II');
     assert.equal(screen._slotNodes[0].hint.textContent, 'Merge → II');
     assert.equal(screen._slotNodes[5].hint.textContent, 'Merge → II');
 
-    // Selecting slot 0 highlights non-adjacent slot 5 as active merge target (and never slot 0 itself)
+    // Non-matching cards in slots 1..4 must have NO merge-ready highlight and hidden badge
+    for (const s of [1, 2, 3, 4]) {
+      assert.equal(screen._slotNodes[s].root.classList.contains('is-merge-ready'), false);
+      assert.equal(screen._slotNodes[s].mergeBadge.hidden, true);
+    }
+
+    // Selecting slot 0 keeps slot 0 visually distinct (is-selected + is-merge-source),
+    // highlights non-adjacent slot 5 as is-merge-target, and marks slots 1..4 as is-merge-unrelated
     const mergeRes = h.battleManager.interactWithCardSlot(0);
     assert.equal(mergeRes.action, 'selected');
     screen._renderCardSlots();
     assert.equal(screen._slotNodes[0].root.classList.contains('is-selected'), true);
+    assert.equal(screen._slotNodes[0].root.classList.contains('is-merge-source'), true);
     assert.equal(screen._slotNodes[0].root.classList.contains('is-merge-target'), false);
+    assert.equal(screen._slotNodes[0].root.classList.contains('is-unusable'), false);
+    assert.equal(screen._slotNodes[0].mergeBadge.hidden, true);
+
     assert.equal(screen._slotNodes[5].root.classList.contains('is-merge-target'), true);
+    assert.equal(screen._slotNodes[5].root.classList.contains('is-merge-unrelated'), false);
+    assert.equal(screen._slotNodes[5].mergeBadge.hidden, false);
+    assert.equal(screen._slotNodes[5].mergeBadge.classList.contains('is-target'), true);
+    assert.equal(screen._slotNodes[5].mergeBadge.textContent, 'Merge → II');
     assert.equal(screen._slotNodes[5].hint.textContent, 'Merge → II');
 
-    // Merge slot 0 into slot 5 -> slot 0 enters refill countdown (5.0s -> 2.5s), slot 5 becomes Lv.II
+    for (const s of [1, 2, 3, 4]) {
+      assert.equal(screen._slotNodes[s].root.classList.contains('is-merge-target'), false);
+      assert.equal(screen._slotNodes[s].root.classList.contains('is-merge-unrelated'), true);
+      assert.equal(screen._slotNodes[s].mergeBadge.hidden, true);
+    }
+
+    // Merge slot 0 into slot 5 -> obsolete highlights clear immediately, slot 0 starts refill, slot 5 is Lv.II
     const mergeDone = h.battleManager.interactWithCardSlot(5);
     assert.equal(mergeDone.action, 'merged');
-    screen._renderCardSlots();
-
+    // cards:updated event automatically re-renders slots!
+    assert.equal(screen._slotNodes[0].root.classList.contains('is-merge-ready'), false);
+    assert.equal(screen._slotNodes[0].root.classList.contains('is-selected'), false);
+    assert.equal(screen._slotNodes[0].mergeBadge.hidden, true);
     assert.equal(screen._slotNodes[0].refillWrap.hidden, false);
     assert.equal(screen._slotNodes[0].refillTime.textContent, '5.0s');
-    assert.equal(screen._slotNodes[5].tier.textContent, 'Lv.II');
 
-    // Put another Lv.II Shield Guard in slot 2 and verify Merge -> III highlight
+    assert.equal(screen._slotNodes[5].tier.textContent, 'Lv.II');
+    assert.equal(screen._slotNodes[5].root.classList.contains('is-merge-ready'), false);
+    assert.equal(screen._slotNodes[5].root.classList.contains('is-merge-target'), false);
+    assert.equal(screen._slotNodes[5].mergeBadge.hidden, true);
+    for (const s of [1, 2, 3, 4]) {
+      assert.equal(screen._slotNodes[s].root.classList.contains('is-merge-unrelated'), false);
+    }
+
+    // Put another Lv.II Shield Guard in slot 2 AND an adjacent Lv.I pair in slots 3 & 4 (Astral Nova)
+    // to verify multiple simultaneous pairs + adjacent + Merge -> III highlight
     h.cardSystem._slots[2] = h.cardSystem._createCardInstance(h.dataRegistry.cardsById.get('card_shield_guard'), 2);
+    h.cardSystem._slots[3] = h.cardSystem._createCardInstance(h.dataRegistry.cardsById.get('card_skill_astral_nova'), 1);
+    h.cardSystem._slots[4] = h.cardSystem._createCardInstance(h.dataRegistry.cardsById.get('card_skill_astral_nova'), 1);
     screen._renderCardSlots();
+    assert.equal(screen._slotNodes[2].root.classList.contains('is-merge-ready'), true);
+    assert.equal(screen._slotNodes[5].root.classList.contains('is-merge-ready'), true);
+    assert.equal(screen._slotNodes[2].mergeBadge.textContent, 'Merge → III');
+    assert.equal(screen._slotNodes[5].mergeBadge.textContent, 'Merge → III');
     assert.equal(screen._slotNodes[2].hint.textContent, 'Merge → III');
     assert.equal(screen._slotNodes[5].hint.textContent, 'Merge → III');
+    assert.equal(screen._slotNodes[3].root.classList.contains('is-merge-ready'), true);
+    assert.equal(screen._slotNodes[4].root.classList.contains('is-merge-ready'), true);
+    assert.equal(screen._slotNodes[3].mergeBadge.textContent, 'Merge → II');
+    assert.equal(screen._slotNodes[4].mergeBadge.textContent, 'Merge → II');
+    assert.equal(screen._slotNodes[1].root.classList.contains('is-merge-ready'), false);
+    assert.equal(screen._slotNodes[1].mergeBadge.hidden, true);
 
     // Advance 2.5s -> countdown updates to 2.5s and progress bar to 50%
     for (let i = 0; i < 150; i += 1) h.battleManager.stepSimulation(1 / 60);
     assert.equal(screen._slotNodes[0].refillTime.textContent, '2.5s');
     assert.equal(screen._slotNodes[0].refillFill.style.width, '50%');
 
-    // Advance remaining 2.6s -> slot 0 refills and hides refill overlay
+    // Configure generator so slot 0 refills with 'card_arcane_archer' matching slot 1!
+    h.cardSystem.setCardGenerator(() => 'card_arcane_archer');
+
+    // Advance remaining 2.6s -> slot 0 refills, hides refill overlay, and creates new pair (slots 0 & 1)
     for (let i = 0; i < 156; i += 1) h.battleManager.stepSimulation(1 / 60);
     assert.equal(screen._slotNodes[0].refillWrap.hidden, true);
     assert.equal(screen._slotNodes[0].tier.textContent, 'Lv.I');
+    assert.equal(screen._slotNodes[0].root.classList.contains('is-merge-ready'), true);
+    assert.equal(screen._slotNodes[1].root.classList.contains('is-merge-ready'), true);
+    assert.equal(screen._slotNodes[0].mergeBadge.hidden, false);
+    assert.equal(screen._slotNodes[0].mergeBadge.textContent, 'Merge → II');
+    assert.equal(screen._slotNodes[1].mergeBadge.hidden, false);
+    assert.equal(screen._slotNodes[1].mergeBadge.textContent, 'Merge → II');
 
     screen.unmount();
   } finally {
     globalThis.document = prevDoc;
     globalThis.window = prevWin;
   }
+});
+
+test('CardSystem merge helpers: getMergePartners and getMergeableSlotIndices handle all cases', () => {
+  const h = createHarness();
+  const cards = ['card_shield_guard', 'card_arcane_archer', 'card_field_cleric', 'card_shield_guard', 'card_skill_astral_nova', 'card_shield_guard'];
+  h.cardSystem.initHand({
+    initialSlots: cards,
+  });
+
+  // Slots 0, 3, 5 are all Shield Guard Lv.I
+  assert.deepEqual(h.cardSystem.getMergePartners(0), [3, 5]);
+  assert.deepEqual(h.cardSystem.getMergePartners(3), [0, 5]);
+  assert.deepEqual(h.cardSystem.getMergePartners(5), [0, 3]);
+  assert.deepEqual(h.cardSystem.getMergePartners(1), []);
+  assert.deepEqual(h.cardSystem.getMergePartners(-1), []);
+  assert.deepEqual(h.cardSystem.getMergePartners(99), []);
+
+  const mergeable = h.cardSystem.getMergeableSlotIndices();
+  assert.deepEqual([...mergeable].sort(), [0, 3, 5]);
+
+  // Upgrade slots 0 and 5 to Lv.III -> neither can merge with Lv.I in slot 3 or with each other
+  h.cardSystem._slots[0] = h.cardSystem._createCardInstance(h.dataRegistry.cardsById.get('card_shield_guard'), 3);
+  h.cardSystem._slots[5] = h.cardSystem._createCardInstance(h.dataRegistry.cardsById.get('card_shield_guard'), 3);
+  assert.deepEqual(h.cardSystem.getMergePartners(0), []);
+  assert.deepEqual(h.cardSystem.getMergePartners(3), []);
+  assert.deepEqual([...h.cardSystem.getMergeableSlotIndices()], []);
 });
