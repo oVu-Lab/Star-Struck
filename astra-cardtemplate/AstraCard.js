@@ -215,12 +215,29 @@ const fontCache = new Map();
 function ensureFont(url) {
   if (!url) return Promise.resolve();
   if (fontCache.has(url)) return fontCache.get(url);
-  const links = document.querySelectorAll('link[rel="stylesheet"]');
-  for (const link of links) {
-    if (link.href === url || link.getAttribute('href') === url) {
-      const resolved = Promise.resolve();
-      fontCache.set(url, resolved);
-      return resolved;
+  if (typeof document !== 'undefined') {
+    try {
+      if (document.fonts?.check?.('700 16px "Cinzel Decorative"')) {
+        const resolved = Promise.resolve();
+        fontCache.set(url, resolved);
+        return resolved;
+      }
+    } catch {
+      // Ignore font check issues on partial DOM mocks
+    }
+    const links = document.querySelectorAll('link[rel="stylesheet"]');
+    for (const link of links) {
+      const rawHref = link.getAttribute('href') || '';
+      if (
+        link.href === url ||
+        rawHref === url ||
+        link.href?.includes('Cinzel+Decorative') ||
+        rawHref.includes('Cinzel+Decorative')
+      ) {
+        const resolved = Promise.resolve();
+        fontCache.set(url, resolved);
+        return resolved;
+      }
     }
   }
   const p = new Promise(res => {
@@ -229,7 +246,7 @@ function ensureFont(url) {
     l.href = url;
     l.onload = l.onerror = () => res();
     document.head.appendChild(l);
-    setTimeout(res, 3000);
+    setTimeout(res, 1200);
   });
   fontCache.set(url, p);
   return p;
@@ -314,29 +331,55 @@ function fix(x, m) {
 
 function blur(a, r) {
   const t = new Float32Array(a.length);
+  const wMax = W - 1;
+  const hMax = H - 1;
   for (let y = 0; y < H; y++) {
+    const row = y * W;
+    let sum = 0;
+    let count = 0;
+    for (let k = 0; k <= r && k < W; k++) {
+      sum += a[row + k];
+      count++;
+    }
     for (let x = 0; x < W; x++) {
-      let s = 0, c = 0;
-      for (let k = -r; k <= r; k++) {
-        const q = x + k;
-        if (q >= 0 && q < W) { s += a[y * W + q]; c++; }
+      if (x > 0) {
+        const addIdx = x + r;
+        if (addIdx <= wMax) { sum += a[row + addIdx]; count++; }
+        const remIdx = x - r - 1;
+        if (remIdx >= 0) { sum -= a[row + remIdx]; count--; }
       }
-      t[y * W + x] = s / c;
+      t[row + x] = sum / count;
     }
   }
-  for (let y = 0; y < H; y++) {
-    for (let x = 0; x < W; x++) {
-      let s = 0, c = 0;
-      for (let k = -r; k <= r; k++) {
-        const q = y + k;
-        if (q >= 0 && q < H) { s += t[q * W + x]; c++; }
+  for (let x = 0; x < W; x++) {
+    let sum = 0;
+    let count = 0;
+    for (let k = 0; k <= r && k < H; k++) {
+      sum += t[k * W + x];
+      count++;
+    }
+    for (let y = 0; y < H; y++) {
+      if (y > 0) {
+        const addIdx = y + r;
+        if (addIdx <= hMax) { sum += t[addIdx * W + x]; count++; }
+        const remIdx = y - r - 1;
+        if (remIdx >= 0) { sum -= t[remIdx * W + x]; count--; }
       }
-      a[y * W + x] = s / c;
+      a[y * W + x] = sum / count;
     }
   }
 }
 
-async function mkTitle(txt) {
+const titleCache = new Map();
+function mkTitle(txt) {
+  const key = String(txt == null ? '' : txt);
+  if (!titleCache.has(key)) {
+    titleCache.set(key, doMkTitle(key).catch(e => { titleCache.delete(key); throw e; }));
+  }
+  return titleCache.get(key);
+}
+
+async function doMkTitle(txt) {
   const c = document.createElement('canvas');
   c.width = 1152;
   c.height = 244;
@@ -347,10 +390,13 @@ async function mkTitle(txt) {
   const F = '"Cinzel Decorative","Cinzel","Trajan Pro",Georgia,serif', tr = 16, ly = 120;
   let fs = 96;
   try {
-    await Promise.race([
-      document.fonts.load('700 ' + fs + 'px "Cinzel Decorative"', txt),
-      new Promise(r => setTimeout(r, 2500))
-    ]);
+    const hasFont = document.fonts?.check?.('700 ' + fs + 'px "Cinzel Decorative"');
+    if (!hasFont && document.fonts?.load) {
+      await Promise.race([
+        document.fonts.load('700 ' + fs + 'px "Cinzel Decorative"', txt),
+        new Promise(r => setTimeout(r, 800))
+      ]);
+    }
   } catch (e) { /* fall back to serif stack */ }
 
   x.textBaseline = 'alphabetic';
@@ -474,28 +520,40 @@ async function doPrepare(u, fr) {
   const crop = (fr && fr.crop) ? fr.crop : [0, 0, W, H];
   cF2.getContext('2d').drawImage(cF, ...crop, 0, 0, W, H);
 
-  const dd = xC.getImageData(0, 0, W, H), P = dd.data, DP = xD.getImageData(0, 0, W, H).data, n = W * H, hf = new Float32Array(n);
+  const dd = xC.getImageData(0, 0, W, H), P = dd.data, DP = xD.getImageData(0, 0, W, H).data, n = W * H;
+  let hf = new Float32Array(n);
   for (let i = 0; i < n; i++) hf[i] = P[i * 4 + 3] > 10 ? 0.25 + 0.75 * DP[i * 4] / 255 : 0;
+  let srcP = new Uint8ClampedArray(P), dstP = P;
+  let srcH = new Float32Array(hf), dstH = hf;
   for (let it = 0; it < 5; it++) {
-    const S = P.slice(), Hs = hf.slice(); // outward extension of height + edge colour (side walls)
+    srcP.set(dstP);
+    srcH.set(dstH);
     for (let y = 1; y < H - 1; y++) {
       for (let xx = 1; xx < W - 1; xx++) {
         const i = y * W + xx;
-        if (S[i * 4 + 3] > 10) continue;
+        const i4 = i * 4;
+        if (srcP[i4 + 3] > 10) continue;
         let bj = -1, ba = 10;
-        for (const j of [i - 1, i + 1, i - W, i + W]) {
-          if (S[j * 4 + 3] > ba) { ba = S[j * 4 + 3]; bj = j; }
-        }
+        const jL = i - 1, aL = srcP[jL * 4 + 3];
+        if (aL > ba) { ba = aL; bj = jL; }
+        const jR = i + 1, aR = srcP[jR * 4 + 3];
+        if (aR > ba) { ba = aR; bj = jR; }
+        const jU = i - W, aU = srcP[jU * 4 + 3];
+        if (aU > ba) { ba = aU; bj = jU; }
+        const jD = i + W, aD = srcP[jD * 4 + 3];
+        if (aD > ba) { ba = aD; bj = jD; }
         if (bj >= 0) {
-          P[i * 4] = S[bj * 4];
-          P[i * 4 + 1] = S[bj * 4 + 1];
-          P[i * 4 + 2] = S[bj * 4 + 2];
-          P[i * 4 + 3] = ba * 0.8;
-          hf[i] = Hs[bj];
+          const bj4 = bj * 4;
+          dstP[i4] = srcP[bj4];
+          dstP[i4 + 1] = srcP[bj4 + 1];
+          dstP[i4 + 2] = srcP[bj4 + 2];
+          dstP[i4 + 3] = ba * 0.8;
+          dstH[i] = srcH[bj];
         }
       }
     }
   }
+  hf = dstH;
   xC.putImageData(dd, 0, 0);
   blur(hf, 3);
   blur(hf, 3);
@@ -545,6 +603,21 @@ export class AstraCard {
   /** Drop all cached pre-processed canvases (~40 MB per unique asset set). Existing instances are unaffected. */
   static clearCache() {
     cache.clear();
+    titleCache.clear();
+  }
+
+  /** Warm font, processed card textures, and title canvas caches without creating a WebGL context. */
+  static preload(opts = {}) {
+    if (typeof document === 'undefined') return Promise.resolve(null);
+    const urls = { ...DEFAULT_ASSETS, ...(opts.assets || {}) };
+    const frame = opts.frame || DEFAULT_FRAME;
+    const name = opts.name || 'ASTRA';
+    const fontUrl = opts.fontUrl !== undefined ? opts.fontUrl : DEFAULT_FONT;
+    return Promise.all([
+      ensureFont(fontUrl),
+      prepare(urls, frame),
+      mkTitle(name),
+    ]);
   }
 
   constructor(container, opts = {}) {

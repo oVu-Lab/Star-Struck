@@ -43,6 +43,7 @@ import { FormationScreen } from '../ui/FormationScreen.js';
 import { SummonScreen } from '../ui/SummonScreen.js';
 import { InventoryScreen } from '../ui/InventoryScreen.js';
 import { SettingsScreen } from '../ui/SettingsScreen.js';
+import { preloadCommanderCard } from '../ui/AstraCardMount.js';
 
 export class Game {
   constructor() {
@@ -247,6 +248,7 @@ export class Game {
       this.eventBus.on('screen:changed', ({ to }) => {
         this.gameState.setUI({ activeScreen: to });
         document.getElementById('app')?.classList.toggle('is-battle-mode', to === 'battle');
+        this._syncSettingsButton(to);
         this.audioManager?.setBgmMode?.(to === 'battle' ? 'battle' : 'menu');
       });
 
@@ -301,10 +303,25 @@ export class Game {
       }
     });
 
+    const warmCommanderCard = () => {
+      const activeId = this.formationSystem?.getCommanderId?.() || 'astra';
+      preloadCommanderCard(activeId);
+    };
+    const heroesNavBtn = navRoot?.querySelector('[data-screen="heroes"]');
+    heroesNavBtn?.addEventListener('pointerenter', warmCommanderCard, { passive: true });
+    heroesNavBtn?.addEventListener('focus', warmCommanderCard, { passive: true });
+
     const guideBtn = document.getElementById('hdr-guide-btn');
     guideBtn?.addEventListener('click', () => {
       this.audioManager?.playClick();
       this.openGuide();
+    });
+
+    const settingsBtn = document.getElementById('hdr-settings-btn');
+    settingsBtn?.addEventListener('click', () => {
+      if (this.screenManager?.getActiveScreenId() === 'settings') return;
+      this.audioManager?.playClick();
+      this.screenManager?.navigate('settings');
     });
 
     const muteBtn = document.getElementById('hdr-mute-btn');
@@ -331,6 +348,18 @@ export class Game {
     muteBtn.classList.toggle('is-muted', isMuted);
     muteBtn.setAttribute('aria-pressed', String(isMuted));
     muteBtn.title = isMuted ? 'Unmute Game Audio' : 'Mute Game Audio';
+  }
+
+  _syncSettingsButton(activeScreenId = this.screenManager?.getActiveScreenId?.()) {
+    const settingsBtn = document.getElementById('hdr-settings-btn');
+    if (!settingsBtn) return;
+    const isActive = activeScreenId === 'settings';
+    settingsBtn.classList.toggle('is-active', isActive);
+    if (isActive) {
+      settingsBtn.setAttribute('aria-current', 'page');
+    } else {
+      settingsBtn.removeAttribute('aria-current');
+    }
   }
 
   _syncHeaderResources() {

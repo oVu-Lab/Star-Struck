@@ -5,6 +5,7 @@
 
 import {
   AstraCardRegistry,
+  buildAstraCardData,
   hasCollectibleCommanderCard,
 } from './AstraCardMount.js';
 
@@ -23,6 +24,8 @@ export class HeroScreen {
     this._previewCloseTimer = null;
     this._hasRendered = false;
     this._lastHeroId = null;
+    this._mountedHeroId = null;
+    this._mountedCard = null;
     this._railScrollTop = 0;
   }
 
@@ -30,10 +33,15 @@ export class HeroScreen {
     this._container = container;
     this._hasRendered = false;
     this._lastHeroId = null;
+    this._mountedHeroId = null;
+    this._mountedCard = null;
     this._railScrollTop = 0;
     this.render();
     this._unsubs.push(
-      this._ctx.eventBus.on('state:changed', () => this.render()),
+      this._ctx.eventBus.on('state:changed', (payload) => {
+        if (payload?.scope === 'settings') return;
+        this.render();
+      }),
     );
   }
 
@@ -44,6 +52,8 @@ export class HeroScreen {
     this._unsubs = [];
     this._hasRendered = false;
     this._lastHeroId = null;
+    this._mountedHeroId = null;
+    this._mountedCard = null;
     this._railScrollTop = 0;
     this._container = null;
   }
@@ -84,7 +94,13 @@ export class HeroScreen {
           id="commander-card-preview-slot"
           class="card-preview-modal__card-slot"
           data-commander-preview-slot="${hero.id}"
-        ></div>
+          data-card-state="loading"
+        >
+          <div class="hero-card-placeholder hero-card-placeholder--modal" aria-live="polite">
+            <div class="hero-card-placeholder__crest" aria-hidden="true"></div>
+            <span class="hero-card-placeholder__label">Preparing 3D Preview…</span>
+          </div>
+        </div>
         <div class="card-preview-modal__hint">
           Move cursor over card to inspect 3D tilt &amp; holographic parallax
         </div>
@@ -95,7 +111,15 @@ export class HeroScreen {
     this._previewModalEl = modal;
 
     const previewSlot = modal.querySelector('#commander-card-preview-slot');
-    this._previewCards.mount(previewSlot, {
+    const previewPlaceholder = previewSlot?.querySelector('.hero-card-placeholder');
+    const hidePreviewPlaceholder = () => {
+      if (!previewPlaceholder) return;
+      previewPlaceholder.classList?.add('is-hidden');
+      previewPlaceholder.setAttribute?.('aria-hidden', 'true');
+      previewPlaceholder.hidden = true;
+    };
+
+    const previewCard = this._previewCards.mount(previewSlot, {
       hero,
       mode: 'preview',
       extraData: {
@@ -107,7 +131,12 @@ export class HeroScreen {
       studio: false,
       assetManager,
       fallbackAssetId: hero.portraitAssetId,
+      onReady: hidePreviewPlaceholder,
+      onError: hidePreviewPlaceholder,
     });
+    if (!previewCard || previewCard.ready) {
+      hidePreviewPlaceholder();
+    }
 
     for (const closeTarget of modal.querySelectorAll('[data-close-card-preview]')) {
       closeTarget.addEventListener('click', () => {
@@ -196,7 +225,6 @@ export class HeroScreen {
     }
 
     this._closeCardPreview({ resumeStage: false, immediate: true });
-    this._astraCards.destroyAll();
 
     const { heroSystem, formationSystem, gameState, assetManager, audioManager, screenManager } =
       this._ctx;
@@ -217,6 +245,23 @@ export class HeroScreen {
     const selRarity = (selectedHero?.rarity || 'SSR').toLowerCase();
 
     const hasCollectibleCard = hasCollectibleCommanderCard(selectedHero);
+    const canReuseLiveCard = Boolean(
+      hasCollectibleCard &&
+        selectedHero &&
+        this._mountedHeroId === selectedHero.id &&
+        this._mountedCard &&
+        !this._mountedCard.destroyed &&
+        this._mountedCard.element &&
+        typeof this._mountedCard.element.remove === 'function',
+    );
+    const reusedCard = canReuseLiveCard ? this._mountedCard : null;
+    if (reusedCard) {
+      reusedCard.element.remove();
+    } else {
+      this._astraCards.destroyAll();
+      this._mountedHeroId = null;
+      this._mountedCard = null;
+    }
     const settledClass = this._hasRendered ? ' is-settled' : '';
     const heroChanged =
       this._hasRendered &&
@@ -272,8 +317,18 @@ export class HeroScreen {
                           class="hero-art-stage__collectible-slot"
                           data-astra-card-slot="hero-detail"
                           data-commander-card-id="${selectedHero.id}"
+                          data-card-state="loading"
                           title="Click card to inspect interactive 3D preview"
-                        ></div>
+                        >
+                          <div
+                            id="hero-card-loading-placeholder"
+                            class="hero-card-placeholder"
+                            aria-live="polite"
+                          >
+                            <div class="hero-card-placeholder__crest" aria-hidden="true"></div>
+                            <span class="hero-card-placeholder__label">Preparing Card…</span>
+                          </div>
+                        </div>
                       </div>
                     `
                     : `
@@ -458,6 +513,7 @@ export class HeroScreen {
 
       item.addEventListener('click', () => {
         audioManager.playClick();
+        if (hero.id === selectedHero?.id) return;
         gameState.setUI({ selectedHeroId: hero.id });
         this.render();
       });
@@ -471,23 +527,62 @@ export class HeroScreen {
 
     if (hasCollectibleCard && selectedHero) {
       const cardSlot = this._container.querySelector('#hero-collectible-card-slot');
-      const mountedCard = this._astraCards.mount(cardSlot, {
-        hero: selectedHero,
-        mode: 'static',
-        extraData: {
-          activeCommander: selectedHero.id === activeCommanderId,
-        },
-        selectable: true,
-        selected: false,
-        studio: false,
-        onClick: () => this._openCardPreview(selectedHero),
-        assetManager,
-        fallbackAssetId: selectedHero.portraitAssetId,
-      });
-      if (!mountedCard && cardSlot) {
-        cardSlot.setAttribute('role', 'button');
-        cardSlot.setAttribute('tabindex', '0');
-        cardSlot.addEventListener('click', () => this._openCardPreview(selectedHero));
+      const placeholder = this._container.querySelector('#hero-card-loading-placeholder');
+      const hidePlaceholder = () => {
+        if (!placeholder) return;
+        placeholder.classList?.add('is-hidden');
+        placeholder.setAttribute?.('aria-hidden', 'true');
+        placeholder.hidden = true;
+      };
+
+      if (reusedCard && cardSlot && typeof cardSlot.appendChild === 'function') {
+        cardSlot.appendChild(reusedCard.element);
+        reusedCard.update?.(
+          buildAstraCardData(selectedHero, {
+            activeCommander: selectedHero.id === activeCommanderId,
+          }),
+        );
+        reusedCard.resume?.();
+        reusedCard.resize?.();
+        if (reusedCard.ready) {
+          cardSlot.setAttribute?.('data-card-state', 'ready');
+          hidePlaceholder();
+        }
+      } else {
+        const mountedCard = this._astraCards.mount(cardSlot, {
+          hero: selectedHero,
+          mode: 'static',
+          extraData: {
+            activeCommander: selectedHero.id === activeCommanderId,
+          },
+          selectable: true,
+          selected: false,
+          studio: false,
+          onClick: () => this._openCardPreview(selectedHero),
+          onReady: () => hidePlaceholder(),
+          onError: () => {
+            hidePlaceholder();
+            if (cardSlot) {
+              cardSlot.setAttribute('role', 'button');
+              cardSlot.setAttribute('tabindex', '0');
+              cardSlot.addEventListener('click', () => this._openCardPreview(selectedHero));
+            }
+          },
+          assetManager,
+          fallbackAssetId: selectedHero.portraitAssetId,
+        });
+        this._mountedHeroId = mountedCard ? selectedHero.id : null;
+        this._mountedCard = mountedCard || null;
+        if (!mountedCard) {
+          hidePlaceholder();
+          if (cardSlot) {
+            cardSlot.setAttribute('role', 'button');
+            cardSlot.setAttribute('tabindex', '0');
+            cardSlot.addEventListener('click', () => this._openCardPreview(selectedHero));
+          }
+        } else if (mountedCard.ready) {
+          hidePlaceholder();
+        }
       }
     } else {
       const detailImg = this._container.querySelector('#hero-detail-img');
@@ -499,7 +594,9 @@ export class HeroScreen {
     for (const tab of this._container.querySelectorAll('[data-filter]')) {
       tab.addEventListener('click', () => {
         audioManager.playClick();
-        gameState.setUI({ heroFilter: tab.getAttribute('data-filter') });
+        const nextFilter = tab.getAttribute('data-filter');
+        if (nextFilter === filter) return;
+        gameState.setUI({ heroFilter: nextFilter });
         this.render();
       });
     }

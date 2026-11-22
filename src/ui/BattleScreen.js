@@ -8,6 +8,7 @@
 import { BATTLE_PHASES } from '../battle/BattleManager.js';
 import { createTutorialStageConfig } from '../battle/TutorialBattleConfig.js';
 import { CardUltimateFxController } from '../rendering/AstraGlitterEffects.js';
+import { CardMergeVfxController } from '../rendering/CardMergeVfxController.js';
 import { formatNumber } from '../utils/MathUtils.js';
 
 const COMMANDER_FX_THEMES = {
@@ -55,10 +56,13 @@ export class BattleScreen {
     this._hudEls = null;
     this._hudCache = {};
     this._ultFxController = null;
+    this._mergeVfxController = null;
     this._slotNodes = [];
     this._slotMeta = [];
     this._pendingMergeSlot = -1;
     this._isInitialHandSync = true;
+    this._slotAnimTimers = new Map();
+    this._lastMergedInstanceId = null;
   }
 
   mount(container, params = {}) {
@@ -70,6 +74,7 @@ export class BattleScreen {
     this._hoveredCardSlot = -1;
     this._resultsShownSessionId = null;
     this._isInitialHandSync = true;
+    this._clearMergeVfx();
 
     const {
       battleManager,
@@ -186,6 +191,7 @@ export class BattleScreen {
         </div>
 
         <div class="battle-command-dock" aria-label="Tactical Command Dock">
+          <canvas id="merge-vfx-canvas" class="merge-vfx-canvas" aria-hidden="true"></canvas>
           <div class="dock-energy-core">
             <div>
               <div class="dock-energy-core__kicker">Command Energy</div>
@@ -261,6 +267,9 @@ export class BattleScreen {
     this._ultFxController = new CardUltimateFxController(
       container.querySelector('#ult-fx-canvas'),
       fxTheme,
+    );
+    this._mergeVfxController = new CardMergeVfxController(
+      container.querySelector('#merge-vfx-canvas'),
     );
 
     const avatarEl = container.querySelector('#battle-commander-avatar');
@@ -457,8 +466,13 @@ export class BattleScreen {
           this._renderCardSlots();
         }
       }),
-      eventBus.on('cards:merged', ({ targetIndex, upgradedCard }) => {
+      eventBus.on('cards:merged', ({ sourceIndex, targetIndex, upgradedCard }) => {
+        if (upgradedCard?.instanceId && this._lastMergedInstanceId === upgradedCard.instanceId) {
+          return;
+        }
+        this._lastMergedInstanceId = upgradedCard?.instanceId || null;
         this._pendingMergeSlot = typeof targetIndex === 'number' ? targetIndex : -1;
+        this._playMergeSuccessVfx({ sourceIndex, targetIndex, upgradedCard });
         this._ctx.notify(
           `Merged into ${upgradedCard.name} (${upgradedCard.levelLabel})`,
           'success',
@@ -485,6 +499,9 @@ export class BattleScreen {
   }
 
   unmount() {
+    this._clearMergeVfx();
+    this._mergeVfxController?.stop();
+    this._mergeVfxController = null;
     this._ctx.tutorialManager?.abortSession?.();
     this._ultFxController?.stop();
     this._ultFxController = null;
@@ -589,6 +606,7 @@ export class BattleScreen {
       previewUpgrade: q('#card-preview-upgrade'),
       outcomeSplash: q('#battle-outcome-splash'),
       resultsOverlay: q('#battle-results-overlay'),
+      mergeVfxCanvas: q('#merge-vfx-canvas'),
     };
   }
 
@@ -632,8 +650,10 @@ export class BattleScreen {
           <div class="tactical-card__cooldown" hidden>
             <span class="tactical-card__cooldown-text tabular-nums"></span>
           </div>
+          <span class="tactical-card__flash" aria-hidden="true"></span>
         </div>
         <span class="tactical-card__merge-badge" hidden aria-hidden="true"></span>
+        <span class="tactical-card__levelup" hidden aria-hidden="true"></span>
       `;
 
       btn.addEventListener('mouseenter', () => {
@@ -677,7 +697,9 @@ export class BattleScreen {
         refillFill: btn.querySelector('.tactical-card__refill-fill'),
         cdWrap: btn.querySelector('.tactical-card__cooldown'),
         cdText: btn.querySelector('.tactical-card__cooldown-text'),
+        flash: btn.querySelector('.tactical-card__flash'),
         mergeBadge: btn.querySelector('.tactical-card__merge-badge'),
+        levelUp: btn.querySelector('.tactical-card__levelup'),
       });
       this._slotMeta.push({
         instanceId: null,
@@ -697,13 +719,153 @@ export class BattleScreen {
     setTimeout(() => node.root.classList.remove('is-invalid-shake'), 280);
   }
 
-  _triggerSlotAnimation(slotIndex, className, durationMs) {
+  _triggerSlotAnimation(slotIndex, className, durationMs, extraClasses = [], onEnd = null) {
     const node = this._slotNodes[slotIndex];
     if (!node) return;
-    node.root.classList.remove('is-newly-drawn', 'is-just-merged');
+    const prevTimer = this._slotAnimTimers.get(slotIndex);
+    if (prevTimer) {
+      clearTimeout(prevTimer);
+      this._slotAnimTimers.delete(slotIndex);
+    }
+    const animClasses = [
+      'is-newly-drawn',
+      'is-just-merged',
+      'is-merge-tier-2',
+      'is-merge-tier-3',
+      'is-merge-departed',
+    ];
+    node.root.classList.remove(...animClasses);
+    if (node.tier) {
+      node.tier.classList?.remove('is-tier-evolving');
+      node.tier.removeAttribute?.('data-prev-tier');
+    }
+    if (node.levelUp && className !== 'is-newly-drawn') {
+      node.levelUp.classList?.remove('is-visible', 'is-tier-3');
+      node.levelUp.hidden = true;
+      node.levelUp.innerHTML = '';
+    }
     void node.root.offsetWidth;
-    node.root.classList.add(className);
-    setTimeout(() => node.root.classList.remove(className), durationMs);
+    const classesToAdd = [className, ...extraClasses].filter(Boolean);
+    node.root.classList.add(...classesToAdd);
+    const timer = setTimeout(() => {
+      this._slotAnimTimers.delete(slotIndex);
+      node.root?.classList?.remove(...classesToAdd);
+      if (typeof onEnd === 'function') onEnd(node);
+    }, durationMs);
+    this._slotAnimTimers.set(slotIndex, timer);
+  }
+
+  _clearMergeVfx() {
+    if (this._slotAnimTimers) {
+      for (const timer of this._slotAnimTimers.values()) {
+        clearTimeout(timer);
+      }
+      this._slotAnimTimers.clear();
+    }
+    if (this._slotNodes) {
+      for (const node of this._slotNodes) {
+        node.root?.classList?.remove(
+          'is-newly-drawn',
+          'is-just-merged',
+          'is-merge-tier-2',
+          'is-merge-tier-3',
+          'is-merge-departed',
+        );
+        if (node.tier) {
+          node.tier.classList?.remove('is-tier-evolving');
+          node.tier.removeAttribute?.('data-prev-tier');
+        }
+        if (node.levelUp) {
+          node.levelUp.classList?.remove('is-visible', 'is-tier-3');
+          node.levelUp.hidden = true;
+          node.levelUp.innerHTML = '';
+        }
+      }
+    }
+    this._mergeVfxController?.stop?.();
+    this._lastMergedInstanceId = null;
+  }
+
+  _playMergeSuccessVfx({ sourceIndex, targetIndex, upgradedCard } = {}) {
+    const sourceNode = Number.isInteger(sourceIndex) ? this._slotNodes[sourceIndex] : null;
+    const targetNode = Number.isInteger(targetIndex) ? this._slotNodes[targetIndex] : null;
+    if (!targetNode || !targetNode.root) return;
+
+    const toTier = upgradedCard?.tier >= 3 ? 3 : 2;
+    const fromTier = Math.max(1, toTier - 1);
+    const prevLabel = fromTier === 2 ? 'Lv.II' : 'Lv.I';
+    const nextLabel = toTier >= 3 ? 'Lv.III' : 'Lv.II';
+    const rarity = (upgradedCard?.rarity || 'R').toLowerCase();
+    const reducedMotion =
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (sourceNode?.root && sourceIndex !== targetIndex) {
+      const departMs = reducedMotion ? 160 : 200;
+      this._triggerSlotAnimation(sourceIndex, 'is-merge-departed', departMs);
+    }
+
+    const targetDurMs = reducedMotion ? 240 : toTier >= 3 ? 620 : 520;
+    this._triggerSlotAnimation(
+      targetIndex,
+      'is-just-merged',
+      targetDurMs,
+      [`is-merge-tier-${toTier}`],
+      (node) => {
+        if (node.tier) {
+          node.tier.classList?.remove('is-tier-evolving');
+          node.tier.removeAttribute?.('data-prev-tier');
+        }
+        if (node.levelUp) {
+          node.levelUp.classList?.remove('is-visible', 'is-tier-3');
+          node.levelUp.hidden = true;
+          node.levelUp.innerHTML = '';
+        }
+      },
+    );
+
+    if (targetNode.tier) {
+      targetNode.tier.setAttribute?.('data-prev-tier', prevLabel);
+      targetNode.tier.classList?.add('is-tier-evolving');
+    }
+
+    if (targetNode.levelUp) {
+      targetNode.levelUp.innerHTML = `<span class="tactical-card__levelup-main">LEVEL UP</span><span class="tactical-card__levelup-tier">${nextLabel}</span>`;
+      if (typeof HTMLElement === 'undefined' || !(targetNode.levelUp instanceof HTMLElement)) {
+        targetNode.levelUp.textContent = `LEVEL UP ${nextLabel}`;
+      }
+      targetNode.levelUp.hidden = false;
+      targetNode.levelUp.classList?.add('is-visible');
+      if (toTier >= 3) {
+        targetNode.levelUp.classList?.add('is-tier-3');
+      }
+    }
+
+    const canvas = this._hudEls?.mergeVfxCanvas || this._container?.querySelector?.('#merge-vfx-canvas');
+    const canvasRect =
+      canvas && typeof canvas.getBoundingClientRect === 'function'
+        ? canvas.getBoundingClientRect()
+        : null;
+    const sourceRect =
+      sourceNode?.root && typeof sourceNode.root.getBoundingClientRect === 'function'
+        ? sourceNode.root.getBoundingClientRect()
+        : null;
+    const targetRect =
+      typeof targetNode.root.getBoundingClientRect === 'function'
+        ? targetNode.root.getBoundingClientRect()
+        : null;
+
+    this._mergeVfxController?.playMerge({
+      sourceIndex,
+      targetIndex,
+      fromTier,
+      toTier,
+      rarity,
+      sourceRect,
+      targetRect,
+      canvasRect,
+    });
   }
 
   _refreshCommanderConsole(commander) {
@@ -979,7 +1141,10 @@ export class BattleScreen {
           node.mergeBadge.className = 'tactical-card__merge-badge';
         }
         if (!meta.isEmpty) {
-          node.root.className = 'tactical-card tactical-card--empty';
+          const keepEmptyAnim = node.root.classList.contains('is-merge-departed')
+            ? ' is-merge-departed'
+            : '';
+          node.root.className = `tactical-card tactical-card--empty${keepEmptyAnim}`;
           node.top.hidden = true;
           node.art.hidden = true;
           node.cdWrap.hidden = true;
@@ -1036,6 +1201,8 @@ export class BattleScreen {
       const keepAnim = [];
       if (node.root.classList.contains('is-newly-drawn')) keepAnim.push('is-newly-drawn');
       if (node.root.classList.contains('is-just-merged')) keepAnim.push('is-just-merged');
+      if (node.root.classList.contains('is-merge-tier-2')) keepAnim.push('is-merge-tier-2');
+      if (node.root.classList.contains('is-merge-tier-3')) keepAnim.push('is-merge-tier-3');
       if (node.root.classList.contains('is-invalid-shake')) keepAnim.push('is-invalid-shake');
 
       node.root.className = [
@@ -1144,7 +1311,12 @@ export class BattleScreen {
       meta.isEmpty = false;
 
       if (isMergedHere) {
-        this._triggerSlotAnimation(idx, 'is-just-merged', 440);
+        if (!node.root.classList.contains('is-just-merged')) {
+          const mergeTier = slot.tier >= 3 ? 3 : 2;
+          this._triggerSlotAnimation(idx, 'is-just-merged', mergeTier === 3 ? 620 : 520, [
+            `is-merge-tier-${mergeTier}`,
+          ]);
+        }
       } else if (isDrawnHere) {
         this._triggerSlotAnimation(idx, 'is-newly-drawn', 260);
         drewNewCard = true;
@@ -1448,6 +1620,7 @@ export class BattleScreen {
       overlay.innerHTML = '';
       this._hudCache = {};
       this._isInitialHandSync = true;
+      this._clearMergeVfx();
       const canvas = this._container.querySelector('#battle-canvas');
       this._ctx.battleManager.startSession(canvas, { stageId: results.stageId });
       this._renderCardSlots();

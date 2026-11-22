@@ -492,6 +492,28 @@
   display: block;
 }
 
+.settings-toggle-btn__icon {
+  transition: transform 220ms var(--ease-tactical);
+}
+
+.settings-toggle-btn:hover .settings-toggle-btn__icon {
+  transform: rotate(35deg) scale(1.05);
+}
+
+.settings-toggle-btn.is-active {
+  color: var(--accent-gold-deep);
+  background: var(--accent-gold);
+  filter: drop-shadow(0 2px 6px rgba(148, 105, 26, 0.22));
+}
+
+.settings-toggle-btn.is-active::before {
+  background: #fff9e8;
+}
+
+.settings-toggle-btn.is-active .settings-toggle-btn__icon {
+  transform: rotate(45deg);
+}
+
 /* Main Screen Viewport — Viewport-Locked Desktop Frame with Transition Stage */
 .screen-viewport {
   position: relative;

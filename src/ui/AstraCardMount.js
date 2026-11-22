@@ -105,6 +105,30 @@ export function isAstraHero(heroOrId) {
 }
 
 /**
+ * Warm cached font, title, and pre-processed card textures without creating any
+ * WebGL context. Safe no-op in non-browser environments or for non-collectible heroes.
+ *
+ * @param {string|object|null|undefined} heroOrId
+ * @returns {Promise<void>}
+ */
+export function preloadCommanderCard(heroOrId) {
+  const cfg = getCommanderCardConfig(heroOrId);
+  if (!cfg) return Promise.resolve();
+  const CardClass = cfg.CardClass || AstraCard;
+  if (typeof CardClass?.preload !== 'function') return Promise.resolve();
+  try {
+    return Promise.resolve(
+      CardClass.preload({
+        name: cfg.displayName,
+        assets: cfg.assets || undefined,
+      }),
+    ).catch(() => {});
+  } catch {
+    return Promise.resolve();
+  }
+}
+
+/**
  * Build the collectible card `data` payload from real Star Struck hero data.
  * Uses the registered card displayName (e.g. 'ASTRA') so the holographic
  * top-band title matches the card artwork while carrying full commander metadata.
@@ -171,6 +195,7 @@ function mountPortraitFallback(container, { hero, assetManager, fallbackAssetId 
   if (!container) return;
   const alt = hero?.name || 'Astra Valen';
   const assetId = fallbackAssetId || hero?.portraitAssetId || 'hero_portrait_astra';
+  container.setAttribute?.('data-card-state', 'fallback');
   container.innerHTML = `<img class="astra-card-fallback-img" alt="${alt}" />`;
   const img = container.querySelector?.('img');
   if (img && assetManager?.bindImageElement) {
@@ -193,6 +218,7 @@ export class AstraCardRegistry {
     this._maxInstances = Math.max(1, Number(maxInstances) || MAX_SIMULTANEOUS_ASTRA_CARDS);
     this._CardClassOverride = CardClass || null;
     this._instances = [];
+    this._loadTimers = new Map();
   }
 
   get count() {
@@ -201,6 +227,15 @@ export class AstraCardRegistry {
 
   getInstances() {
     return [...this._instances];
+  }
+
+  _clearLoadTimer(card) {
+    if (!card) return;
+    const timer = this._loadTimers.get(card);
+    if (timer) {
+      clearTimeout(timer);
+      this._loadTimers.delete(card);
+    }
   }
 
   /**
@@ -231,6 +266,7 @@ export class AstraCardRegistry {
       onError = null,
       assetManager = null,
       fallbackAssetId = null,
+      loadingTimeoutMs = undefined,
     } = opts;
 
     if (this._instances.length >= this._maxInstances) {
@@ -251,6 +287,44 @@ export class AstraCardRegistry {
 
     const resolvedGlow = glow !== undefined ? glow : (cardCfg?.glow ?? null);
     const resolvedAssets = assets !== undefined ? assets : (cardCfg?.assets || undefined);
+    const resolvedTimeoutMs =
+      loadingTimeoutMs !== undefined
+        ? Number(loadingTimeoutMs) || 0
+        : isRealAstraCard
+          ? 10000
+          : 0;
+
+    let card = null;
+    let settled = false;
+
+    const markReady = (detail) => {
+      if (settled) return;
+      settled = true;
+      this._clearLoadTimer(card);
+      container.setAttribute?.('data-card-state', 'ready');
+      if (typeof onReady === 'function') {
+        onReady(detail, card);
+      }
+    };
+
+    const triggerFallback = (detail) => {
+      if (settled) return;
+      settled = true;
+      this._clearLoadTimer(card);
+      if (card) {
+        this.destroyOne(card);
+      }
+      if (assetManager && container) {
+        mountPortraitFallback(container, { hero, assetManager, fallbackAssetId });
+      } else {
+        container.setAttribute?.('data-card-state', 'fallback');
+      }
+      if (typeof onError === 'function') {
+        onError(detail);
+      }
+    };
+
+    container.setAttribute?.('data-card-state', 'loading');
 
     const cardOptions = {
       ...modePreset,
@@ -264,28 +338,40 @@ export class AstraCardRegistry {
       onSelect: typeof onSelect === 'function' ? onSelect : undefined,
       onHoverStart: typeof onHoverStart === 'function' ? onHoverStart : undefined,
       onHoverEnd: typeof onHoverEnd === 'function' ? onHoverEnd : undefined,
-      onReady: typeof onReady === 'function' ? onReady : undefined,
-      onError: (detail) => {
-        if (typeof onError === 'function') {
-          onError(detail);
-        }
-        if (assetManager && container) {
-          this.destroyOne(card);
-          mountPortraitFallback(container, { hero, assetManager, fallbackAssetId });
-        }
-      },
+      onReady: markReady,
+      onError: triggerFallback,
     };
 
-    let card = null;
     try {
       card = new CardClass(container, cardOptions);
       this._instances.push(card);
+
+      if (card.ready) {
+        markReady(card.getData?.() || cardOptions.data);
+      } else {
+        if (typeof card.whenReady === 'function') {
+          Promise.resolve(card.whenReady()).then(
+            () => markReady(card.getData?.() || cardOptions.data),
+            (err) => {
+              if (!card.destroyed) {
+                triggerFallback(err);
+              }
+            },
+          );
+        }
+        if (resolvedTimeoutMs > 0) {
+          const timer = setTimeout(() => {
+            if (!settled && card && !card.ready && !card.destroyed) {
+              triggerFallback(new Error('AstraCard initialization timed out'));
+            }
+          }, resolvedTimeoutMs);
+          this._loadTimers.set(card, timer);
+        }
+      }
+
       return card;
     } catch (error) {
-      if (typeof onError === 'function') {
-        onError({ error, card: null });
-      }
-      mountPortraitFallback(container, { hero, assetManager, fallbackAssetId });
+      triggerFallback({ error, card: null });
       return null;
     }
   }
@@ -327,6 +413,7 @@ export class AstraCardRegistry {
    */
   destroyOne(card) {
     if (!card) return;
+    this._clearLoadTimer(card);
     const idx = this._instances.indexOf(card);
     if (idx !== -1) {
       this._instances.splice(idx, 1);
@@ -355,6 +442,10 @@ export class AstraCardRegistry {
    * Destroy every mounted AstraCard instance and release its WebGL context.
    */
   destroyAll() {
+    for (const timer of this._loadTimers.values()) {
+      clearTimeout(timer);
+    }
+    this._loadTimers.clear();
     const active = this._instances.splice(0, this._instances.length);
     for (const card of active) {
       try {

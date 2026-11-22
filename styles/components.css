@@ -5405,6 +5405,124 @@ button.summon-result-card:active {
   transform: translateY(0) scale(0.992);
 }
 
+/* Polished Warm-Ivory & Gold Loading Placeholder for Collectible WebGL Card */
+.hero-card-placeholder {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 20px;
+  border-radius: 14px;
+  border: 1px solid rgba(182, 136, 42, 0.36);
+  background:
+    radial-gradient(ellipse 75% 65% at 50% 42%, rgba(255, 253, 246, 0.96) 0%, rgba(244, 234, 212, 0.92) 58%, rgba(233, 218, 188, 0.9) 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.72),
+    inset 0 12px 32px rgba(212, 166, 58, 0.08),
+    0 12px 26px rgba(46, 36, 24, 0.1);
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 220ms ease-out,
+    visibility 220ms ease-out;
+}
+
+.hero-card-placeholder::after {
+  content: '';
+  position: absolute;
+  inset: -25% -60%;
+  background: linear-gradient(
+    112deg,
+    transparent 38%,
+    rgba(255, 255, 255, 0.56) 49%,
+    rgba(235, 198, 108, 0.22) 53%,
+    transparent 64%
+  );
+  animation: hero-card-placeholder-sweep 1.7s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.hero-card-placeholder__crest {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid var(--accent-gold);
+  background: #fffdf8;
+  transform: rotate(45deg);
+  box-shadow: 0 3px 12px rgba(166, 124, 46, 0.2);
+  animation: hero-card-crest-pulse 1.8s ease-in-out infinite;
+}
+
+.hero-card-placeholder__crest::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border: 1px solid rgba(182, 136, 42, 0.3);
+}
+
+.hero-card-placeholder__crest::after {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  background: linear-gradient(135deg, #ecc568 0%, #9b701e 100%);
+}
+
+.hero-card-placeholder__label {
+  font-family: var(--font-ui);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent-gold-deep);
+}
+
+.hero-card-placeholder--modal {
+  border-color: rgba(235, 208, 140, 0.34);
+  background:
+    radial-gradient(ellipse 75% 65% at 50% 44%, rgba(28, 34, 66, 0.9) 0%, rgba(12, 16, 34, 0.94) 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(246, 220, 139, 0.16),
+    0 18px 36px rgba(4, 6, 14, 0.55);
+}
+
+.hero-card-placeholder--modal .hero-card-placeholder__crest {
+  background: #141a34;
+}
+
+.hero-card-placeholder--modal .hero-card-placeholder__label {
+  color: #f4e6c2;
+}
+
+.hero-card-placeholder.is-hidden,
+[data-card-state='ready'] .hero-card-placeholder,
+[data-card-state='fallback'] .hero-card-placeholder {
+  opacity: 0;
+  visibility: hidden;
+}
+
+@keyframes hero-card-placeholder-sweep {
+  0% { transform: translateX(-35%); }
+  100% { transform: translateX(35%); }
+}
+
+@keyframes hero-card-crest-pulse {
+  0%, 100% { transform: rotate(45deg) scale(1); }
+  50% { transform: rotate(45deg) scale(1.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-card-placeholder::after,
+  .hero-card-placeholder__crest {
+    animation: none;
+  }
+}
+
 /* Reusable Commander Interactive Card Preview Modal */
 .card-preview-modal {
   position: fixed;

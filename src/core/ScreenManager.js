@@ -3,7 +3,7 @@
  * sliding nav indicator, and lifecycle mounting across all game screens.
  */
 
-const NAV_ORDER = ['home', 'missions', 'battle', 'heroes', 'formation', 'summon', 'inventory', 'settings'];
+const NAV_ORDER = ['home', 'missions', 'summon', 'formation', 'battle', 'heroes', 'inventory', 'settings'];
 const EXIT_TRANSITION_MS = 210;
 const SETTLE_TRANSITION_MS = 290;
 
@@ -22,6 +22,7 @@ export class ScreenManager {
     this._exitTimer = null;
     this._settleTimer = null;
     this._navIndicatorEl = null;
+    this._hasPositionedIndicator = false;
     this._boundResize = null;
   }
 
@@ -232,9 +233,7 @@ export class ScreenManager {
       return;
     }
 
-    let isFirstPlacement = false;
     if (!this._navIndicatorEl) {
-      isFirstPlacement = true;
       this._navIndicatorEl = document.createElement('span');
       this._navIndicatorEl.className = 'nav-active-indicator';
       this._navIndicatorEl.setAttribute('aria-hidden', 'true');
@@ -269,7 +268,8 @@ export class ScreenManager {
       return;
     }
 
-    if (isFirstPlacement) {
+    if (!this._hasPositionedIndicator) {
+      this._hasPositionedIndicator = true;
       this._navIndicatorEl.style.transition = 'none';
       this._navIndicatorEl.style.width = `${width}px`;
       this._navIndicatorEl.style.transform = `translate3d(${left}px, 0, 0)`;

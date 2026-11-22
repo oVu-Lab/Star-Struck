@@ -42,13 +42,9 @@
 
         <nav id="primary-nav" class="primary-nav" aria-label="Main navigation">
           <button type="button" class="nav-link" data-screen="home">Home</button>
-          <button type="button" class="nav-link" data-screen="missions">Missions</button>
           <button type="button" class="nav-link" data-screen="battle">Battle</button>
-          <button type="button" class="nav-link" data-screen="heroes">Heroes</button>
-          <button type="button" class="nav-link" data-screen="formation">Formation</button>
-          <button type="button" class="nav-link" data-screen="summon">Summon</button>
+          <button type="button" class="nav-link" data-screen="heroes">Commanders</button>
           <button type="button" class="nav-link" data-screen="inventory">Inventory</button>
-          <button type="button" class="nav-link" data-screen="settings">Settings</button>
         </nav>
 
         <div id="header-resources" class="header-resources" aria-label="Player resources">
@@ -86,6 +82,23 @@
               <path class="audio-wave-1" d="M13.8 7.3a3.6 3.6 0 0 1 0 5.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
               <path class="audio-wave-2" d="M16.1 5a6.8 6.8 0 0 1 0 10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
               <path class="audio-slash" d="M13.6 7.4l4.2 5.2M17.8 7.4l-4.2 5.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            id="hdr-settings-btn"
+            class="audio-toggle-btn settings-toggle-btn"
+            aria-label="Open Settings"
+            title="Settings"
+          >
+            <svg class="audio-toggle-btn__icon settings-toggle-btn__icon" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path
+                d="M8.7 2.5h2.6l.4 1.8a5.6 5.6 0 0 1 1.4.6l1.5-1 1.8 1.8-1 1.5c.26.44.46.9.6 1.4l1.8.4v2.6l-1.8.4a5.6 5.6 0 0 1-.6 1.4l1 1.5-1.8 1.8-1.5-1a5.6 5.6 0 0 1-1.4.6l-.4 1.8H8.7l-.4-1.8a5.6 5.6 0 0 1-1.4-.6l-1.5 1-1.8-1.8 1-1.5a5.6 5.6 0 0 1-.6-1.4l-1.8-.4V8.7l1.8-.4c.14-.5.34-.96.6-1.4l-1-1.5 1.8-1.8 1.5 1c.44-.26.9-.46 1.4-.6l.4-1.8Z"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linejoin="round"
+              />
+              <circle cx="10" cy="10" r="2.35" stroke="currentColor" stroke-width="1.5" />
             </svg>
           </button>
         </div>

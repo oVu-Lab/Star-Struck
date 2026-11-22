@@ -7,6 +7,7 @@
  */
 
 import { formatNumber } from '../utils/MathUtils.js';
+import { preloadCommanderCard } from './AstraCardMount.js';
 
 export class HomeScreen {
   constructor(ctx) {
@@ -283,6 +284,11 @@ export class HomeScreen {
           screenManager.navigate(target);
         }
       });
+      if (el.getAttribute('data-nav') === 'heroes') {
+        const warmCard = () => preloadCommanderCard(commander?.id || 'astra');
+        el.addEventListener('pointerenter', warmCard, { passive: true });
+        el.addEventListener('focus', warmCard, { passive: true });
+      }
     }
 
     this._hasRendered = true;
