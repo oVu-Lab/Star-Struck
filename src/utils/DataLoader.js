@@ -277,21 +277,82 @@ export function validateDataBundle(raw) {
       }
     }
 
-    for (const stage of raw.stages.stages) {
+    const cardsById = new Map(raw.cards.cards.map((c) => [c.id, c]));
+    const unitsById = new Map(raw.units.units.map((u) => [u.id, u]));
+    const stageIndexById = new Map(raw.stages.stages.map((s, idx) => [s.id, idx]));
+    const firstUnlockStageByCard = new Map();
+
+    for (let stageIdx = 0; stageIdx < raw.stages.stages.length; stageIdx += 1) {
+      const stage = raw.stages.stages[stageIdx];
       if (raw.terrain && stage.terrainId && !terrainIds.has(stage.terrainId)) {
         errors.push(`Stage "${stage.id}" references unknown terrainId "${stage.terrainId}".`);
       }
-      if (stage.unlockAfter && !stageIds.has(stage.unlockAfter)) {
-        errors.push(`Stage "${stage.id}" references unknown unlockAfter stage "${stage.unlockAfter}".`);
-      }
-      for (const cid of stage.rewards?.bonusCards || []) {
-        if (!cardIds.has(cid)) {
-          errors.push(`Stage "${stage.id}" rewards references unknown bonusCard "${cid}".`);
+      if (stage.unlockAfter) {
+        if (!stageIds.has(stage.unlockAfter)) {
+          errors.push(`Stage "${stage.id}" references unknown unlockAfter stage "${stage.unlockAfter}".`);
+        } else if (stage.unlockAfter === stage.id) {
+          errors.push(`Stage "${stage.id}" cannot reference itself in unlockAfter.`);
+        } else if ((stageIndexById.get(stage.unlockAfter) ?? -1) >= stageIdx) {
+          errors.push(`Stage "${stage.id}" unlockAfter "${stage.unlockAfter}" must precede it in stage order.`);
         }
       }
+
+      const stageSeenCards = new Set();
+      const stageSeenUnits = new Set();
+
       for (const uid of stage.rewards?.bonusUnits || []) {
         if (!unitIds.has(uid)) {
           errors.push(`Stage "${stage.id}" rewards references unknown bonusUnit "${uid}".`);
+          continue;
+        }
+        if (stageSeenUnits.has(uid)) {
+          errors.push(`Stage "${stage.id}" lists duplicate bonusUnit "${uid}".`);
+          continue;
+        }
+        stageSeenUnits.add(uid);
+
+        const unitDef = unitsById.get(uid);
+        if (unitDef?.unlockedByDefault !== false) {
+          errors.push(`Stage "${stage.id}" lists default-unlocked bonusUnit "${uid}".`);
+        }
+        if (unitDef?.cardId) {
+          const cardDef = cardsById.get(unitDef.cardId);
+          if (cardDef?.unlockedByDefault !== false) {
+            errors.push(`Stage "${stage.id}" bonusUnit "${uid}" maps to default-unlocked card "${unitDef.cardId}".`);
+          }
+          if (stageSeenCards.has(unitDef.cardId)) {
+            errors.push(`Stage "${stage.id}" lists duplicate card unlock "${unitDef.cardId}".`);
+          } else if (firstUnlockStageByCard.has(unitDef.cardId)) {
+            errors.push(
+              `Card "${unitDef.cardId}" (via bonusUnit "${uid}") is listed at stage "${stage.id}" after already unlocking at "${firstUnlockStageByCard.get(unitDef.cardId)}".`,
+            );
+          } else {
+            firstUnlockStageByCard.set(unitDef.cardId, stage.id);
+          }
+          stageSeenCards.add(unitDef.cardId);
+        }
+      }
+
+      for (const cid of stage.rewards?.bonusCards || []) {
+        if (!cardIds.has(cid)) {
+          errors.push(`Stage "${stage.id}" rewards references unknown bonusCard "${cid}".`);
+          continue;
+        }
+        if (stageSeenCards.has(cid)) {
+          errors.push(`Stage "${stage.id}" lists duplicate unlock for card "${cid}".`);
+          continue;
+        }
+        stageSeenCards.add(cid);
+
+        const cardDef = cardsById.get(cid);
+        if (cardDef?.unlockedByDefault !== false) {
+          errors.push(`Stage "${stage.id}" lists default-unlocked bonusCard "${cid}".`);
+        } else if (firstUnlockStageByCard.has(cid)) {
+          errors.push(
+            `Card "${cid}" is listed at stage "${stage.id}" after already unlocking at "${firstUnlockStageByCard.get(cid)}".`,
+          );
+        } else {
+          firstUnlockStageByCard.set(cid, stage.id);
         }
       }
       for (const wave of stage.waves || []) {

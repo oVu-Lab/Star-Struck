@@ -32,6 +32,8 @@ import { BattleRenderer } from '../src/rendering/BattleRenderer.js';
 import { Battlefield } from '../src/battle/Battlefield.js';
 import { SkillSystem } from '../src/battle/SkillSystem.js';
 import { BATTLE_PHASES } from '../src/battle/BattleManager.js';
+import * as THREE from 'three';
+import { AstraCard } from '../astra-cardtemplate/AstraCard.js';
 import { ASSETS_CONFIG, PORTRAIT_CANVAS } from '../src/rendering/AssetManager.js';
 
 const ROOT = process.cwd();
@@ -167,6 +169,31 @@ function createMockElement(tagName = 'div', attrs = {}) {
     addEventListener(type, fn) {
       if (!listeners.has(type)) listeners.set(type, []);
       listeners.get(type).push(fn);
+    },
+    removeEventListener(type, fn) {
+      const list = listeners.get(type);
+      if (!list) return;
+      const idx = list.indexOf(fn);
+      if (idx !== -1) list.splice(idx, 1);
+    },
+    getListenerCount(type) {
+      return (listeners.get(type) || []).length;
+    },
+    dispatchPointer(type, props = {}) {
+      for (const fn of [...(listeners.get(type) || [])]) {
+        fn({
+          pointerId: 1,
+          pointerType: 'mouse',
+          button: 0,
+          clientX: 0,
+          clientY: 0,
+          target: this,
+          currentTarget: this,
+          preventDefault() {},
+          stopPropagation() {},
+          ...props,
+        });
+      }
     },
     click() {
       for (const fn of listeners.get('click') || []) {
@@ -1127,4 +1154,500 @@ test('SummonScreen mounts static AstraCard only for Astra pull results, enforces
   );
 
   screen.unmount();
+});
+
+test('AstraCard localized zoom inspection: renders unclipped across viewport sizes, keeps all 4 edges visible, zooms face/sword/armor/background, resets on second click anywhere, preserves drag, and cleans up', async () => {
+  const prevDocument = globalThis.document;
+  const prevWindow = globalThis.window;
+  const prevHTMLElement = globalThis.HTMLElement;
+  const prevRAF = globalThis.requestAnimationFrame;
+  const prevCancelRAF = globalThis.cancelAnimationFrame;
+
+  class TestMockElement {
+    constructor(tag = 'div') {
+      const inner = createMockElement(tag);
+      Object.defineProperties(this, Object.getOwnPropertyDescriptors(inner));
+      this._rect = { left: 710, top: 165, width: 500, height: 750 };
+      this.clientWidth = 500;
+      this.clientHeight = 750;
+      this.style.setProperty = (k, v) => { this.style[k] = v; };
+      this.style.removeProperty = (k) => { delete this.style[k]; };
+    }
+    getBoundingClientRect() {
+      return this._rect;
+    }
+    removeAttribute(name) {
+      delete this.attrs[name];
+      if (name === 'class') this.className = '';
+      if (name === 'id') this.id = '';
+    }
+    dispatchEvent() {
+      return true;
+    }
+  }
+
+  const winListeners = new Map();
+  const docListeners = new Map();
+  let rafId = 1;
+
+  globalThis.HTMLElement = TestMockElement;
+  globalThis.requestAnimationFrame = () => ++rafId;
+  globalThis.cancelAnimationFrame = () => {};
+  globalThis.document = {
+    hidden: false,
+    head: new TestMockElement('head'),
+    createElement: (tag) => new TestMockElement(tag),
+    getElementById: () => null,
+    querySelectorAll: () => [],
+    addEventListener(type, fn) {
+      if (!docListeners.has(type)) docListeners.set(type, []);
+      docListeners.get(type).push(fn);
+    },
+    removeEventListener(type, fn) {
+      const list = docListeners.get(type);
+      if (!list) return;
+      const idx = list.indexOf(fn);
+      if (idx !== -1) list.splice(idx, 1);
+    },
+  };
+  globalThis.window = {
+    devicePixelRatio: 2,
+    addEventListener(type, fn) {
+      if (!winListeners.has(type)) winListeners.set(type, []);
+      winListeners.get(type).push(fn);
+    },
+    removeEventListener(type, fn) {
+      const list = winListeners.get(type);
+      if (!list) return;
+      const idx = list.indexOf(fn);
+      if (idx !== -1) list.splice(idx, 1);
+    },
+    dispatchPointer(type, props = {}) {
+      for (const fn of [...(winListeners.get(type) || [])]) {
+        fn({
+          pointerId: 1,
+          pointerType: 'mouse',
+          button: 0,
+          clientX: 0,
+          clientY: 0,
+          preventDefault() {},
+          ...props,
+        });
+      }
+    },
+  };
+
+  // Prevent async _init from touching real WebGL in Node while exercising real AstraCard + Three.js scene/camera/raycaster
+  const origInit = AstraCard.prototype._init;
+  AstraCard.prototype._init = function mockInitNoGL() {};
+
+  const setViewportGeometry = (card, vw, vh, slotW, slotH) => {
+    const slotLeft = (vw - slotW) / 2;
+    const slotTop = (vh - slotH) / 2;
+    card.root.clientWidth = slotW;
+    card.root.clientHeight = slotH;
+    card.root._rect = { left: slotLeft, top: slotTop, width: slotW, height: slotH };
+    card.canvas.clientWidth = vw;
+    card.canvas.clientHeight = vh;
+    card.canvas._rect = { left: 0, top: 0, width: vw, height: vh };
+    card.canvas.getBoundingClientRect = () => card.canvas._rect;
+    card._fit();
+  };
+
+  const projectLocalToClient = (card, localX, localY) => {
+    card.card.updateMatrixWorld();
+    card.cam.updateMatrixWorld();
+    const v = new THREE.Vector3(localX, localY, 0).applyMatrix4(card.card.matrixWorld).project(card.cam);
+    const rect = card.canvas.getBoundingClientRect();
+    return {
+      clientX: rect.left + ((v.x + 1) / 2) * rect.width,
+      clientY: rect.top + ((1 - v.y) / 2) * rect.height,
+    };
+  };
+
+  const getProjectedCardBounds = (card) => {
+    const corners = [
+      [-1, -1.5],
+      [1, -1.5],
+      [1, 1.5],
+      [-1, 1.5],
+    ].map(([x, y]) => projectLocalToClient(card, x, y));
+    const xs = corners.map((c) => c.clientX);
+    const ys = corners.map((c) => c.clientY);
+    return {
+      minX: Math.min(...xs),
+      maxX: Math.max(...xs),
+      minY: Math.min(...ys),
+      maxY: Math.max(...ys),
+      width: Math.max(...xs) - Math.min(...xs),
+      height: Math.max(...ys) - Math.min(...ys),
+    };
+  };
+
+  const advanceFrames = (card, count = 60, stepMs = 16.67) => {
+    let ts = performance.now();
+    for (let i = 0; i < count; i++) {
+      ts += stepMs;
+      card._tick(ts);
+    }
+  };
+
+  try {
+    // Verify CSS removes container clipping and transform containing block
+    const cardCss = await fs.readFile(path.join(ROOT, 'astra-cardtemplate/AstraCard.css'), 'utf8');
+    const componentsCss = await fs.readFile(path.join(ROOT, 'styles/components.css'), 'utf8');
+    assert.match(cardCss, /\.astra-card--zoomable\s*\{[^}]*overflow:\s*visible;/);
+    assert.match(cardCss, /\.astra-card--zoomable\s+\.astra-card__canvas\s*\{[^}]*position:\s*fixed;[^}]*width:\s*100vw;[^}]*height:\s*100vh;/);
+    assert.doesNotMatch(
+      componentsCss.match(/@keyframes card-preview-stage-in[\s\S]*?\}\s*\}/)?.[0] || '',
+      /transform:/,
+      'card-preview-stage-in must not use transform (which traps fixed-position canvas inside modal stage)',
+    );
+
+    const container = new TestMockElement('div');
+    const zoomEvents = [];
+    let outsideClicks = 0;
+    const card = new AstraCard(container, {
+      autoplay: false,
+      interactive: true,
+      tilt: 1,
+      animateEffects: true,
+      zoomable: true,
+      selectable: false,
+      css: false,
+      fontUrl: null,
+      onZoomChange: (_d, inst) => zoomEvents.push(inst.isZoomed()),
+      onOutsideClick: () => { outsideClicks += 1; },
+    });
+
+    // Attach real Three.js camera, card group, front PlaneGeometry(2,3) mesh, and mock renderer
+    card.sc = new THREE.Scene();
+    card.cam = new THREE.PerspectiveCamera(30, 1920 / 1080, 0.1, 50);
+    card.card = new THREE.Group();
+    card.sc.add(card.card);
+    card._frontMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 3), new THREE.MeshBasicMaterial());
+    card.card.add(card._frontMesh);
+    card.U = {
+      uCam: { value: new THREE.Vector3(0, 0, 7) },
+      uP: { value: 0 },
+      uPr: { value: 1 },
+      uCs: { value: 1 },
+    };
+    let renderCount = 0;
+    card.r = {
+      setPixelRatio() {},
+      setSize() {},
+      render() { renderCount += 1; },
+      dispose() {},
+      forceContextLoss() {},
+    };
+    card._ready = true;
+    setViewportGeometry(card, 1920, 1080, 500, 750);
+
+    // Baseline unzoomed card renders at exact original slot proportions (~385x577 inside 500x750 slot)
+    const baseBounds = getProjectedCardBounds(card);
+    assert.ok(baseBounds.width > 380 && baseBounds.width < 390, `Expected original ~385px width, got ${baseBounds.width}`);
+    assert.ok(baseBounds.height > 572 && baseBounds.height < 582, `Expected original ~577px height, got ${baseBounds.height}`);
+
+    // 1. Desktop click on Face (0.04, 0.66) -> zooms deeply (~2.5x) beyond 500x750 slot without clipping
+    const facePt = projectLocalToClient(card, 0.04, 0.66);
+    card.root.dispatchPointer('pointerdown', facePt);
+    globalThis.window.dispatchPointer('pointerup', facePt);
+    assert.equal(card.isZoomed(), true, 'First click on face must zoom in');
+    advanceFrames(card, 75);
+    const zFace = card.getZoomState();
+    assert.ok(zFace.scale > 2.4 && zFace.scale <= 2.6, `Expected ~2.5x desktop zoom, got ${zFace.scale}`);
+    assert.ok(zFace.pan.y > 0.35, `Zooming face must pan strongly toward face, got ${zFace.pan.y}`);
+    const faceZoomBounds = getProjectedCardBounds(card);
+    assert.ok(faceZoomBounds.width > 900, `Enlarged width (${faceZoomBounds.width}) must extend past original 500px slot`);
+    assert.ok(faceZoomBounds.height > 1350, `Enlarged height (${faceZoomBounds.height}) must extend past original 750px slot`);
+    assert.ok(
+      faceZoomBounds.minX >= 0 && faceZoomBounds.maxX <= 1920,
+      `Left/right enlarged card edges must remain visible inside 1920px width: ${JSON.stringify(faceZoomBounds)}`,
+    );
+    assert.ok(
+      faceZoomBounds.minY >= -20,
+      `Top edge must stay framed inside top of 1920x1080 viewport when focused on face: ${JSON.stringify(faceZoomBounds)}`,
+    );
+    assert.ok(renderCount > 0);
+
+    // 2. While zoomed, hovering does NOT turn the card and dragging PANS instead of turning
+    const panBeforeHover = card.getZoomState().pan;
+    card.root.dispatchPointer('pointermove', { clientX: 1200, clientY: 250 });
+    advanceFrames(card, 15);
+    assert.ok(Math.abs(card.pose.ry) < 1e-3 && Math.abs(card.pose.rx) < 1e-3, 'Hovering while zoomed must not turn card');
+    assert.ok(
+      Math.abs(card.getZoomState().pan.x - panBeforeHover.x) < 1e-3 &&
+      Math.abs(card.getZoomState().pan.y - panBeforeHover.y) < 1e-3,
+      'Hovering without dragging must not drift zoomed pan',
+    );
+
+    const dragStart = projectLocalToClient(card, 0.1, 0.1);
+    const panBeforeDrag = card.getZoomState().pan;
+    card.root.dispatchPointer('pointerdown', { ...dragStart, pointerId: 2 });
+    // Drag left (-160px) and up (-140px) -> grab-pan shifts camera right (+panX) and down (-panY)
+    card.root.dispatchPointer('pointermove', { clientX: dragStart.clientX - 160, clientY: dragStart.clientY - 140, pointerId: 2 });
+    advanceFrames(card, 30);
+    assert.ok(Math.abs(card.pose.ry) < 1e-3 && Math.abs(card.pose.rx) < 1e-3, 'Dragging while zoomed must pan, not turn the card');
+    const panAfterDrag = card.getZoomState().pan;
+    assert.ok(panAfterDrag.x > panBeforeDrag.x + 0.1, `Dragging left must pan view right (+panX): ${panBeforeDrag.x} -> ${panAfterDrag.x}`);
+    assert.ok(panAfterDrag.y < panBeforeDrag.y - 0.1, `Dragging up must pan view down (-panY): ${panBeforeDrag.y} -> ${panAfterDrag.y}`);
+
+    // Return pointer to start before release to verify maxDist prevents click-reset AND pans back cleanly
+    card.root.dispatchPointer('pointermove', { ...dragStart, pointerId: 2 });
+    globalThis.window.dispatchPointer('pointerup', { ...dragStart, pointerId: 2 });
+    assert.equal(card.isZoomed(), true, 'Drag-and-return must not reset zoom');
+
+    // 3. SECOND CLICK ANYWHERE (e.g., on Sword at completely different location) -> zooms back out, and mouse turning resumes!
+    const swordWhileZoomedPt = projectLocalToClient(card, -0.32, -0.45);
+    card.root.dispatchPointer('pointerdown', swordWhileZoomedPt);
+    globalThis.window.dispatchPointer('pointerup', swordWhileZoomedPt);
+    assert.equal(card.isZoomed(), false, 'Second click anywhere on card must zoom back out');
+    advanceFrames(card, 75);
+    assert.ok(Math.abs(card.getZoomState().scale - 1) < 1e-3);
+    assert.ok(Math.abs(card.getZoomState().pan.x) < 1e-3);
+    assert.ok(Math.abs(card.getZoomState().pan.y) < 1e-3);
+
+    // Moving mouse while unzoomed resumes turning the card
+    card.root.dispatchPointer('pointermove', { clientX: 1120, clientY: 540 });
+    advanceFrames(card, 15);
+    assert.ok(Math.abs(card.pose.ry) > 0.05, 'Unzoomed mouse move must resume turning the card');
+    card.root.dispatchPointer('pointermove', { clientX: 960, clientY: 540 });
+    advanceFrames(card, 60);
+
+    // 4. Test Sword, Armor, and Background focus shifts + second click outside card resets zoom too
+    for (const [label, lx, ly] of [
+      ['sword', -0.45, -0.45],
+      ['armor', 0.22, 0.12],
+      ['background', -0.78, 1.15],
+    ]) {
+      const pt = projectLocalToClient(card, lx, ly);
+      card.root.dispatchPointer('pointerdown', pt);
+      globalThis.window.dispatchPointer('pointerup', pt);
+      assert.equal(card.isZoomed(), true, `Clicking ${label} must zoom in`);
+      advanceFrames(card, 65);
+      const z = card.getZoomState();
+      if (Math.abs(lx) > 0.05) {
+        assert.equal(Math.sign(z.pan.x), Math.sign(lx), `${label} panX must shift toward clicked X`);
+      }
+      if (Math.abs(ly) > 0.05) {
+        assert.equal(Math.sign(z.pan.y), Math.sign(ly), `${label} panY must shift toward clicked Y`);
+      }
+      const b = getProjectedCardBounds(card);
+      assert.ok(
+        b.minX >= 0 && b.maxX <= 1920,
+        `Left/right edges must remain visible when focused on ${label}: ${JSON.stringify(b)}`,
+      );
+      if (ly >= 0.4) {
+        assert.ok(b.minY >= -20, `Top edge must stay framed on upper focus (${label}): ${JSON.stringify(b)}`);
+      } else if (ly <= -0.4) {
+        assert.ok(b.maxY <= 1100, `Bottom edge must stay framed on lower focus (${label}): ${JSON.stringify(b)}`);
+      } else {
+        const focusedPt = projectLocalToClient(card, lx, ly);
+        assert.ok(
+          Math.abs(focusedPt.clientX - 960) < 25 && Math.abs(focusedPt.clientY - 540) < 25,
+          `Middle focus (${label}) must center near (960, 540), got ${JSON.stringify(focusedPt)}`,
+        );
+      }
+
+      // Second click outside the card silhouette on the canvas -> also zooms back out!
+      card.root.dispatchPointer('pointerdown', { clientX: 25, clientY: 25 });
+      globalThis.window.dispatchPointer('pointerup', { clientX: 25, clientY: 25 });
+      assert.equal(card.isZoomed(), false, `Second click outside card after ${label} zoom must reset zoom`);
+      advanceFrames(card, 65);
+    }
+
+    // 5. Clicking outside the card silhouette while UNZOOMED emits outsideclick
+    assert.equal(outsideClicks, 0);
+    card.root.dispatchPointer('pointerdown', { clientX: 25, clientY: 25 });
+    globalThis.window.dispatchPointer('pointerup', { clientX: 25, clientY: 25 });
+    assert.equal(outsideClicks, 1, 'Clicking outside card while unzoomed must emit outsideclick');
+
+    // 6. Test different viewport sizes (1280x720 laptop and 390x844 mobile portrait)
+    for (const [label, vw, vh, slotW, slotH] of [
+      ['1280x720', 1280, 720, 374, 561],
+      ['390x844', 390, 844, 327, 491],
+    ]) {
+      setViewportGeometry(card, vw, vh, slotW, slotH);
+      const pt = projectLocalToClient(card, 0.25, 0.45);
+      card.root.dispatchPointer('pointerdown', pt);
+      globalThis.window.dispatchPointer('pointerup', pt);
+      assert.equal(card.isZoomed(), true, `Zoom must activate on ${label}`);
+      advanceFrames(card, 75);
+      const b = getProjectedCardBounds(card);
+      assert.ok(b.width > slotW * 1.8 && b.height > slotH * 1.8, `${label}: zoomed card (${b.width}x${b.height}) must significantly exceed slot (${slotW}x${slotH})`);
+      if (vw >= 1000) {
+        assert.ok(b.minX >= 0 && b.maxX <= vw, `${label}: horizontal card edges must stay inside viewport`);
+      }
+      // Second click anywhere resets
+      card.root.dispatchPointer('pointerdown', { clientX: 12, clientY: vh / 2 });
+      globalThis.window.dispatchPointer('pointerup', { clientX: 12, clientY: vh / 2 });
+      assert.equal(card.isZoomed(), false);
+      advanceFrames(card, 75);
+    }
+
+    // 7. Mobile touch double-tap to zoom and second double-tap anywhere to reset
+    setViewportGeometry(card, 390, 844, 327, 491);
+    const touchFace = projectLocalToClient(card, 0.04, 0.66);
+    card.root.dispatchPointer('pointerdown', { ...touchFace, pointerType: 'touch', pointerId: 10 });
+    globalThis.window.dispatchPointer('pointerup', { ...touchFace, pointerType: 'touch', pointerId: 10 });
+    assert.equal(card.isZoomed(), false, 'Single touch tap must not zoom');
+
+    card.root.dispatchPointer('pointerdown', { ...touchFace, pointerType: 'touch', pointerId: 11 });
+    globalThis.window.dispatchPointer('pointerup', { ...touchFace, pointerType: 'touch', pointerId: 11 });
+    assert.equal(card.isZoomed(), true, 'Touch double-tap must zoom in');
+    advanceFrames(card, 65);
+
+    const touchSword = projectLocalToClient(card, -0.3, -0.4);
+    card.root.dispatchPointer('pointerdown', { ...touchSword, pointerType: 'touch', pointerId: 12 });
+    globalThis.window.dispatchPointer('pointerup', { ...touchSword, pointerType: 'touch', pointerId: 12 });
+    assert.equal(card.isZoomed(), true);
+    card.root.dispatchPointer('pointerdown', { ...touchSword, pointerType: 'touch', pointerId: 13 });
+    globalThis.window.dispatchPointer('pointerup', { ...touchSword, pointerType: 'touch', pointerId: 13 });
+    assert.equal(card.isZoomed(), false, 'Second touch double-tap anywhere must reset zoom');
+
+    // 8. Destroy cleans up listeners and resets zoom state
+    card.zoomToPoint(0.1, 0.2);
+    assert.equal(card.isZoomed(), true);
+    card.destroy();
+    assert.equal(card.destroyed, true);
+    assert.equal(card.isZoomed(), false);
+    assert.equal((winListeners.get('pointerup') || []).length, 0);
+    assert.equal((winListeners.get('pointercancel') || []).length, 0);
+    assert.equal((docListeners.get('visibilitychange') || []).length, 0);
+    assert.ok(zoomEvents.includes(true) && zoomEvents.includes(false));
+  } finally {
+    AstraCard.prototype._init = origInit;
+    globalThis.document = prevDocument;
+    globalThis.window = prevWindow;
+    globalThis.HTMLElement = prevHTMLElement;
+    globalThis.requestAnimationFrame = prevRAF;
+    globalThis.cancelAnimationFrame = prevCancelRAF;
+  }
+});
+
+test('HeroScreen Inspect mode enables zoomable preview, closes on outside click when unzoomed, resets zoom on backdrop click, and resets zoom on close/reopen', async () => {
+  const prevDocument = globalThis.document;
+  const prevWindow = globalThis.window;
+  const winListeners = new Map();
+  globalThis.document = {
+    createElement: (tag) => createMockElement(tag),
+  };
+  globalThis.window = {
+    addEventListener(type, fn) {
+      if (!winListeners.has(type)) winListeners.set(type, []);
+      winListeners.get(type).push(fn);
+    },
+    removeEventListener(type, fn) {
+      const list = winListeners.get(type);
+      if (!list) return;
+      const idx = list.indexOf(fn);
+      if (idx !== -1) list.splice(idx, 1);
+    },
+    dispatchKey(key) {
+      for (const fn of [...(winListeners.get('keydown') || [])]) {
+        fn({ key, preventDefault() {} });
+      }
+    },
+  };
+
+  try {
+    const registry = await loadRealRegistry();
+    const { eventBus, gameState, heroSystem, formationSystem } = createSystems(registry);
+
+    class ZoomStubAstraCard {
+      constructor(container, options) {
+        this.container = container;
+        this.options = { ...options };
+        this.data = { ...(options.data || {}) };
+        this.destroyed = false;
+        this.paused = false;
+        this._zoomed = false;
+        this.resetCalls = [];
+      }
+      getData() { return { ...this.data }; }
+      isZoomed() { return this._zoomed; }
+      setZoomed(on) {
+        this._zoomed = Boolean(on);
+        this.options.onZoomChange?.(this.getData(), this);
+      }
+      resetZoom(opts = {}) {
+        this.resetCalls.push(opts);
+        const was = this._zoomed;
+        this._zoomed = false;
+        if (was) this.options.onZoomChange?.(this.getData(), this);
+        return was;
+      }
+      pause() { this.paused = true; }
+      resume() { this.paused = false; }
+      resize() {}
+      destroy() { this.destroyed = true; }
+    }
+
+    const screen = new HeroScreen({
+      eventBus,
+      gameState,
+      heroSystem,
+      formationSystem,
+      assetManager: createMockAssets(),
+      audioManager: createMockAudio(),
+      screenManager: { navigate() {} },
+      notify() {},
+      AstraCardClass: ZoomStubAstraCard,
+    });
+
+    const container = createMockElement('div');
+    gameState.setUI({ selectedHeroId: 'astra', heroFilter: 'ALL' });
+    screen.mount(container);
+
+    const stageCard = screen._mountedCard;
+    assert.equal(stageCard.options.zoomable, false, 'Static stage card must not enable inspect zoom');
+
+    // Open Inspect modal
+    stageCard.options.onClick(stageCard.getData(), stageCard);
+    const modal = container.querySelector('#commander-card-preview-modal');
+    const previewCard = screen._previewCards.getInstances()[0];
+    assert.ok(modal && previewCard);
+    assert.equal(previewCard.options.zoomable, true, 'Inspect preview card must enable zoomable mode');
+    assert.equal(typeof previewCard.options.onOutsideClick, 'function', 'Inspect preview must wire onOutsideClick');
+
+    const backdrop = modal.querySelector('.card-preview-modal__backdrop');
+    const hint = modal.querySelector('.card-preview-modal__hint');
+
+    // Simulate zoomed state -> clicking backdrop resets zoom without closing modal
+    previewCard.setZoomed(true);
+    assert.equal(modal.classList.contains('is-zoomed'), true);
+    assert.match(hint.textContent, /Click anywhere to return/i);
+
+    backdrop.click();
+    assert.equal(previewCard.isZoomed(), false, 'Clicking backdrop while zoomed must reset zoom');
+    assert.equal(previewCard.destroyed, false, 'Clicking backdrop while zoomed must keep Inspect modal open');
+    assert.ok(container.querySelector('#commander-card-preview-modal'));
+
+    // Outside click on full-viewport canvas while NOT zoomed closes modal
+    previewCard.options.onOutsideClick(previewCard.getData(), previewCard);
+    assert.equal(previewCard.destroyed, true);
+    assert.equal(container.querySelector('#commander-card-preview-modal'), null);
+
+    // Re-open Inspect, zoom in, and close via Close button -> resets zoom and destroys cleanly
+    stageCard.options.onClick(stageCard.getData(), stageCard);
+    const previewCard2 = screen._previewCards.getInstances()[0];
+    previewCard2.setZoomed(true);
+    const closeBtn = container.querySelector('#btn-close-card-preview');
+    closeBtn.click();
+    assert.equal(previewCard2.isZoomed(), false);
+    assert.ok(previewCard2.resetCalls.length >= 1, 'Closing Inspect must reset zoom');
+    assert.equal(previewCard2.destroyed, true);
+
+    // Re-open Inspect again -> starts fresh unzoomed
+    stageCard.options.onClick(stageCard.getData(), stageCard);
+    const previewCard3 = screen._previewCards.getInstances()[0];
+    assert.equal(previewCard3.isZoomed(), false);
+
+    screen.unmount();
+    assert.equal(previewCard3.destroyed, true);
+  } finally {
+    globalThis.document = prevDocument;
+    globalThis.window = prevWindow;
+  }
 });

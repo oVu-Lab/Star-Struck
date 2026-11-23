@@ -175,11 +175,19 @@ const DEFAULT_FRAME = Object.freeze({
 const DEFAULT_FONT = 'https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&display=swap';
 const CSS_URL = new URL('./AstraCard.css', import.meta.url).href;
 
+const _tmpCamWorld = new THREE.Vector3();
+const INSPECT_ZOOM_SCALE = 2.5;
+const ZOOM_DAMP_SPEED = 9.5;
+const ZOOM_DRAG_DAMP_SPEED = 28;
+const DOUBLE_TAP_MS = 350;
+const DOUBLE_TAP_PX = 32;
+
 export const ASTRA_CARD_DEFAULTS = Object.freeze({
   tilt: 1,
   autoplay: true,
   animateEffects: true,
   interactive: true,
+  zoomable: false,
   selectable: true,
   selected: false,
   studio: false,
@@ -595,6 +603,8 @@ const CB = Object.freeze({
   select: 'onSelect',
   hoverstart: 'onHoverStart',
   hoverend: 'onHoverEnd',
+  zoomchange: 'onZoomChange',
+  outsideclick: 'onOutsideClick',
   error: 'onError'
 });
 
@@ -650,10 +660,34 @@ export class AstraCard {
     this._down = 0;
     this._pid = null;
     this._p0 = null;
+    this._lastTap = null;
     this._phase = 0;
     this._lastTs = null;
     this._w = 0;
     this._rm = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    this._zoom = {
+      active: false,
+      scale: 1,
+      invScale: 1,
+      targetInvScale: 1,
+      panX: 0,
+      panY: 0,
+      targetPanX: 0,
+      targetPanY: 0,
+      focusX: 0,
+      focusY: 0
+    };
+    this._baseCamZ = 7.28;
+    this._vh = 3.9;
+    this._aspect = 2 / 3;
+    this._refW = 0;
+    this._refH = 0;
+    this._canvasW = 0;
+    this._canvasH = 0;
+    this._raycaster = new THREE.Raycaster();
+    this._ndc = new THREE.Vector2();
+    this._frontMesh = null;
 
     this._buildDom();
     this._bind();
@@ -667,6 +701,7 @@ export class AstraCard {
   get paused() { return this._paused; }
   get hovering() { return this._hover; }
   get destroyed() { return !this._alive; }
+  get zoomed() { return !!this._zoom?.active; }
 
   /** Returns a shallow copy of the current Commander/card data. */
   getData() {
@@ -679,6 +714,86 @@ export class AstraCard {
   /** Returns current controlled selection state. */
   isSelected() {
     return this._selected;
+  }
+
+  /** Returns true when localized inspect zoom is currently focused on the card. */
+  isZoomed() {
+    return !!this._zoom?.active;
+  }
+
+  /** Returns a snapshot of the current inspect zoom state. */
+  getZoomState() {
+    const z = this._zoom;
+    return {
+      zoomed: !!z.active,
+      scale: z.scale,
+      targetScale: 1 / z.targetInvScale,
+      focus: { x: z.focusX, y: z.focusY },
+      pan: { x: z.panX, y: z.panY }
+    };
+  }
+
+  /** Smoothly zoom and frame the full card toward a card-local coordinate (x in [-1, 1], y in [-1.5, 1.5]). */
+  zoomToPoint(localX, localY) {
+    if (!this._alive || !this.o.zoomable) return false;
+    const fx = Math.max(-1, Math.min(1, Number(localX) || 0));
+    const fy = Math.max(-1.5, Math.min(1.5, Number(localY) || 0));
+    const targetScale = this._getInspectZoomScale();
+    const clamped = this._computeClampedPan(fx, fy, targetScale);
+    const z = this._zoom;
+    z.active = true;
+    z.targetInvScale = 1 / targetScale;
+    z.focusX = fx;
+    z.focusY = fy;
+    z.targetPanX = clamped.x;
+    z.targetPanY = clamped.y;
+    this._man = null;
+    if (this._rm) {
+      z.invScale = z.targetInvScale;
+      z.scale = targetScale;
+      z.panX = z.targetPanX;
+      z.panY = z.targetPanY;
+      this._applyCameraZoom();
+    }
+    this.root?.classList.add('astra-card--zoomed');
+    this._dirty = true;
+    this._emit('zoomchange', {
+      zoomed: true,
+      scale: targetScale,
+      focus: { x: fx, y: fy }
+    });
+    return true;
+  }
+
+  /** Smoothly return to the full-card view (or snap immediately when immediate: true). */
+  resetZoom({ immediate = false } = {}) {
+    if (!this._alive || !this._zoom) return false;
+    const z = this._zoom;
+    const wasActive = z.active || Math.abs(z.invScale - 1) > 1e-4 || Math.abs(z.panX) > 1e-4 || Math.abs(z.panY) > 1e-4;
+    z.active = false;
+    z.targetInvScale = 1;
+    z.targetPanX = 0;
+    z.targetPanY = 0;
+    z.focusX = 0;
+    z.focusY = 0;
+    this._lastTap = null;
+    if (immediate || this._rm) {
+      z.invScale = 1;
+      z.scale = 1;
+      z.panX = 0;
+      z.panY = 0;
+      this._applyCameraZoom();
+    }
+    this.root?.classList.remove('astra-card--zoomed');
+    this._dirty = true;
+    if (wasActive) {
+      this._emit('zoomchange', {
+        zoomed: false,
+        scale: 1,
+        focus: { x: 0, y: 0 }
+      });
+    }
+    return wasActive;
   }
 
   /** Promise resolving to this card instance once WebGL & textures are ready (rejects on init error/destroy). */
@@ -725,11 +840,18 @@ export class AstraCard {
       assets: next.assets ? { ...(this.o.assets || {}), ...next.assets } : this.o.assets
     };
     if (!this.o.interactive) this._man = null;
+    if (!this.o.zoomable) this.resetZoom({ immediate: true });
     this.root.classList.toggle('astra-card--studio', !!this.o.studio);
     this._applyInteractivity();
     this._applyGlow();
     if ('selected' in next) this.setSelected(!!next.selected);
-    if ('tilt' in next) this._fit();
+    if ('tilt' in next || 'zoomable' in next) {
+      if (this._ro && this.canvas) {
+        if (this.o.zoomable) this._ro.observe(this.canvas);
+        else this._ro.unobserve(this.canvas);
+      }
+      this._fit();
+    }
     this._dirty = true;
 
     if (JSON.stringify(this._urls()) !== prevUrls || JSON.stringify(this.o.frame) !== prevFrame) {
@@ -825,8 +947,26 @@ export class AstraCard {
       this.r.dispose();
       this.r.forceContextLoss && this.r.forceContextLoss();
     }
+    this._down = 0;
+    this._pid = null;
+    this._p0 = null;
+    this._lastTap = null;
+    this._man = null;
+    if (this._zoom) {
+      this._zoom.active = false;
+      this._zoom.scale = 1;
+      this._zoom.invScale = 1;
+      this._zoom.targetInvScale = 1;
+      this._zoom.panX = 0;
+      this._zoom.panY = 0;
+      this._zoom.targetPanX = 0;
+      this._zoom.targetPanY = 0;
+      this._zoom.focusX = 0;
+      this._zoom.focusY = 0;
+    }
+
     r.remove();
-    this.U = this.r = this.sc = this.cam = this.card = this.canvas = this.shd = this.statusEl = null;
+    this.U = this.r = this.sc = this.cam = this.card = this._frontMesh = this._raycaster = this._ndc = this.canvas = this.shd = this.statusEl = null;
   }
 
   // ---- internals
@@ -864,7 +1004,10 @@ export class AstraCard {
     const r = this.root;
     const canSelect = !!this.o.selectable;
     const canInteract = !!this.o.interactive;
-    r.classList.toggle('astra-card--noninteractive', !canSelect && !canInteract);
+    const canZoom = !!this.o.zoomable;
+    r.classList.toggle('astra-card--noninteractive', !canSelect && !canInteract && !canZoom);
+    r.classList.toggle('astra-card--zoomable', canZoom);
+    r.classList.toggle('astra-card--zoomed', canZoom && !!this._zoom?.active);
     if (canSelect) {
       r.setAttribute('role', 'button');
       r.setAttribute('tabindex', '0');
@@ -899,9 +1042,121 @@ export class AstraCard {
     this.container.appendChild(r);
   }
 
+  _getInspectZoomScale() {
+    return INSPECT_ZOOM_SCALE;
+  }
+
+  _computeClampedPan(localX, localY, targetScale = this._getInspectZoomScale()) {
+    const halfVisH = this._vh / (2 * targetScale);
+    const halfVisW = (this._vh * this._aspect) / (2 * targetScale);
+    const cardHalfW = 1.06;
+    const cardHalfH = 1.54;
+    const maxPanX = Math.abs(halfVisW - cardHalfW);
+    const maxPanY = Math.abs(halfVisH - cardHalfH);
+    return {
+      x: Math.max(-maxPanX, Math.min(maxPanX, localX)),
+      y: Math.max(-maxPanY, Math.min(maxPanY, localY))
+    };
+  }
+
+  _applyCameraZoom() {
+    if (!this.cam || !this._zoom) return;
+    this.cam.zoom = this._zoom.scale;
+    this.cam.position.set(this._zoom.panX, this._zoom.panY, this._baseCamZ);
+    this.cam.updateProjectionMatrix();
+  }
+
+  _panByPixels(dx, dy) {
+    if (!this._alive || !this._zoom?.active) return;
+    let rect = (this.canvas && typeof this.canvas.getBoundingClientRect === 'function')
+      ? this.canvas.getBoundingClientRect()
+      : null;
+    if (!rect || !rect.height) {
+      rect = this.root?.getBoundingClientRect?.();
+    }
+    const viewH = rect?.height || this._canvasH || this._refH || 750;
+    const z = this._zoom;
+    const activeScale = z.targetInvScale > 0 ? (1 / z.targetInvScale) : this._getInspectZoomScale();
+    const worldPerPx = this._vh / (activeScale * viewH);
+    const nextX = z.targetPanX - dx * worldPerPx;
+    const nextY = z.targetPanY + dy * worldPerPx;
+    const clamped = this._computeClampedPan(nextX, nextY, activeScale);
+    z.targetPanX = clamped.x;
+    z.targetPanY = clamped.y;
+    z.focusX = clamped.x;
+    z.focusY = clamped.y;
+    if (this._rm) {
+      z.panX = z.targetPanX;
+      z.panY = z.targetPanY;
+      this._applyCameraZoom();
+    }
+    this._dirty = true;
+  }
+
+  _hitTestCard(clientX, clientY) {
+    if (!this.cam || !this._frontMesh || !this.root || !this._raycaster) return null;
+    let rect = (this.o.zoomable && this.canvas && typeof this.canvas.getBoundingClientRect === 'function')
+      ? this.canvas.getBoundingClientRect()
+      : null;
+    if (!rect || !rect.width || !rect.height) {
+      rect = this.root.getBoundingClientRect();
+    }
+    if (!rect.width || !rect.height) return null;
+
+    this._ndc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    this._ndc.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+
+    this.card.updateMatrixWorld();
+    this.cam.updateMatrixWorld();
+
+    this._raycaster.setFromCamera(this._ndc, this.cam);
+    const hits = this._raycaster.intersectObject(this._frontMesh, false);
+    if (!hits.length || !hits[0].uv) return null;
+
+    const uv = hits[0].uv;
+    const localX = (uv.x - 0.5) * 2;
+    const localY = (uv.y - 0.5) * 3;
+
+    // Match rounded-rect card silhouette rr() in fragment shader
+    const qx = Math.abs(localX) - 0.94;
+    const qy = Math.abs(localY) - 1.44;
+    const sd = Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - 0.06;
+    if (sd > 0) return null;
+
+    return { x: localX, y: localY, uvX: uv.x, uvY: uv.y };
+  }
+
+  _handleZoomClick(clientX, clientY) {
+    if (!this.o.zoomable || !this._ready) return;
+    if (this._zoom.active) {
+      this.resetZoom();
+      return;
+    }
+    const hit = this._hitTestCard(clientX, clientY);
+    if (!hit) {
+      this._emit('outsideclick', { clientX, clientY });
+      return;
+    }
+    this.zoomToPoint(hit.x, hit.y);
+  }
+
   _bind() {
     const r = this.root;
     this._onMove = e => {
+      if (this._down && this._p0 && (this._pid === null || e.pointerId === this._pid)) {
+        const d = Math.hypot(e.clientX - this._p0.x, e.clientY - this._p0.y);
+        if (d > this._p0.maxDist) this._p0.maxDist = d;
+      }
+      if (this.o.zoomable && this._zoom?.active) {
+        this._man = null;
+        if (!this._down || !this._p0 || (this._pid !== null && e.pointerId !== this._pid)) return;
+        const dx = e.clientX - this._p0.lastX;
+        const dy = e.clientY - this._p0.lastY;
+        this._p0.lastX = e.clientX;
+        this._p0.lastY = e.clientY;
+        if (dx !== 0 || dy !== 0) this._panByPixels(dx, dy);
+        return;
+      }
       if (!this.o.interactive) return;
       if (this._down && this._pid !== null && e.pointerId !== this._pid) return;
       const b = r.getBoundingClientRect();
@@ -919,8 +1174,23 @@ export class AstraCard {
       if (e.pointerType === 'mouse' && e.button !== 0) return;
       this._down = 1;
       this._pid = e.pointerId;
-      this._p0 = { x: e.clientX, y: e.clientY, t: performance.now() };
-      this._onMove(e);
+      this._p0 = {
+        x: e.clientX,
+        y: e.clientY,
+        lastX: e.clientX,
+        lastY: e.clientY,
+        t: performance.now(),
+        maxDist: 0,
+        pointerType: e.pointerType || 'mouse'
+      };
+      if (this.o.interactive || (this.o.zoomable && this._zoom?.active)) {
+        r.classList.add('astra-card--dragging');
+      }
+      if (this.o.zoomable && this._zoom?.active) {
+        this._man = null;
+      } else {
+        this._onMove(e);
+      }
     };
 
     this._onUp = e => {
@@ -928,12 +1198,35 @@ export class AstraCard {
       if (this._pid !== null && e.pointerId !== this._pid) return;
       this._down = 0;
       this._pid = null;
+      r.classList.remove('astra-card--dragging');
       const now = performance.now(), p = this._p0;
       this._p0 = null;
       this._last = now;
-      if (p && Math.hypot(e.clientX - p.x, e.clientY - p.y) < 8 && now - p.t < 600) {
+      const isClick = Boolean(p && p.maxDist < 8 && now - p.t < 600);
+      if (isClick) {
         this._emit('click', { originalEvent: e });
         if (this.o.selectable) this._emit('select', { originalEvent: e });
+
+        if (this.o.zoomable && this._ready) {
+          if (p.pointerType === 'touch') {
+            const prevTap = this._lastTap;
+            if (
+              prevTap &&
+              now - prevTap.t <= DOUBLE_TAP_MS &&
+              Math.hypot(e.clientX - prevTap.x, e.clientY - prevTap.y) <= DOUBLE_TAP_PX
+            ) {
+              this._lastTap = null;
+              this._handleZoomClick(e.clientX, e.clientY);
+            } else {
+              this._lastTap = { x: e.clientX, y: e.clientY, t: now };
+            }
+          } else {
+            this._lastTap = null;
+            this._handleZoomClick(e.clientX, e.clientY);
+          }
+        }
+      } else if (p && p.maxDist >= 8) {
+        this._lastTap = null;
       }
     };
 
@@ -943,6 +1236,8 @@ export class AstraCard {
       this._down = 0;
       this._pid = null;
       this._p0 = null;
+      this._lastTap = null;
+      r.classList.remove('astra-card--dragging');
       this._last = performance.now();
     };
 
@@ -1089,7 +1384,7 @@ export class AstraCard {
       s.renderOrder = i;
       card.add(s);
     }
-    const fr = new THREE.Mesh(geo, mat(U, FS));
+    const fr = this._frontMesh = new THREE.Mesh(geo, mat(U, FS));
     fr.renderOrder = 20;
     card.add(fr);
 
@@ -1129,6 +1424,7 @@ export class AstraCard {
     this._fit();
     this._ro = new ResizeObserver(() => this._fit());
     this._ro.observe(r);
+    if (this.o.zoomable && this.canvas) this._ro.observe(this.canvas);
     this._dirty = true;
     this._draw(0, this.pose);
     this._raf = requestAnimationFrame(this._tick);
@@ -1178,26 +1474,50 @@ export class AstraCard {
   }
 
   _setCam(a) {
-    const vh = this.o.tilt === 0 ? Math.max(3.12, 2.08 / a) : Math.max(3.7, 2.6 / a);
+    const refA = (this._refW && this._refH) ? (this._refW / this._refH) : a;
+    const refVh = this.o.tilt === 0 ? Math.max(3.12, 2.08 / refA) : Math.max(3.7, 2.6 / refA);
+    let vh = this.o.tilt === 0 ? Math.max(3.12, 2.08 / a) : Math.max(3.7, 2.6 / a);
+    if (this.o.zoomable && this._refH > 0 && this._canvasH > 0) {
+      vh = refVh * (this._canvasH / this._refH);
+    }
+    this._vh = vh;
+    this._aspect = a;
+    this._baseCamZ = vh / 2 / Math.tan(Math.PI / 12);
     this.cam.aspect = a;
-    this.cam.position.set(0, 0, vh / 2 / Math.tan(Math.PI / 12));
-    this.cam.updateProjectionMatrix();
+    if (this._zoom && this._zoom.active) {
+      const targetScale = this._getInspectZoomScale();
+      const clamped = this._computeClampedPan(this._zoom.focusX, this._zoom.focusY, targetScale);
+      this._zoom.targetInvScale = 1 / targetScale;
+      this._zoom.targetPanX = clamped.x;
+      this._zoom.targetPanY = clamped.y;
+    }
+    this._applyCameraZoom();
   }
 
   _fit() {
     if (!this.r || !this.root) return;
-    const w = this.root.clientWidth, h = this.root.clientHeight;
-    if (!w || !h) return;
-    this._w = w;
+    const refW = this.root.clientWidth, refH = this.root.clientHeight;
+    if (!refW || !refH) return;
+    this._refW = refW;
+    this._refH = refH;
+    const useCanvasSize = !!(this.o.zoomable && this.canvas && this.canvas.clientWidth > 0 && this.canvas.clientHeight > 0);
+    const w = useCanvasSize ? this.canvas.clientWidth : refW;
+    const h = useCanvasSize ? this.canvas.clientHeight : refH;
+    this._canvasW = w;
+    this._canvasH = h;
+    this._w = refW;
     // Scale ambient blur cleanly for compact slots while keeping 70px / 14px at full stage sizes
-    const glowBlur = Math.round(Math.min(70, Math.max(18, w * 0.14)));
-    const shadowBlur = Math.round(Math.min(14, Math.max(4, w * 0.03)));
+    const glowBlur = Math.round(Math.min(70, Math.max(18, refW * 0.14)));
+    const shadowBlur = Math.round(Math.min(14, Math.max(4, refW * 0.03)));
     this.root.style.setProperty('--astra-glow-blur', glowBlur + 'px');
     this.root.style.setProperty('--astra-shadow-blur', shadowBlur + 'px');
     const pr = Math.min(window.devicePixelRatio || 1, 2);
     this.r.setPixelRatio(pr);
     if (this.U && this.U.uPr) this.U.uPr.value = pr;
-    if (this.U && this.U.uCs) this.U.uCs.value = Math.max(0.5, Math.min(1.15, h / 640));
+    if (this.U && this.U.uCs) {
+      const baseCs = Math.max(0.5, Math.min(1.15, refH / 640));
+      this.U.uCs.value = baseCs * (h / refH);
+    }
     this.r.setSize(w, h, false);
     this._setCam(w / h);
     this._dirty = true;
@@ -1209,7 +1529,8 @@ export class AstraCard {
     c.position.y = ps.fy;
     c.updateMatrixWorld();
     this.cam.updateMatrixWorld();
-    this.U.uCam.value.copy(c.worldToLocal(this.cam.position.clone()));
+    _tmpCamWorld.copy(this.cam.position);
+    this.U.uCam.value.copy(c.worldToLocal(_tmpCamWorld));
     this.U.uP.value = phi;
     this.r.render(this.sc, this.cam);
   }
@@ -1231,9 +1552,10 @@ export class AstraCard {
       this._phase = (this._phase + (dt / 6000) * Math.PI * 2) % (Math.PI * 2);
     }
 
+    const isZoomed = !!(this.o.zoomable && this._zoom?.active);
     const now = performance.now();
-    const manualActive = !!(this.o.interactive && this.o.tilt !== 0 && this._man && (this._down || now - this._last < 1500));
-    const tg = manualActive ? this._man : (sway ? this._auto(this._phase) : { ry: 0, rx: 0, rz: 0, fy: 0 });
+    const manualActive = !!(this.o.interactive && this.o.tilt !== 0 && !isZoomed && this._man && (this._down || now - this._last < 1500));
+    const tg = manualActive ? this._man : (sway && !isZoomed ? this._auto(this._phase) : { ry: 0, rx: 0, rz: 0, fy: 0 });
 
     const ps = this.pose;
     let maxDiff = 0;
@@ -1243,15 +1565,48 @@ export class AstraCard {
       ps[q] += diff * 0.12;
     }
 
-    if (!sway && !fx && !manualActive && maxDiff < 1e-4 && !this._dirty) return;
+    const z = this._zoom;
+    const zDiff = Math.max(
+      Math.abs(z.targetInvScale - z.invScale),
+      Math.abs(z.targetPanX - z.panX),
+      Math.abs(z.targetPanY - z.panY)
+    );
+    if (zDiff > 1e-4) {
+      if (this._rm) {
+        z.invScale = z.targetInvScale;
+        z.panX = z.targetPanX;
+        z.panY = z.targetPanY;
+      } else {
+        const alpha = dt > 0 ? 1 - Math.exp(-ZOOM_DAMP_SPEED * (dt / 1000)) : 0;
+        const panAlpha = (this._down && z.active && dt > 0)
+          ? (1 - Math.exp(-ZOOM_DRAG_DAMP_SPEED * (dt / 1000)))
+          : alpha;
+        z.invScale += (z.targetInvScale - z.invScale) * alpha;
+        z.panX += (z.targetPanX - z.panX) * panAlpha;
+        z.panY += (z.targetPanY - z.panY) * panAlpha;
+      }
+      z.scale = 1 / z.invScale;
+      this._applyCameraZoom();
+      this._dirty = true;
+    } else if (zDiff > 0) {
+      z.invScale = z.targetInvScale;
+      z.scale = 1 / z.invScale;
+      z.panX = z.targetPanX;
+      z.panY = z.targetPanY;
+      this._applyCameraZoom();
+      this._dirty = true;
+    }
+
+    if (!sway && !fx && !manualActive && maxDiff < 1e-4 && zDiff < 1e-4 && !this._dirty) return;
     this._dirty = false;
 
     const p = (sway || fx) ? this._phase : 0;
     this._draw(p, ps);
 
     const sx = Math.min(110, (this._w || 500) * 0.22);
+    const zoomShadowFade = Math.max(0, 1 - (z.scale - 1) * 1.4);
     this.shd.style.transform = `translateX(${-ps.ry * sx}px) scale(${1 - ps.fy * 2})`;
-    this.shd.style.opacity = String(0.6 + ps.fy);
+    this.shd.style.opacity = String((0.6 + ps.fy) * zoomShadowFade);
   };
 }
 

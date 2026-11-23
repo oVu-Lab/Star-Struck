@@ -812,11 +812,12 @@ export class MissionsScreen {
         ? dataRegistry.stagesById?.get(selectedStage.unlockAfter)
         : null;
 
-    const bonusUnitNames = (selectedStage?.rewards?.bonusUnits || [])
-      .map((uid) => dataRegistry.unitsById?.get(uid)?.name || uid);
-    const bonusCardNames = (selectedStage?.rewards?.bonusCards || [])
-      .map((cid) => dataRegistry.cardsById?.get(cid)?.name || cid);
-    const firstClearUnlocks = [...bonusUnitNames, ...bonusCardNames];
+    const unlockInfo = selectedStage
+      ? progressionSystem.getStageUnlockInfo?.(selectedStage.id) || null
+      : null;
+    const firstClearUnlocks = unlockInfo
+      ? unlockInfo.availableUnlocks.map((u) => u.name)
+      : [];
 
     bodyEl.innerHTML = `
       <div class="main-mission-workspace">
@@ -1058,8 +1059,12 @@ export class MissionsScreen {
                               ${renderRewardChips(selectedStage.rewards)}
                               ${
                                 !selectedStage.cleared && firstClearUnlocks.length > 0
-                                  ? `<span class="mission-reward-item is-gold">Unlocks: ${firstClearUnlocks.join(', ')}</span>`
-                                  : ''
+                                  ? `<span class="mission-reward-item is-gold" data-stage-unlocks="available">Unlocks: ${firstClearUnlocks.join(', ')}</span>`
+                                  : `<span class="mission-reward-item is-muted" data-stage-unlocks="none">${
+                                      !selectedStage.cleared && (unlockInfo?.alreadyUnlocked?.length || 0) > 0
+                                        ? 'New Unlocks: None (Already Unlocked)'
+                                        : 'New Unlocks: None'
+                                    }</span>`
                               }
                             </div>
                           </div>

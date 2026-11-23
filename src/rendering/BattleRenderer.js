@@ -12,6 +12,12 @@
 import { UNIT_STATES } from '../battle/UnitManager.js';
 import { renderHolographicCardEffects } from './AstraGlitterEffects.js';
 import { drawNonUnitWorldEffect, isNonUnitWorldEffect } from './NonUnitCardVfxRenderer.js';
+import {
+  isUnitAttackWorldEffect,
+  drawUnitProjectile,
+  drawUnitAttackWorldEffect,
+  drawUnitHitReactionOverlay,
+} from './UnitAttackVfxRenderer.js';
 
 export const TERRAIN_THEMES = Object.freeze({
   orbital_bastion: {
@@ -172,6 +178,7 @@ export class BattleRenderer {
     this._floorCache = null;
     this._floorCacheKey = '';
     this._renderables = [];
+    this._unitByUid = new Map();
     this._lastDaisRect = null;
   }
 
@@ -351,11 +358,18 @@ export class BattleRenderer {
       this._lastDaisRect = null;
     }
 
+    // Populate reusable unit lookup map for live emitter & moving-target VFX tracking
+    const unitByUid = this._unitByUid;
+    unitByUid.clear();
+    for (let i = 0; i < units.length; i += 1) {
+      unitByUid.set(units[i].uid, units[i]);
+    }
+
     // 5. Boss/Skill Telegraphs on the ground plane
     this._drawTelegraphs(ctx, bf, w, h, telegraphs);
 
     // 6. Ground World Effects (rings, heal waves, deploy seals, tactic pulses, boss entrance)
-    this._drawWorldEffects(ctx, bf, w, h, 'ground');
+    this._drawWorldEffects(ctx, bf, w, h, 'ground', unitByUid);
 
     // 6b. Live tactical targeting reticle for Unit deployment, AoE Skills, or Prep positioning
     if (pointerWorld) {
@@ -392,11 +406,11 @@ export class BattleRenderer {
       }
     }
 
-    // 8. Projectiles in flight (with directional comet trails)
-    this._drawProjectiles(ctx, bf, w, h, projectiles);
+    // 8. Projectiles in flight (bespoke unit silhouettes & motion trails)
+    this._drawProjectiles(ctx, bf, w, h, projectiles, elapsed, unitByUid);
 
     // 9. Mid/Sky World Effects (slashes, chain lightning, sky lances, Commander Ultimates)
-    this._drawWorldEffects(ctx, bf, w, h, 'sky');
+    this._drawWorldEffects(ctx, bf, w, h, 'sky', unitByUid);
 
     // 10. Foreground burst/healing particles
     if (this._particles?.renderForeground) {
@@ -1417,12 +1431,9 @@ export class BattleRenderer {
     }
     ctx.restore();
 
-    // Hit flash overlay
+    // Directional elemental/physical hit reaction overlay
     if (unit.hitFlash > 0 && !isDead) {
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.58)';
-      ctx.beginPath();
-      ctx.arc(drawX, drawY + spriteSize * 0.45, 13 * scale, 0, Math.PI * 2);
-      ctx.fill();
+      drawUnitHitReactionOverlay(ctx, unit, drawX, drawY, spriteSize, scale);
     }
 
     // Shield energy dome
@@ -1565,62 +1576,13 @@ export class BattleRenderer {
     }
   }
 
-  _drawProjectiles(ctx, bf, w, h, projectiles) {
+  _drawProjectiles(ctx, bf, w, h, projectiles, elapsed = 0, unitByUid = null) {
     for (let i = 0; i < projectiles.length; i += 1) {
-      const proj = projectiles[i];
-      const p = bf.worldToScreen(proj.x, proj.y, w, h, proj.z || 2);
-      const radius =
-        proj.kind === 'aoe'
-          ? 5.6
-          : proj.kind === 'healing' || proj.kind === 'shield'
-            ? 4.6
-            : 3.6;
-      const color = proj.color || '#38bdf8';
-
-      // Directional comet tail from start/target trajectory
-      const dx = (proj.targetX ?? proj.x) - proj.x;
-      const dy = (proj.targetY ?? proj.y) - proj.y;
-      const len = Math.hypot(dx, dy) || 1;
-      const tailWx = proj.x - (dx / len) * 4.5;
-      const tailWy = proj.y - (dy / len) * 4.5;
-      const tailP = bf.worldToScreen(tailWx, tailWy, w, h, Math.max(1, (proj.z || 2) - 0.5));
-
-      ctx.save();
-      const trailGrad = ctx.createLinearGradient(tailP.x, tailP.y, p.x, p.y);
-      trailGrad.addColorStop(0, 'rgba(255, 255, 255, 0)');
-      trailGrad.addColorStop(1, color);
-      ctx.strokeStyle = trailGrad;
-      ctx.lineWidth = radius * 1.1;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(tailP.x, tailP.y);
-      ctx.lineTo(p.x, p.y);
-      ctx.stroke();
-
-      // Glow halo
-      ctx.fillStyle = color;
-      ctx.globalAlpha = 0.28;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, radius * 2.1, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Crisp core
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, radius * 0.65, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 1.8;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.restore();
+      drawUnitProjectile(ctx, bf, w, h, projectiles[i], elapsed, unitByUid);
     }
   }
 
-  _drawWorldEffects(ctx, bf, w, h, layer) {
+  _drawWorldEffects(ctx, bf, w, h, layer, unitByUid = null) {
     const effects = this._anim.getWorldEffects();
     const skyKinds = new Set(['starfall', 'volley', 'tempest', 'sanctuary', 'bastion', 'slash', 'lightning', 'lance']);
 
@@ -1628,6 +1590,10 @@ export class BattleRenderer {
       const fx = effects[i];
       if (isNonUnitWorldEffect(fx.kind)) {
         drawNonUnitWorldEffect(ctx, bf, w, h, fx, layer);
+        continue;
+      }
+      if (isUnitAttackWorldEffect(fx.kind)) {
+        drawUnitAttackWorldEffect(ctx, bf, w, h, fx, layer, unitByUid, this._anim.getElapsed());
         continue;
       }
       const t = Math.min(1, fx.age / Math.max(0.05, fx.duration));

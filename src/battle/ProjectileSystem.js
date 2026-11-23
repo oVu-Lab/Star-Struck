@@ -4,6 +4,10 @@
  */
 
 import { UNIT_STATES } from './UnitManager.js';
+import {
+  resolveUnitAttackVfxProfile,
+  getTrajectoryConfig,
+} from '../rendering/UnitAttackVfxConfig.js';
 
 export class ProjectileSystem {
   constructor({ maxActive = 120, eventBus = null } = {}) {
@@ -28,6 +32,15 @@ export class ProjectileSystem {
     kind = 'basic', // 'basic' | 'magical' | 'aoe' | 'healing' | 'shield'
     sourceUid = null,
     sourceSide = 'ally',
+    sourceUnitId = null,
+    sourceBossId = null,
+    sourceEliteId = null,
+    sourceClass = null,
+    sourceIsBoss = false,
+    sourceIsElite = false,
+    vfxProfileId = null,
+    trajectory = null,
+    seed = 0,
     x,
     y,
     targetUid = null,
@@ -53,15 +66,39 @@ export class ProjectileSystem {
 
     const totalDist = Math.max(0.5, Math.hypot(targetX - x, targetY - y));
     const proj = this._acquire();
-    proj.id = `proj_${this._nextId++}`;
+    const seqId = this._nextId++;
+    proj.id = `proj_${seqId}`;
     proj.kind = kind;
     proj.sourceUid = sourceUid;
     proj.sourceSide = sourceSide;
+    proj.sourceUnitId = sourceUnitId;
+    proj.sourceBossId = sourceBossId;
+    proj.sourceEliteId = sourceEliteId;
+    proj.sourceClass = sourceClass;
+    proj.sourceIsBoss = Boolean(sourceIsBoss);
+    proj.sourceIsElite = Boolean(sourceIsElite);
+    proj.vfxProfileId = vfxProfileId;
+
+    const mode = kind === 'healing' ? 'heal' : kind === 'shield' ? 'shield' : 'attack';
+    const vfxProfile = resolveUnitAttackVfxProfile(proj, { mode, side: sourceSide });
+    proj.vfxProfileId = vfxProfileId || vfxProfile.id;
+    proj.trajectory = trajectory || vfxProfile.trajectory || 'flat_dart';
+    proj.seed = seed || ((seqId * 2654435761) >>> 0);
+    proj.curveSign = seqId % 2 === 0 ? 1 : -1;
+
     proj.startX = x;
     proj.startY = y;
     proj.x = x;
     proj.y = y;
-    proj.z = 2.5;
+    proj.z = 2.4;
+    proj.prevX = x;
+    proj.prevY = y;
+    proj.prevZ = 2.4;
+    proj.visualOffsetX = 0;
+    proj.visualOffsetY = 0;
+    proj.prevOffsetX = 0;
+    proj.prevOffsetY = 0;
+
     proj.targetUid = targetUid;
     proj.targetX = targetX;
     proj.targetY = targetY;
@@ -107,6 +144,13 @@ export class ProjectileSystem {
         }
       }
 
+      // Snapshot previous visual coordinates for true heading tangent in renderer
+      p.prevX = p.x;
+      p.prevY = p.y;
+      p.prevZ = p.z;
+      p.prevOffsetX = p.visualOffsetX || 0;
+      p.prevOffsetY = p.visualOffsetY || 0;
+
       const dx = p.targetX - p.x;
       const dy = p.targetY - p.y;
       const dist = Math.hypot(dx, dy);
@@ -115,20 +159,43 @@ export class ProjectileSystem {
       if (dist <= Math.max(1.4, step)) {
         p.x = p.targetX;
         p.y = p.targetY;
+        p.visualOffsetX = 0;
+        p.visualOffsetY = 0;
+        p.z = 2.2;
         this._resolveImpact(p, targetUnit, unitManager, combatSystem, skillSystem);
         this._active.splice(i, 1);
         this._release(p);
         continue;
       }
 
-      p.x += (dx / dist) * step;
-      p.y += (dy / dist) * step;
+      const dirX = dx / dist;
+      const dirY = dy / dist;
+      p.x += dirX * step;
+      p.y += dirY * step;
       p.traveled += step;
 
-      // Parabolic arc height for isometric readability
+      // Trajectory-driven visual arc height and perpendicular lateral curve/weave.
+      // Strictly modulated by sin(progress * PI) so launch and impact are exact.
       const progress = Math.min(1, p.traveled / Math.max(1, p.totalDist));
-      const arcPeak = p.kind === 'aoe' ? 9 : p.kind === 'healing' || p.kind === 'shield' ? 5.5 : 4.0;
-      p.z = 2.0 + Math.sin(progress * Math.PI) * arcPeak;
+      const traj = getTrajectoryConfig(p.trajectory);
+      const envelope = Math.sin(progress * Math.PI);
+      const arcPeak = traj ? traj.arcPeak : p.kind === 'aoe' ? 9 : 4.0;
+      p.z = 2.0 + envelope * arcPeak;
+
+      const lateralAmp = traj ? traj.lateralAmp || 0 : 0;
+      if (lateralAmp > 0.01) {
+        const freq = traj.lateralFreq || 1.0;
+        const sign = p.curveSign || 1;
+        const lateral =
+          freq > 1.05
+            ? Math.sin(progress * Math.PI * freq) * envelope * lateralAmp * sign
+            : envelope * lateralAmp * sign;
+        p.visualOffsetX = -dirY * lateral;
+        p.visualOffsetY = dirX * lateral;
+      } else {
+        p.visualOffsetX = 0;
+        p.visualOffsetY = 0;
+      }
     }
   }
 

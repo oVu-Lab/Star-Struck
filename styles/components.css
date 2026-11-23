@@ -4557,6 +4557,12 @@ button.summon-result-card:active {
   color: var(--accent-gold-deep);
 }
 
+.mission-reward-item.is-muted {
+  border-color: rgba(120, 130, 148, 0.28);
+  background: rgba(244, 246, 250, 0.65);
+  color: var(--text-muted);
+}
+
 .mission-reward-item.is-gold .mission-reward-item__icon { color: var(--accent-gold); }
 .mission-reward-item.is-bronze .mission-reward-item__icon { color: #8f6324; }
 .mission-reward-item.is-blue .mission-reward-item__icon { color: var(--accent-blue); }
@@ -5580,12 +5586,11 @@ button.summon-result-card:active {
 
 .card-preview-modal__stage {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 14px;
   max-width: 100%;
   max-height: 100%;
   pointer-events: none;
@@ -5600,7 +5605,7 @@ button.summon-result-card:active {
   position: fixed;
   top: 20px;
   right: 24px;
-  z-index: 2;
+  z-index: 5;
   pointer-events: auto;
   padding: 9px 16px;
   border: 1px solid rgba(235, 208, 140, 0.45);
@@ -5643,32 +5648,35 @@ button.summon-result-card:active {
 }
 
 .card-preview-modal__hint {
+  position: fixed;
+  bottom: max(14px, 2.2vh);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  width: min(92vw, 680px);
   pointer-events: none;
   font-size: 0.78rem;
   letter-spacing: 0.04em;
-  color: rgba(234, 226, 208, 0.76);
+  color: rgba(234, 226, 208, 0.82);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.85);
   text-align: center;
 }
 
 @keyframes card-preview-stage-in {
   from {
     opacity: 0;
-    transform: translate3d(0, 10px, 0) scale(0.94);
   }
   to {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
   }
 }
 
 @keyframes card-preview-stage-out {
   from {
     opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
   }
   to {
     opacity: 0;
-    transform: translate3d(0, 6px, 0) scale(0.95);
   }
 }
 

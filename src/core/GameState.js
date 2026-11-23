@@ -39,7 +39,9 @@ export class GameState {
       status: 'idle', // 'idle' | 'preparation' | 'running' | 'paused' | 'victory' | 'defeat' | 'results'
       phase: 'preparation', // 'preparation' | 'battle_start' | 'active_combat' | 'wave_transition' | 'victory' | 'defeat' | 'results'
       stageId: this._persistent.progression?.selectedStageId || 'stage_1_1',
-      speedMultiplier: this._persistent.settings?.battleSpeed || 1,
+      speedMultiplier: [1, 2, 3].includes(this._persistent.settings?.battleSpeed)
+        ? this._persistent.settings.battleSpeed
+        : 1,
       elapsedSec: 0,
       waveIndex: 1,
       totalWaves: 3,
@@ -117,7 +119,9 @@ export class GameState {
     this.ui.missionsPickedStageId = null;
     this.ui.battleStageExplicitlySelected = false;
     this.battle.stageId = this._persistent.progression.selectedStageId;
-    this.battle.speedMultiplier = this._persistent.settings.battleSpeed;
+    this.battle.speedMultiplier = [1, 2, 3].includes(this._persistent.settings?.battleSpeed)
+      ? this._persistent.settings.battleSpeed
+      : 1;
     this._eventBus?.emit('state:changed', { scope: 'all' });
   }
 

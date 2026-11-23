@@ -110,6 +110,23 @@ export class HeroScreen {
     this._container.appendChild(modal);
     this._previewModalEl = modal;
 
+    const previewHint = modal.querySelector('.card-preview-modal__hint');
+    const DEFAULT_HINT =
+      'Move or drag to tilt · Click any detail to zoom · Double-tap on touch';
+    const ZOOMED_HINT =
+      'Drag to pan · Click anywhere to return to full card view';
+    if (previewHint) {
+      previewHint.textContent = DEFAULT_HINT;
+    }
+
+    const syncZoomHint = (_data, cardInstance) => {
+      const zoomed = Boolean(cardInstance?.isZoomed?.());
+      modal.classList?.toggle('is-zoomed', zoomed);
+      if (previewHint) {
+        previewHint.textContent = zoomed ? ZOOMED_HINT : DEFAULT_HINT;
+      }
+    };
+
     const previewSlot = modal.querySelector('#commander-card-preview-slot');
     const previewPlaceholder = previewSlot?.querySelector('.hero-card-placeholder');
     const hidePreviewPlaceholder = () => {
@@ -122,6 +139,7 @@ export class HeroScreen {
     const previewCard = this._previewCards.mount(previewSlot, {
       hero,
       mode: 'preview',
+      zoomable: true,
       extraData: {
         activeCommander: hero.id === formationSystem?.getCommanderId?.(),
         previewMode: true,
@@ -131,6 +149,11 @@ export class HeroScreen {
       studio: false,
       assetManager,
       fallbackAssetId: hero.portraitAssetId,
+      onZoomChange: syncZoomHint,
+      onOutsideClick: () => {
+        audioManager?.playClick?.();
+        this._closeCardPreview();
+      },
       onReady: hidePreviewPlaceholder,
       onError: hidePreviewPlaceholder,
     });
@@ -138,8 +161,22 @@ export class HeroScreen {
       hidePreviewPlaceholder();
     }
 
-    for (const closeTarget of modal.querySelectorAll('[data-close-card-preview]')) {
-      closeTarget.addEventListener('click', () => {
+    const backdropEl = modal.querySelector('.card-preview-modal__backdrop');
+    if (backdropEl) {
+      backdropEl.addEventListener('click', () => {
+        if (previewCard?.isZoomed?.()) {
+          audioManager?.playClick?.();
+          previewCard.resetZoom?.();
+          return;
+        }
+        audioManager?.playClick?.();
+        this._closeCardPreview();
+      });
+    }
+
+    const closeBtnEl = modal.querySelector('#btn-close-card-preview');
+    if (closeBtnEl) {
+      closeBtnEl.addEventListener('click', () => {
         audioManager?.playClick?.();
         this._closeCardPreview();
       });
@@ -172,6 +209,9 @@ export class HeroScreen {
     this._previewKeyHandler = null;
 
     const finishClose = (targetModal) => {
+      for (const card of this._previewCards.getInstances()) {
+        card.resetZoom?.({ immediate: true });
+      }
       this._previewCards.destroyAll();
       if (targetModal) {
         if (typeof targetModal.remove === 'function') {
@@ -206,6 +246,9 @@ export class HeroScreen {
       );
 
     if (canAnimate) {
+      for (const card of this._previewCards.getInstances()) {
+        card.resetZoom?.();
+      }
       modal.classList.add('is-closing');
       this._previewCloseTimer = setTimeout(() => {
         this._previewCloseTimer = null;

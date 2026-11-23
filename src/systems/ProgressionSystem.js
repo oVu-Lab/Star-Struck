@@ -281,6 +281,155 @@ export class ProgressionSystem {
     return null;
   }
 
+  /**
+   * Builds the authoritative mapping of every non-default unlockable card ID
+   * to the single earliest campaign stage that first unlocks it.
+   */
+  getCardFirstUnlockMap() {
+    const map = new Map();
+    for (const stage of this._data.stages || []) {
+      const bonusUnits = Array.isArray(stage.rewards?.bonusUnits) ? stage.rewards.bonusUnits : [];
+      const bonusCards = Array.isArray(stage.rewards?.bonusCards) ? stage.rewards.bonusCards : [];
+
+      for (const uid of bonusUnits) {
+        const unitDef = this._data.unitsById?.get(uid);
+        if (!unitDef || unitDef.unlockedByDefault !== false) continue;
+        const cardId = unitDef.cardId || null;
+        if (!cardId) continue;
+        const cardDef = this._data.cardsById?.get(cardId);
+        if (cardDef && cardDef.unlockedByDefault !== false) continue;
+        if (!map.has(cardId)) {
+          map.set(cardId, {
+            stageId: stage.id,
+            code: stage.code,
+            stageName: stage.name,
+            chapter: stage.chapter || 1,
+            kind: 'unit',
+            unitId: uid,
+            cardId,
+            name: unitDef.name || cardDef?.name || uid,
+          });
+        }
+      }
+
+      for (const cid of bonusCards) {
+        const cardDef = this._data.cardsById?.get(cid);
+        if (!cardDef || cardDef.unlockedByDefault !== false) continue;
+        if (!map.has(cid)) {
+          const isUnitCard = cardDef.category === 'unit' && Boolean(cardDef.unitId);
+          const unitDef = isUnitCard ? this._data.unitsById?.get(cardDef.unitId) : null;
+          map.set(cid, {
+            stageId: stage.id,
+            code: stage.code,
+            stageName: stage.name,
+            chapter: stage.chapter || 1,
+            kind: isUnitCard ? 'unit' : 'card',
+            unitId: isUnitCard ? cardDef.unitId : null,
+            cardId: cid,
+            name: unitDef?.name || cardDef.name || cid,
+          });
+        }
+      }
+    }
+    return map;
+  }
+
+  /**
+   * Returns deduplicated, authoritative first-unlock entries assigned to `stageId`.
+   * Excludes default-unlocked cards and any cards already assigned to an earlier stage.
+   */
+  getStageConfiguredUnlocks(stageId) {
+    const stage = this._data.stagesById?.get(stageId);
+    if (!stage) return [];
+
+    const firstUnlockMap = this.getCardFirstUnlockMap();
+    const entries = [];
+    const seenCardIds = new Set();
+    const seenNames = new Set();
+
+    const addEntry = (entry) => {
+      if (!entry || !entry.cardId) return;
+      const firstStage = firstUnlockMap.get(entry.cardId);
+      if (!firstStage || firstStage.stageId !== stageId) return;
+      if (seenCardIds.has(entry.cardId)) return;
+      const normName = String(entry.name || '').trim().toLowerCase();
+      if (normName && seenNames.has(normName)) return;
+      seenCardIds.add(entry.cardId);
+      if (normName) seenNames.add(normName);
+      entries.push(entry);
+    };
+
+    for (const uid of stage.rewards?.bonusUnits || []) {
+      const unitDef = this._data.unitsById?.get(uid);
+      if (!unitDef || unitDef.unlockedByDefault !== false) continue;
+      const cardId = unitDef.cardId || null;
+      const cardDef = cardId ? this._data.cardsById?.get(cardId) : null;
+      addEntry({
+        kind: 'unit',
+        id: uid,
+        unitId: uid,
+        cardId,
+        name: unitDef.name || cardDef?.name || uid,
+      });
+    }
+
+    for (const cid of stage.rewards?.bonusCards || []) {
+      const cardDef = this._data.cardsById?.get(cid);
+      if (!cardDef || cardDef.unlockedByDefault !== false) continue;
+      const isUnitCard = cardDef.category === 'unit' && Boolean(cardDef.unitId);
+      const unitDef = isUnitCard ? this._data.unitsById?.get(cardDef.unitId) : null;
+      addEntry({
+        kind: isUnitCard ? 'unit' : 'card',
+        id: isUnitCard ? cardDef.unitId : cid,
+        unitId: isUnitCard ? cardDef.unitId : null,
+        cardId: cid,
+        name: unitDef?.name || cardDef.name || cid,
+      });
+    }
+
+    return entries;
+  }
+
+  /**
+   * Single source of truth for both UI unlock display and battle reward unlocking.
+   * Filters out cards/units already unlocked by the player (defaults, earlier clears, or Gacha).
+   */
+  getStageUnlockInfo(stageId) {
+    const isCleared = (this._state.progression?.clearedStages || []).includes(stageId);
+    const configuredUnlocks = this.getStageConfiguredUnlocks(stageId);
+    const unlockedCardsSet = new Set(this._state.progression?.unlockedCards || []);
+    const ownedUnits = this._state.units?.owned || {};
+
+    const isEntryOwned = (entry) => {
+      const cardDef = entry.cardId ? this._data.cardsById?.get(entry.cardId) : null;
+      const cardUnlocked =
+        !entry.cardId ||
+        unlockedCardsSet.has(entry.cardId) ||
+        Boolean(cardDef && cardDef.unlockedByDefault !== false);
+      if (entry.kind === 'unit' && entry.unitId) {
+        return Boolean(ownedUnits[entry.unitId]) && cardUnlocked;
+      }
+      return cardUnlocked;
+    };
+
+    const availableUnlocks = isCleared
+      ? []
+      : configuredUnlocks.filter((entry) => !isEntryOwned(entry));
+    const alreadyUnlocked = isCleared
+      ? [...configuredUnlocks]
+      : configuredUnlocks.filter((entry) => isEntryOwned(entry));
+
+    return {
+      stageId,
+      isCleared,
+      configuredUnlocks,
+      availableUnlocks,
+      alreadyUnlocked,
+      hasConfiguredUnlocks: configuredUnlocks.length > 0,
+      hasAvailableUnlocks: !isCleared && availableUnlocks.length > 0,
+    };
+  }
+
   grantPlayerXp(amount) {
     if (!amount || amount <= 0) return;
     this._state.mutatePersistent('player', (draft) => {
@@ -363,8 +512,13 @@ export class ProgressionSystem {
         ...m,
         quantity: isFirstClear ? m.quantity : Math.max(1, Math.floor(m.quantity * 0.5)),
       }));
-      granted.bonusCards = isFirstClear ? [...(stageRewards.bonusCards || [])] : [];
-      granted.bonusUnits = isFirstClear ? [...(stageRewards.bonusUnits || [])] : [];
+      const unlockInfo = isFirstClear ? this.getStageUnlockInfo(stageId) : null;
+      granted.bonusUnits = unlockInfo
+        ? unlockInfo.availableUnlocks.filter((u) => u.kind === 'unit' && u.unitId).map((u) => u.unitId)
+        : [];
+      granted.bonusCards = unlockInfo
+        ? unlockInfo.availableUnlocks.filter((u) => u.kind === 'card' && u.cardId).map((u) => u.cardId)
+        : [];
     } else {
       // Consolation battle participation reward on defeat
       granted.credits = Math.round((stageRewards.credits || 200) * 0.2);

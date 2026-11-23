@@ -12,6 +12,10 @@ import { Pathfinder } from './Pathfinder.js';
 import { UNIT_STATES } from './UnitManager.js';
 import { CARD_CATEGORIES } from '../systems/CardSystem.js';
 import { getNonUnitCardVfxProfile, isNonUnitCard } from '../rendering/NonUnitCardVfxConfig.js';
+import {
+  UNIT_ATTACK_FX_KINDS,
+  resolveUnitAttackVfxProfile,
+} from '../rendering/UnitAttackVfxConfig.js';
 
 export const BATTLE_PHASES = Object.freeze({
   PREPARATION: 'preparation',
@@ -266,22 +270,152 @@ export class BattleManager {
     );
   }
 
+  _spawnDirectionalAttackParticles(worldX, worldY, angle, profile) {
+    if (!this._renderer || !this._particles || !this.battlefield || !profile) return;
+    const { width, height } = this._renderer.getDimensions();
+    const p = this.battlefield.worldToScreen(worldX, worldY, width, height, 3);
+    const pal = profile.palette || {};
+    const cfg = profile.particles || {};
+    if (typeof this._particles.spawnDirectional === 'function') {
+      this._particles.spawnDirectional(p.x, p.y - 8, angle, {
+        color: pal.primary || '#38bdf8',
+        secondaryColor: pal.spark || pal.secondary || '#f5d37a',
+        coreColor: pal.core || '#fffdf4',
+        count: cfg.count || 6,
+        shape: cfg.shape || 'streak',
+        secondaryShape: cfg.secondaryShape || 'spark',
+        mode: cfg.mode || 'cone',
+        speedScale: cfg.speedScale || 1,
+      });
+    } else {
+      this._spawnWorldParticles(
+        worldX,
+        worldY,
+        pal.primary || '#38bdf8',
+        cfg.count || 6,
+        cfg.mode === 'rising' ? 'rising' : 'burst',
+      );
+    }
+  }
+
+  _spawnEmitterChargeParticles(source, angle, profile) {
+    if (!this._renderer || !this._particles || !this.battlefield || !source || !profile?.beamSpec) return;
+    if (typeof this._particles.spawnDirectional !== 'function') return;
+    const { width, height } = this._renderer.getDimensions();
+    const p0 = this.battlefield.worldToScreen(source.x, source.y, width, height, 0);
+    const uScale = (source.visualScale || 1) * Math.max(0.76, Math.min(1.26, p0.scale / 8.0));
+    const em = profile.emitter || { screenForwardPx: 12, screenYOffsetPx: -1 };
+    const ex = p0.x + (source.facing || 1) * (em.screenForwardPx || 12) * uScale;
+    const ey = p0.y - 44 * uScale * 0.3 + (em.screenYOffsetPx || 0) * uScale;
+    const pal = profile.palette || {};
+    this._particles.spawnDirectional(ex, ey, angle, {
+      color: pal.primary || '#38bdf8',
+      secondaryColor: pal.core || '#fffdf4',
+      coreColor: pal.core || '#fffdf4',
+      count: profile.beamSpec.beamKind === 'pulse_burst' ? 3 : 5,
+      shape: 'spark',
+      secondaryShape: 'diamond',
+      mode: 'inward',
+      speedScale: 0.55,
+    });
+  }
+
+  _triggerAttackCameraImpulse(profile, angle = 0, { isCrit = false } = {}) {
+    if (!this._isCombatVisualActive() || !profile?.cameraImpulse) return;
+    const imp = profile.cameraImpulse;
+    if (!imp || imp.intensity <= 0) return;
+    if (imp.critOnly && !isCrit) return;
+    const reducedMotion =
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reducedMotion) return;
+
+    const intensity = isCrit ? imp.intensity * 1.25 : imp.intensity;
+    if (typeof this._anim?.scheduleCameraImpulse === 'function') {
+      this._anim.scheduleCameraImpulse({
+        delaySec: 0,
+        intensity,
+        durationSec: imp.duration || 0.16,
+        dirX: Math.cos(angle),
+        dirY: Math.sin(angle) * 0.55,
+        reducedMotion,
+      });
+    } else {
+      this._anim?.triggerScreenShake?.(intensity, imp.duration || 0.16);
+    }
+  }
+
   _bindCombatFeedback() {
     if (!this._eventBus) return;
     this._unsubs.push(
       this._eventBus.on('combat:attack', ({ source, target, kind }) => {
         if (!source || !target) return;
-        if (kind === 'melee') {
-          const angle = Math.atan2(target.y - source.y, target.x - source.x);
+        const mode = kind === 'heal' ? 'heal' : kind === 'shield' ? 'shield' : 'attack';
+        const profile = resolveUnitAttackVfxProfile(source, { mode, side: source.side });
+        const pal = profile.palette;
+        const worldAngle = Math.atan2(target.y - source.y, target.x - source.x);
+
+        // Compute screen-space strike angle when renderer is attached so directional
+        // cast flashes and particles align accurately in 2.5D perspective
+        let screenAngle = worldAngle;
+        if (this._renderer && this.battlefield) {
+          const { width, height } = this._renderer.getDimensions();
+          const sp = this.battlefield.worldToScreen(source.x, source.y, width, height, 3.2);
+          const tp = this.battlefield.worldToScreen(target.x, target.y, width, height, 3.2);
+          if (Math.hypot(tp.x - sp.x, tp.y - sp.y) > 1) {
+            screenAngle = Math.atan2(tp.y - sp.y, tp.x - sp.x);
+          }
+        }
+
+        // Phase 1: Anticipation / muzzle / cast sigil at attacker origin
+        if (profile.castStyle) {
           this._anim?.spawnWorldEffect({
-            kind: 'slash',
+            kind: UNIT_ATTACK_FX_KINDS.CAST,
+            x: source.x,
+            y: source.y,
+            angle: screenAngle,
+            radius: 4.5,
+            color: pal.primary,
+            secondaryColor: pal.secondary,
+            duration: profile.castDuration || 0.18,
+            profileId: profile.id,
+            style: profile.castStyle,
+            side: source.side,
+            scale: source.visualScale || profile.scale || 1,
+            meta: {
+              mode,
+              sourceUid: source.uid,
+              targetUid: target.uid,
+              sourceFacing: source.facing || 1,
+            },
+          });
+        }
+        if (mode === 'attack' && profile.beamSpec) {
+          this._spawnEmitterChargeParticles(source, screenAngle, profile);
+        }
+
+        if (kind === 'melee') {
+          // Phase 2 & 3: Bespoke melee choreography + directional impact particles
+          this._anim?.spawnWorldEffect({
+            kind: UNIT_ATTACK_FX_KINDS.MELEE,
             x: target.x,
             y: target.y,
-            angle,
-            radius: source.cleaveRadius > 0 ? 7.5 : 4.5,
-            color: source.side === 'ally' ? '#38bdf8' : '#f87171',
-            duration: 0.24,
+            x2: source.x,
+            y2: source.y,
+            angle: screenAngle,
+            radius: Math.max(source.cleaveRadius || 0, 4.5),
+            color: pal.primary,
+            secondaryColor: pal.secondary,
+            duration: profile.duration || 0.28,
+            profileId: profile.id,
+            style: profile.meleeStyle,
+            side: source.side,
+            scale: source.visualScale || profile.scale || 1,
+            meta: { mode: 'attack' },
           });
+          this._spawnDirectionalAttackParticles(target.x, target.y, screenAngle, profile);
+          this._triggerAttackCameraImpulse(profile, screenAngle, { isCrit: false });
         } else if (kind === 'ranged') {
           this._audio?.playProjectile?.();
         }
@@ -297,7 +431,7 @@ export class BattleManager {
         unit.attack = Math.max(5, Math.round(unit.attack * atkScale));
         unit.defense = Math.max(2, Math.round(unit.defense * 0.5));
       }),
-      this._eventBus.on('combat:damage', ({ target, amount, isCrit, attackType }) => {
+      this._eventBus.on('combat:damage', ({ source, target, amount, absorbed, isCrit, attackType }) => {
         if (!target) return;
         if (this._isTutorial && this._tutorialProtectEnemies && target.side === 'enemy') {
           const otherLiving = this._units.getBySide('enemy').filter((u) => u.uid !== target.uid);
@@ -314,8 +448,35 @@ export class BattleManager {
           isCrit,
           kind: isCrit ? 'crit' : 'damage',
         });
-        if (isCrit) {
-          this._spawnWorldParticles(target.x, target.y, '#fbbf24', 7, 'burst');
+        if (isCrit || (absorbed && absorbed > 0)) {
+          const profile = source ? resolveUnitAttackVfxProfile(source, { side: source.side }) : null;
+          const hitAngle =
+            typeof target.lastHitAngle === 'number'
+              ? target.lastHitAngle
+              : source
+                ? Math.atan2(target.y - source.y, target.x - source.x)
+                : 0;
+          this._anim?.spawnWorldEffect({
+            kind: UNIT_ATTACK_FX_KINDS.HIT,
+            x: target.x,
+            y: target.y,
+            angle: hitAngle,
+            radius: 4,
+            color: absorbed > 0 && !isCrit ? '#38bdf8' : '#fbbf24',
+            secondaryColor: '#fffdf4',
+            duration: 0.22,
+            profileId: profile?.id || null,
+            side: source?.side || 'ally',
+            scale: target.visualScale || 1,
+            isCrit: Boolean(isCrit),
+            meta: { absorbed: absorbed || 0, mode: 'attack' },
+          });
+          if (isCrit) {
+            this._spawnWorldParticles(target.x, target.y, '#fbbf24', 6, 'burst');
+            if (profile) {
+              this._triggerAttackCameraImpulse(profile, hitAngle, { isCrit: true });
+            }
+          }
         }
         this._audio?.playHit(isCrit, attackType);
       }),
@@ -347,24 +508,74 @@ export class BattleManager {
       }),
       this._eventBus.on('projectile:impact', ({ projectile, aoe, radius }) => {
         if (!projectile) return;
-        if (aoe) {
-          this._anim?.spawnWorldEffect({
-            kind: 'ring',
-            x: projectile.x,
-            y: projectile.y,
-            radius: radius || projectile.splashRadius || 8,
-            color: projectile.color || '#f97316',
-            duration: 0.45,
-          });
-          this._spawnWorldParticles(projectile.x, projectile.y, projectile.color || '#f97316', 8, 'burst');
-        } else if (projectile.kind === 'healing') {
-          this._spawnWorldParticles(projectile.x, projectile.y, '#34d399', 4, 'rising');
-        } else {
-          this._spawnWorldParticles(projectile.x, projectile.y, projectile.color || '#38bdf8', 4, 'burst');
+        const mode =
+          projectile.kind === 'healing'
+            ? 'heal'
+            : projectile.kind === 'shield'
+              ? 'shield'
+              : 'attack';
+        const profile = resolveUnitAttackVfxProfile(projectile, {
+          mode,
+          side: projectile.sourceSide,
+        });
+        const pal = profile.palette;
+
+        let impactAngle = Math.atan2(
+          projectile.y - (projectile.startY ?? projectile.y),
+          projectile.x - (projectile.startX ?? projectile.x - 1),
+        );
+        if (this._renderer && this.battlefield && typeof projectile.startX === 'number') {
+          const { width, height } = this._renderer.getDimensions();
+          const sp = this.battlefield.worldToScreen(projectile.startX, projectile.startY, width, height, 3);
+          const ep = this.battlefield.worldToScreen(projectile.x, projectile.y, width, height, 3);
+          if (Math.hypot(ep.x - sp.x, ep.y - sp.y) > 1) {
+            impactAngle = Math.atan2(ep.y - sp.y, ep.x - sp.x);
+          }
+        }
+
+        const impactRadius = aoe
+          ? Math.max(6, radius || projectile.splashRadius || 8)
+          : Math.max(4, radius || projectile.splashRadius || 4.8);
+        const sourceUnit = projectile.sourceUid ? this._units.getByUid(projectile.sourceUid) : null;
+        const sourceFacing =
+          sourceUnit?.facing ?? (projectile.x >= (projectile.startX ?? projectile.x) ? 1 : -1);
+        const impactDuration =
+          (mode === 'attack' && profile.beamSpec?.dissipateDuration) ||
+          profile.duration ||
+          (aoe ? 0.44 : 0.28);
+
+        this._anim?.spawnWorldEffect({
+          kind: UNIT_ATTACK_FX_KINDS.IMPACT,
+          x: projectile.x,
+          y: projectile.y,
+          angle: impactAngle,
+          radius: impactRadius,
+          color: pal.primary,
+          secondaryColor: pal.secondary,
+          duration: impactDuration,
+          profileId: profile.id,
+          style: profile.impactStyle,
+          side: projectile.sourceSide,
+          scale: profile.scale || 1,
+          meta: {
+            mode,
+            aoe: Boolean(aoe),
+            sourceUid: projectile.sourceUid || null,
+            targetUid: projectile.targetUid || null,
+            startX: projectile.startX,
+            startY: projectile.startY,
+            sourceFacing,
+          },
+        });
+
+        this._spawnDirectionalAttackParticles(projectile.x, projectile.y, impactAngle, profile);
+        if (aoe || profile.isBoss) {
+          this._triggerAttackCameraImpulse(profile, impactAngle, { isCrit: false });
         }
       }),
       this._eventBus.on('battle:unitDefeated', ({ unit }) => {
         if (!unit) return;
+        this._anim?.removeEffectsBySourceUid?.(unit.uid, [UNIT_ATTACK_FX_KINDS.CAST]);
         const fxColor = unit.isBoss ? (unit.auraColor || '#e2b75b') : unit.side === 'ally' ? '#38bdf8' : '#f87171';
         this._anim?.spawnWorldEffect({
           kind: 'death',
@@ -383,15 +594,22 @@ export class BattleManager {
       }),
       this._eventBus.on('boss:abilityResolved', ({ unit, ability, x, y }) => {
         if (!ability) return;
+        const profile = unit ? resolveUnitAttackVfxProfile(unit, { side: unit.side }) : null;
+        const abColor = ability.color || profile?.palette?.primary || '#f87171';
         this._anim?.spawnWorldEffect({
-          kind: 'ring',
+          kind: UNIT_ATTACK_FX_KINDS.ABILITY,
           x: x ?? unit?.x ?? 50,
           y: y ?? unit?.y ?? 50,
           radius: ability.radius || 16,
-          color: ability.color || '#f87171',
+          color: abColor,
+          secondaryColor: profile?.palette?.secondary || '#fffdf4',
           duration: 0.65,
+          profileId: profile?.id || null,
+          side: unit?.side || 'enemy',
+          scale: unit?.visualScale || profile?.scale || 1,
+          meta: { abilityKind: ability.kind, abilityId: ability.id },
         });
-        this._spawnWorldParticles(x ?? unit?.x ?? 50, y ?? unit?.y ?? 50, ability.color || '#f87171', 12, 'burst');
+        this._spawnWorldParticles(x ?? unit?.x ?? 50, y ?? unit?.y ?? 50, abColor, 12, 'burst');
         if ((unit?.isBoss || unit?.isElite) && this._isCombatVisualActive()) {
           this._anim?.triggerScreenShake(unit.isBoss ? 6 : 3, 0.28);
           this._audio?.playSkill();
@@ -622,9 +840,7 @@ export class BattleManager {
       phase: BATTLE_PHASES.PREPARATION,
       stageId: stage?.id || 'stage_1_1',
       isTutorial: this._isTutorial,
-      speedMultiplier: ALLOWED_SPEEDS.includes(this._state.settings.battleSpeed)
-        ? this._state.settings.battleSpeed
-        : 1,
+      speedMultiplier: this._getDefaultBattleSpeed(),
       elapsedSec: 0,
       waveIndex: 1,
       totalWaves: this._waves.getTotalWaves(),
@@ -930,15 +1146,22 @@ export class BattleManager {
     if (wasTutorial) {
       this._cards?.setCardGenerator?.(null);
     }
+    this._projectiles?.clear?.();
     this._anim?.reset?.();
     this._particles?.clear?.();
     this._renderer?.detach();
     this._state.setBattle({
       status: 'idle',
       isTutorial: false,
+      speedMultiplier: this._getDefaultBattleSpeed(),
       selectedCardSlot: -1,
       bannerText: '',
     });
+  }
+
+  _getDefaultBattleSpeed() {
+    const configured = this._state.settings?.battleSpeed;
+    return ALLOWED_SPEEDS.includes(configured) ? configured : 1;
   }
 
   handleResize() {
@@ -2152,8 +2375,9 @@ export class BattleManager {
     if (this._rewardsApplied) return;
     this._rewardsApplied = true;
 
-    // Immediately stop all battle screen-shake/flash effects, pending refills, and transient pointer state
+    // Immediately stop all battle screen-shake/flash effects, active projectiles, pending refills, and transient pointer state
     this._cards?.clearBattleTimers?.();
+    this._projectiles?.clear?.();
     this._anim?.clearScreenEffects?.();
     this._pointerWorld = null;
     this._hoverDais = false;

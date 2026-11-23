@@ -1064,12 +1064,16 @@ export class FormationScreen {
       : null;
     const bossWave = (selectedStage?.waves || []).find((w) => w.boss?.bossId);
     const bossDef = bossWave ? dataRegistry.bossesById?.get(bossWave.boss.bossId) : null;
-    const bonusUnitNames = (selectedStage?.rewards?.bonusUnits || []).map(
-      (uid) => dataRegistry.unitsById.get(uid)?.name || uid,
-    );
-    const bonusCardNames = (selectedStage?.rewards?.bonusCards || []).map(
-      (cid) => dataRegistry.cardsById.get(cid)?.name || cid,
-    );
+    const unlockInfo = selectedStage
+      ? progressionSystem.getStageUnlockInfo?.(selectedStage.id) || null
+      : null;
+    const pendingUnlocks = unlockInfo?.availableUnlocks || [];
+    const bonusUnitNames = pendingUnlocks
+      .filter((u) => u.kind === 'unit')
+      .map((u) => u.name);
+    const bonusCardNames = pendingUnlocks
+      .filter((u) => u.kind === 'card')
+      .map((u) => u.name);
 
     bodyEl.innerHTML = `
       <div class="formation-workspace formation-workspace--stages">
@@ -1200,17 +1204,21 @@ export class FormationScreen {
             </div>
           </div>
 
-          ${
-            bonusUnitNames.length > 0 || bonusCardNames.length > 0
-              ? `
-                <div class="dossier-skill" style="margin-top: 4px;">
-                  <div class="section-kicker">First-Clear Unlocks</div>
+          <div class="dossier-skill" style="margin-top: 4px;">
+            <div class="section-kicker">First-Clear Unlocks</div>
+            ${
+              bonusUnitNames.length > 0 || bonusCardNames.length > 0
+                ? `
                   ${bonusUnitNames.length > 0 ? `<div style="font-size: 0.84rem; color: var(--accent-gold-bright); font-weight: 600;">Units: ${bonusUnitNames.join(', ')}</div>` : ''}
                   ${bonusCardNames.length > 0 ? `<div style="font-size: 0.84rem; color: var(--accent-blue-bright); font-weight: 600;">Cards: ${bonusCardNames.join(', ')}</div>` : ''}
-                </div>
-              `
-              : ''
-          }
+                `
+                : `<div style="font-size: 0.84rem; color: var(--text-muted);" data-stage-unlocks="none">${
+                    !selectedStage?.cleared && (unlockInfo?.alreadyUnlocked?.length || 0) > 0
+                      ? 'None (Already unlocked)'
+                      : 'None (No new unlocks)'
+                  }</div>`
+            }
+          </div>
 
           <button type="button" id="btn-briefing-deploy" class="btn btn-primary btn-lg" style="margin-top: auto; width: 100%;">
             Deploy to Stage ${selectedStage?.code || '1-1'}

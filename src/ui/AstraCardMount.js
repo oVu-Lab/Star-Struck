@@ -258,10 +258,13 @@ export class AstraCardRegistry {
       studio = false,
       glow = undefined,
       assets = undefined,
+      zoomable = undefined,
       onClick = null,
       onSelect = null,
       onHoverStart = null,
       onHoverEnd = null,
+      onZoomChange = null,
+      onOutsideClick = null,
       onReady = null,
       onError = null,
       assetManager = null,
@@ -287,6 +290,7 @@ export class AstraCardRegistry {
 
     const resolvedGlow = glow !== undefined ? glow : (cardCfg?.glow ?? null);
     const resolvedAssets = assets !== undefined ? assets : (cardCfg?.assets || undefined);
+    const resolvedZoomable = zoomable !== undefined ? Boolean(zoomable) : mode === 'preview';
     const resolvedTimeoutMs =
       loadingTimeoutMs !== undefined
         ? Number(loadingTimeoutMs) || 0
@@ -328,6 +332,7 @@ export class AstraCardRegistry {
 
     const cardOptions = {
       ...modePreset,
+      zoomable: resolvedZoomable,
       selectable: Boolean(selectable),
       selected: Boolean(selected),
       studio: Boolean(studio),
@@ -338,6 +343,8 @@ export class AstraCardRegistry {
       onSelect: typeof onSelect === 'function' ? onSelect : undefined,
       onHoverStart: typeof onHoverStart === 'function' ? onHoverStart : undefined,
       onHoverEnd: typeof onHoverEnd === 'function' ? onHoverEnd : undefined,
+      onZoomChange: typeof onZoomChange === 'function' ? onZoomChange : undefined,
+      onOutsideClick: typeof onOutsideClick === 'function' ? onOutsideClick : undefined,
       onReady: markReady,
       onError: triggerFallback,
     };

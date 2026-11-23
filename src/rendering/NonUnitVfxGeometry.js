@@ -1725,3 +1725,189 @@ export function drawArtisticParticles(ctx, cx, cy, rx, ry, {
   ctx.restore();
 }
 
+/**
+ * Renders a clean, high-energy progressive optical laser beam spanning [uStart, uEnd]
+ * along startP -> targetP.
+ *
+ * Layered light architecture (zero wavy outlines, zero rings, zero flat solid rectangles):
+ * 1. Wide outer atmospheric halo with smooth perpendicular Gaussian-like falloff
+ * 2. Narrow secondary vivid energy sheath with smooth translucent edges
+ * 3. Extremely bright, thin, sharply defined white-hot inner core
+ * 4. Subtle high-speed axial core shimmer (does not alter beam silhouette)
+ * 5. Focused luminous leading wavefront flare at headP during emission
+ * 6. Subtle pinpoint residual sparks during rapid fade/retraction
+ */
+export function drawProgressiveLaserBeam(ctx, startP, targetP, {
+  uStart = 0,
+  uEnd = 1,
+  coreWidth = 1.8,
+  sheathWidth = 5.0,
+  haloWidth = 16.0,
+  color = '#ff2442',
+  secondaryColor = '#ff8fa3',
+  coreColor = '#ffffff',
+  glowColor = null,
+  alpha = 0.96,
+  taperMode = 'optical_lance',
+  flowPhase = 0,
+  leadingFlare = 0,
+  muzzleFlare = 0,
+  breakup = 0,
+  seed = 41,
+  scale = 1,
+  reducedMotion = false,
+} = {}) {
+  const sU = clamp01(uStart);
+  const eU = clamp01(uEnd);
+  if (alpha <= 0.015 || eU <= sU + 0.004) return null;
+
+  const dx = targetP.x - startP.x;
+  const dy = targetP.y - startP.y;
+  const fullDist = Math.hypot(dx, dy);
+  if (fullDist < 1) return null;
+
+  const angle = Math.atan2(dy, dx);
+  const tailP = { x: startP.x + dx * sU, y: startP.y + dy * sU };
+  const headP = { x: startP.x + dx * eU, y: startP.y + dy * eU };
+  const spanLen = fullDist * (eU - sU);
+  const outerGlowCol = glowColor || color;
+
+  const haloHalf = Math.max(4, haloWidth * 0.5);
+  const sheathHalf = Math.max(1.4, sheathWidth * 0.5);
+  const coreHalf = Math.max(0.55, coreWidth * 0.5);
+  const tipLen = eU < 0.985 ? Math.min(spanLen * 0.35, 16 * scale) : Math.min(spanLen * 0.14, 7 * scale);
+  const pinchLen = Math.min(spanLen * 0.18, 8 * scale);
+
+  const traceBeamStrip = (hw, tipSharpness = 0.12) => {
+    const xPinch = Math.min(spanLen * 0.45, pinchLen);
+    const xTip = Math.max(xPinch, spanLen - tipLen);
+    const tailHW = hw * 0.48;
+    const tipHW = hw * tipSharpness;
+    ctx.beginPath();
+    ctx.moveTo(0, -tailHW);
+    if (xPinch > 0.5) ctx.lineTo(xPinch, -hw);
+    if (xTip > xPinch) ctx.lineTo(xTip, -hw);
+    ctx.lineTo(spanLen, -tipHW);
+    ctx.lineTo(spanLen, tipHW);
+    if (xTip > xPinch) ctx.lineTo(xTip, hw);
+    if (xPinch > 0.5) ctx.lineTo(xPinch, hw);
+    ctx.lineTo(0, tailHW);
+    ctx.closePath();
+  };
+
+  ctx.save();
+  ctx.translate(tailP.x, tailP.y);
+  ctx.rotate(angle);
+
+  // Additive luminance makes laser core + sheath + halo read like coherent light
+  if ('globalCompositeOperation' in ctx || typeof ctx.save === 'function') {
+    ctx.globalCompositeOperation = 'lighter';
+  }
+
+  // 1. Wide soft outer luminous halo (smooth perpendicular falloff, zero hard border)
+  if (typeof ctx.createLinearGradient === 'function') {
+    const haloGrad = ctx.createLinearGradient(0, -haloHalf, 0, haloHalf);
+    haloGrad.addColorStop(0, withAlpha(outerGlowCol, 0));
+    haloGrad.addColorStop(0.28, withAlpha(outerGlowCol, alpha * 0.14));
+    haloGrad.addColorStop(0.5, withAlpha(color, alpha * 0.34));
+    haloGrad.addColorStop(0.72, withAlpha(outerGlowCol, alpha * 0.14));
+    haloGrad.addColorStop(1, withAlpha(outerGlowCol, 0));
+    ctx.fillStyle = haloGrad;
+  } else {
+    ctx.fillStyle = withAlpha(color, alpha * 0.2);
+  }
+  traceBeamStrip(haloHalf, 0.25);
+  ctx.fill();
+
+  // 2. Narrow concentrated secondary energy layer (vivid hue with smooth edge)
+  if (typeof ctx.createLinearGradient === 'function') {
+    const sheathGrad = ctx.createLinearGradient(0, -sheathHalf, 0, sheathHalf);
+    sheathGrad.addColorStop(0, withAlpha(color, 0));
+    sheathGrad.addColorStop(0.22, withAlpha(color, alpha * 0.62));
+    sheathGrad.addColorStop(0.5, withAlpha(secondaryColor, alpha * 0.94));
+    sheathGrad.addColorStop(0.78, withAlpha(color, alpha * 0.62));
+    sheathGrad.addColorStop(1, withAlpha(color, 0));
+    ctx.fillStyle = sheathGrad;
+  } else {
+    ctx.fillStyle = withAlpha(color, alpha * 0.78);
+  }
+  traceBeamStrip(sheathHalf, 0.08);
+  ctx.fill();
+
+  // 3. Extremely bright, razor-thin white-hot inner core
+  ctx.fillStyle = withAlpha(coreColor, Math.min(1, alpha * 1.05));
+  traceBeamStrip(coreHalf, 0.04);
+  ctx.fill();
+
+  // Tight white core highlight line for razor-sharp readability at gameplay zoom
+  ctx.fillStyle = withAlpha('#ffffff', Math.min(1, alpha * 0.92));
+  traceBeamStrip(Math.max(0.38, coreHalf * 0.58), 0.02);
+  ctx.fill();
+
+  // 4. Subtle internal high-speed axial light shimmer (strictly inside core, zero bulges)
+  if (!reducedMotion && spanLen > 18 && breakup < 0.6 && typeof ctx.createLinearGradient === 'function') {
+    const pulseU = (flowPhase * 1.35) % 1;
+    const px = spanLen * pulseU;
+    const pSpan = Math.min(spanLen * 0.32, 26 * scale);
+    const x0 = Math.max(0, px - pSpan);
+    const x1 = Math.min(spanLen, px + pSpan);
+    if (x1 - x0 > 3) {
+      const shimmerGrad = ctx.createLinearGradient(x0, 0, x1, 0);
+      shimmerGrad.addColorStop(0, withAlpha('#ffffff', 0));
+      shimmerGrad.addColorStop(0.5, withAlpha('#ffffff', alpha * 0.55 * (1 - breakup)));
+      shimmerGrad.addColorStop(1, withAlpha('#ffffff', 0));
+      ctx.fillStyle = shimmerGrad;
+      ctx.fillRect(x0, -coreHalf * 0.75, x1 - x0, coreHalf * 1.5);
+    }
+  }
+
+  // 5. Focused emitter point flash & fast leading-edge photonic front
+  if (muzzleFlare > 0.02 && sU < 0.08) {
+    const mf = muzzleFlare;
+    drawSoftBloom(ctx, 0, 0, (sheathHalf * 2.8 + 4 * scale) * mf, '#ffffff', color, alpha * mf * 0.72);
+    drawStarFlare(ctx, 0, 0, (6.5 + mf * 5.5) * scale, 0.11, secondaryColor, '#ffffff', alpha * mf * 0.95, 0, 4);
+  }
+
+  if (leadingFlare > 0.02) {
+    const lf = leadingFlare;
+    drawSoftBloom(ctx, spanLen, 0, (sheathHalf * 2.6 + 4.5 * scale) * lf, '#ffffff', color, alpha * lf * 0.78);
+    // Sleek anisotropic optical flare stretched slightly along firing axis
+    drawStarFlare(
+      ctx,
+      spanLen,
+      0,
+      (7.5 + lf * 6.0) * scale,
+      0.1,
+      secondaryColor,
+      '#ffffff',
+      alpha * lf * 0.98,
+      0,
+      4,
+    );
+  }
+
+  // 6. Subtle pinpoint residual sparks during dissipation (no clunky shards/blobs)
+  if (breakup > 0.05) {
+    const rng = createDetRng(seed);
+    const sparkCount = reducedMotion ? 3 : 6;
+    for (let i = 0; i < sparkCount; i += 1) {
+      const sx = spanLen * rng();
+      const sy = (rng() - 0.5) * breakup * (10 * scale);
+      const sAlpha = alpha * (1 - breakup * 0.78) * (0.45 + rng() * 0.55);
+      if (sAlpha <= 0.03) continue;
+      const r = (0.7 + rng() * 0.9) * scale * (1 - breakup * 0.4);
+      ctx.fillStyle = withAlpha(i % 2 === 0 ? '#ffffff' : secondaryColor, sAlpha);
+      ctx.beginPath();
+      ctx.arc(sx, sy, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  ctx.restore();
+  return {
+    headP,
+    tailP,
+    angle,
+    spanDist: spanLen,
+  };
+}

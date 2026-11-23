@@ -183,6 +183,139 @@ export class ParticleSystem {
     }
   }
 
+  spawnDirectional(
+    x,
+    y,
+    angle = 0,
+    {
+      color = '#38bdf8',
+      secondaryColor = '#f5d37a',
+      coreColor = '#fffdf4',
+      count = 6,
+      shape = 'streak',
+      secondaryShape = 'spark',
+      mode = 'cone', // 'cone' | 'forward_jet' | 'eruption' | 'radial' | 'inward' | 'rising'
+      speedScale = 1,
+    } = {},
+  ) {
+    const scaledCount = Math.max(2, Math.round(count * this._getQualityScale()));
+    const budget = Math.round(this._maxParticles * this._getQualityScale());
+
+    for (let i = 0; i < scaledCount; i += 1) {
+      if (this._active.length >= budget) {
+        const oldest = this._active.shift();
+        if (oldest) this._release(oldest);
+      }
+      const p = this._acquire();
+      const useSecondary = i % 3 === 1;
+      p.color = useSecondary ? secondaryColor : color;
+      p.coreColor = coreColor;
+      p.shape = useSecondary ? secondaryShape : shape;
+      p.rotation = Math.random() * Math.PI * 2;
+
+      if (mode === 'rising') {
+        p.x = x + (Math.random() - 0.5) * 18;
+        p.y = y + (Math.random() - 0.5) * 8;
+        p.vx = (Math.random() - 0.5) * 18 * speedScale;
+        p.vy = (-30 - Math.random() * 34) * speedScale;
+        p.gravity = -8;
+        p.size = 1.6 + Math.random() * 1.5;
+        p.life = 0.42 + Math.random() * 0.24;
+      } else if (mode === 'inward') {
+        const ang = (Math.PI * 2 * i) / scaledCount + (Math.random() - 0.5) * 0.3;
+        const dist = (18 + Math.random() * 24) * speedScale;
+        p.x = x + Math.cos(ang) * dist;
+        p.y = y + Math.sin(ang) * dist * 0.58;
+        p.vx = -Math.cos(ang) * dist * 2.1;
+        p.vy = -Math.sin(ang) * dist * 1.25;
+        p.gravity = 0;
+        p.size = 1.5 + Math.random() * 1.4;
+        p.life = 0.34 + Math.random() * 0.16;
+      } else if (mode === 'eruption') {
+        const spread = (Math.random() - 0.5) * 1.35;
+        const speed = (52 + Math.random() * 78) * speedScale;
+        p.x = x + (Math.random() - 0.5) * 14;
+        p.y = y + (Math.random() - 0.5) * 6;
+        p.vx = Math.sin(spread) * speed * 0.72;
+        p.vy = (-Math.abs(Math.cos(spread)) * speed * 0.92) - 18 * speedScale;
+        p.gravity = 115;
+        p.size = 1.7 + Math.random() * 1.8;
+        p.life = 0.36 + Math.random() * 0.24;
+      } else if (mode === 'forward_jet') {
+        const spread = (Math.random() - 0.5) * 0.44;
+        const a = angle + spread;
+        const speed = (68 + Math.random() * 88) * speedScale;
+        p.x = x + (Math.random() - 0.5) * 5;
+        p.y = y + (Math.random() - 0.5) * 4;
+        p.vx = Math.cos(a) * speed;
+        p.vy = Math.sin(a) * speed * 0.75 - 6 * speedScale;
+        p.gravity = 24;
+        p.size = 1.5 + Math.random() * 1.5;
+        p.life = 0.26 + Math.random() * 0.18;
+      } else if (mode === 'radial') {
+        const a = (Math.PI * 2 * i) / scaledCount + (Math.random() - 0.5) * 0.38;
+        const speed = (42 + Math.random() * 74) * speedScale;
+        p.x = x + (Math.random() - 0.5) * 6;
+        p.y = y + (Math.random() - 0.5) * 4;
+        p.vx = Math.cos(a) * speed;
+        p.vy = Math.sin(a) * speed * 0.65 - 14 * speedScale;
+        p.gravity = 58;
+        p.size = 1.6 + Math.random() * 1.7;
+        p.life = 0.32 + Math.random() * 0.22;
+      } else if (mode === 'scatter_debris') {
+        // Angular fragments / metallic chips bouncing & scattering off heavy impact
+        const spread = (Math.random() - 0.5) * 1.65;
+        const a = angle + spread;
+        const speed = (58 + Math.random() * 86) * speedScale;
+        p.x = x + (Math.random() - 0.5) * 8;
+        p.y = y + (Math.random() - 0.5) * 5;
+        p.vx = Math.cos(a) * speed;
+        p.vy = Math.sin(a) * speed * 0.55 - (24 + Math.random() * 32) * speedScale;
+        p.gravity = 165;
+        p.size = 1.7 + Math.random() * 1.9;
+        p.life = 0.34 + Math.random() * 0.24;
+      } else if (mode === 'orbit_ember') {
+        // Fine lingering embers / arcane motes drifting slowly upward after impact
+        const ang = (Math.PI * 2 * i) / scaledCount + (Math.random() - 0.5) * 0.5;
+        const r = (6 + Math.random() * 16) * speedScale;
+        p.x = x + Math.cos(ang) * r;
+        p.y = y + Math.sin(ang) * r * 0.5;
+        p.vx = Math.cos(ang) * 16 * speedScale;
+        p.vy = (-18 - Math.random() * 24) * speedScale;
+        p.gravity = -6;
+        p.size = 1.4 + Math.random() * 1.4;
+        p.life = 0.55 + Math.random() * 0.32;
+      } else if (mode === 'slash_spray') {
+        // Tight tangent spray peeling along a blade sweep direction
+        const tangent = angle + (i % 2 === 0 ? 0.52 : -0.52) + (Math.random() - 0.5) * 0.35;
+        const speed = (64 + Math.random() * 82) * speedScale;
+        p.x = x + (Math.random() - 0.5) * 8;
+        p.y = y + (Math.random() - 0.5) * 6;
+        p.vx = Math.cos(tangent) * speed;
+        p.vy = Math.sin(tangent) * speed * 0.68 - 10 * speedScale;
+        p.gravity = 42;
+        p.size = 1.5 + Math.random() * 1.5;
+        p.life = 0.24 + Math.random() * 0.16;
+      } else {
+        // Default directional 'cone' aligned to impact/strike vector
+        const spread = (Math.random() - 0.5) * 0.95;
+        const a = angle + spread;
+        const speed = (48 + Math.random() * 78) * speedScale;
+        p.x = x + (Math.random() - 0.5) * 6;
+        p.y = y + (Math.random() - 0.5) * 4;
+        p.vx = Math.cos(a) * speed;
+        p.vy = Math.sin(a) * speed * 0.72 - 14 * speedScale;
+        p.gravity = 64;
+        p.size = 1.5 + Math.random() * 1.6;
+        p.life = 0.28 + Math.random() * 0.2;
+      }
+
+      p.alpha = 0.94;
+      p.maxLife = p.life;
+      this._active.push(p);
+    }
+  }
+
   getActiveCount() {
     return this._active.length + this._ambient.length;
   }
@@ -287,6 +420,37 @@ export class ParticleSystem {
         ctx.ellipse(0, 0, p.size * 0.72, p.size * 0.28, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
+      } else if (p.shape === 'shard') {
+        // Angular beveled fragment (metal chip, ice crystal, or armor splinter)
+        const rot = Math.atan2(p.vy, p.vx);
+        const len = p.size * 2.4;
+        const hw = p.size * 0.78;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(rot);
+        ctx.beginPath();
+        ctx.moveTo(len * 0.65, 0);
+        ctx.lineTo(-len * 0.15, -hw);
+        ctx.lineTo(-len * 0.65, -hw * 0.25);
+        ctx.lineTo(-len * 0.35, hw * 0.85);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = p.coreColor || '#fffdf4';
+        ctx.globalAlpha = p.alpha * 0.7;
+        ctx.beginPath();
+        ctx.moveTo(len * 0.52, 0);
+        ctx.lineTo(-len * 0.08, -hw * 0.42);
+        ctx.lineTo(-len * 0.28, hw * 0.3);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      } else if (p.shape === 'ring') {
+        const rad = p.size * (1.2 + (1 - p.alpha) * 1.8);
+        ctx.strokeStyle = p.color;
+        ctx.lineWidth = Math.max(0.9, p.size * 0.45 * p.alpha);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, rad, 0, Math.PI * 2);
+        ctx.stroke();
       } else if (p.shape === 'spark') {
         ctx.globalAlpha = p.alpha * 0.45;
         ctx.beginPath();

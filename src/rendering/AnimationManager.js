@@ -140,6 +140,12 @@ export class AnimationManager {
     targets = null,
     seed = 0,
     reducedMotion = false,
+    profileId = null,
+    style = null,
+    side = null,
+    scale = 1,
+    isCrit = false,
+    meta = null,
   }) {
     if (this._effects.length >= this._maxEffects) {
       const oldest = this._effects.shift();
@@ -149,7 +155,7 @@ export class AnimationManager {
     // Supported kinds:
     // 'ring' | 'starfall' | 'volley' | 'tempest' | 'sanctuary' | 'bastion'
     // 'heal_wave' | 'deploy' | 'death' | 'slash' | 'lightning' | 'boss_entrance' | 'tactic_pulse' | 'lance'
-    // plus all 18 bespoke non-Unit card effect kinds ('fx_*')
+    // plus all 18 bespoke non-Unit card effect kinds ('fx_*') and unit attack kinds ('ua_*')
     fx.kind = kind;
     fx.x = x;
     fx.y = y;
@@ -164,6 +170,12 @@ export class AnimationManager {
     fx.targets = Array.isArray(targets) ? targets : null;
     fx.seed = seed || Math.floor(Math.random() * 100000);
     fx.reducedMotion = Boolean(reducedMotion);
+    fx.profileId = profileId;
+    fx.style = style;
+    fx.side = side;
+    fx.scale = scale;
+    fx.isCrit = Boolean(isCrit);
+    fx.meta = meta;
     fx.age = 0;
     fx.duration = duration;
     this._effects.push(fx);
@@ -175,6 +187,21 @@ export class AnimationManager {
 
   getWorldEffects() {
     return this._effects;
+  }
+
+  removeEffectsBySourceUid(sourceUid, kinds = null) {
+    if (!sourceUid) return 0;
+    const kindSet = Array.isArray(kinds) ? new Set(kinds) : null;
+    let removed = 0;
+    for (let i = this._effects.length - 1; i >= 0; i -= 1) {
+      const fx = this._effects[i];
+      if (fx.meta?.sourceUid !== sourceUid) continue;
+      if (kindSet && !kindSet.has(fx.kind)) continue;
+      this._effects.splice(i, 1);
+      this._effectPool.push(fx);
+      removed += 1;
+    }
+    return removed;
   }
 
   update(dt) {

@@ -89,7 +89,7 @@
         "materials": [
           { "id": "item_xp_chip", "name": "Tactical XP Chip", "category": "materials", "quantity": 2 }
         ],
-        "bonusCards": ["card_skill_astral_nova"],
+        "bonusCards": [],
         "bonusUnits": []
       },
       "description": "Secure the Outer Bastion causeway against reconnaissance waves and defeat Bastion Warden Vex."
@@ -311,7 +311,7 @@
           { "id": "item_xp_chip", "name": "Tactical XP Chip", "category": "materials", "quantity": 4 },
           { "id": "item_aegis_core", "name": "Aegis Tactical Core", "category": "materials", "quantity": 2 }
         ],
-        "bonusCards": ["card_solar_pyromancer"],
+        "bonusCards": [],
         "bonusUnits": ["solar_pyromancer"]
       },
       "description": "Withstand relentless Rift Stalker raids across open lanes. Unlocks the Solar Pyromancer AoE Caster."
@@ -458,7 +458,7 @@
           { "id": "item_xp_chip", "name": "Tactical XP Chip", "category": "materials", "quantity": 5 },
           { "id": "item_aegis_core", "name": "Aegis Tactical Core", "category": "materials", "quantity": 3 }
         ],
-        "bonusCards": ["card_aegis_sentinel"],
+        "bonusCards": [],
         "bonusUnits": ["aegis_sentinel"]
       },
       "description": "Close the gap against entrenched Obsidian Marksmen and Inferno Bombardiers. Unlocks Aegis Sentinel."
@@ -532,7 +532,7 @@
           { "id": "item_xp_chip", "name": "Tactical XP Chip", "category": "materials", "quantity": 6 },
           { "id": "item_aegis_core", "name": "Aegis Tactical Core", "category": "materials", "quantity": 3 }
         ],
-        "bonusCards": ["card_chrono_weaver"],
+        "bonusCards": [],
         "bonusUnits": ["chrono_weaver"]
       },
       "description": "Endure heavy slowing and stun fields from Stasis Weavers and Cryo Wardens. Unlocks Chrono Weaver."
@@ -757,7 +757,7 @@
           { "id": "item_xp_chip", "name": "Tactical XP Chip", "category": "materials", "quantity": 8 },
           { "id": "item_aegis_core", "name": "Aegis Tactical Core", "category": "materials", "quantity": 5 }
         ],
-        "bonusCards": ["card_astral_construct"],
+        "bonusCards": [],
         "bonusUnits": ["astral_construct"]
       },
       "description": "Overcome fortified Siege Juggernauts and Inferno Batteries. Unlocks the SSR Astral Automaton."
@@ -934,8 +934,8 @@
           { "id": "item_xp_chip", "name": "Tactical XP Chip", "category": "materials", "quantity": 12 },
           { "id": "item_aegis_core", "name": "Aegis Tactical Core", "category": "materials", "quantity": 8 }
         ],
-        "bonusCards": ["card_astral_construct", "card_skill_chain_lightning"],
-        "bonusUnits": ["astral_construct"]
+        "bonusCards": [],
+        "bonusUnits": []
       },
       "description": "Face Astral Dreadnought Hyperion atop the Obsidian Citadel reactor core in the climactic four-wave battle."
     }

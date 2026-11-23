@@ -28,6 +28,7 @@ import { renderHolographicCardEffects } from '../src/rendering/AstraGlitterEffec
 import { ASSETS_CONFIG } from '../src/rendering/AssetManager.js';
 import { HomeScreen } from '../src/ui/HomeScreen.js';
 import { BattleScreen } from '../src/ui/BattleScreen.js';
+import { SettingsScreen } from '../src/ui/SettingsScreen.js';
 
 const ROOT = process.cwd();
 
@@ -966,3 +967,116 @@ test('BattleScreen upper HUD displays only stage in top-left pill and only Start
     globalThis.window = prevWin;
   }
 });
+
+test('Battle entry defaults to 1x speed for all players unless manually changed in Settings', async () => {
+  const registry = await loadRealRegistry();
+  const {
+    eventBus,
+    saveManager,
+    gameState,
+    heroSystem,
+    formationSystem,
+    cardSystem,
+    progressionSystem,
+    economySystem,
+  } = createSystems(registry);
+
+  const unitManager = new UnitManager({ dataRegistry: registry, eventBus });
+  const battleManager = new BattleManager({
+    dataRegistry: registry,
+    gameState,
+    eventBus,
+    progressionSystem,
+    economySystem,
+    heroSystem,
+    cardSystem,
+    unitManager,
+    targetingSystem: new TargetingSystem({ balance: registry.balance }),
+    movementSystem: new MovementSystem({ balance: registry.balance }),
+    combatSystem: new CombatSystem({ eventBus, dataRegistry: registry }),
+    projectileSystem: new ProjectileSystem({ eventBus }),
+    skillSystem: new SkillSystem({ gameState, heroSystem, eventBus, dataRegistry: registry }),
+    waveManager: new WaveManager({ eventBus, balance: registry.balance }),
+    battleRenderer: null,
+    animationManager: new AnimationManager(),
+    particleSystem: new ParticleSystem(),
+    audioManager: null,
+  });
+
+  // 1. Default player starts at 1x on battle entry
+  assert.equal(gameState.settings.battleSpeed, 1);
+  battleManager.startSession(null, { stageId: 'stage_1_1' });
+  assert.equal(gameState.battle.speedMultiplier, 1);
+
+  // 2. Cycling speed in-battle is transient and does not alter settings.battleSpeed
+  assert.equal(battleManager.cycleSpeed(), 2);
+  assert.equal(gameState.battle.speedMultiplier, 2);
+  assert.equal(gameState.settings.battleSpeed, 1);
+
+  battleManager.stopSession();
+  assert.equal(gameState.battle.speedMultiplier, 1);
+
+  // Re-entering battle still starts at 1x
+  battleManager.startSession(null, { stageId: 'stage_1_1' });
+  assert.equal(gameState.battle.speedMultiplier, 1);
+  battleManager.stopSession();
+
+  // 3. Manually changing Default Battle Speed in Settings persists and applies on battle entry
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  globalThis.document = {
+    createElement(tag) {
+      return createMockElement(tag);
+    },
+  };
+  globalThis.window = {
+    devicePixelRatio: 1,
+    addEventListener() {},
+    removeEventListener() {},
+  };
+
+  try {
+    const settingsContainer = createMockElement('div');
+    const settingsScreen = new SettingsScreen({
+      eventBus,
+      gameState,
+      saveManager,
+      assetManager: {
+        getStatusSummary: () => ({ registered: 10, loaded: 10, fallback: 0 }),
+        loadAsset: async () => ({ isFallback: true }),
+      },
+      audioManager: {
+        playClick() {},
+        syncVolumes() {},
+      },
+      screenManager: { navigate() {} },
+      notify() {},
+      confirmDialog() {},
+    });
+
+    settingsScreen.mount(settingsContainer);
+    const speed2xBtn = settingsContainer.querySelector('[data-speed="2"]');
+    assert.ok(speed2xBtn, 'Expected 2x button in SettingsScreen');
+    speed2xBtn.click();
+
+    assert.equal(gameState.settings.battleSpeed, 2);
+    assert.equal(saveManager.load().data.settings.battleSpeed, 2);
+
+    battleManager.startSession(null, { stageId: 'stage_1_1' });
+    assert.equal(gameState.battle.speedMultiplier, 2);
+    battleManager.stopSession();
+
+    // Changing back to 1x in Settings restores 1x battle entry
+    settingsContainer.querySelector('[data-speed="1"]')?.click();
+    assert.equal(gameState.settings.battleSpeed, 1);
+    battleManager.startSession(null, { stageId: 'stage_1_1' });
+    assert.equal(gameState.battle.speedMultiplier, 1);
+    battleManager.stopSession();
+
+    settingsScreen.unmount();
+  } finally {
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+  }
+});
+

@@ -5,6 +5,7 @@
  */
 
 import { UNIT_STATES } from './UnitManager.js';
+import { resolveUnitAttackVfxProfile } from '../rendering/UnitAttackVfxConfig.js';
 
 export class CombatSystem {
   constructor({ eventBus, dataRegistry = null, rng = Math.random } = {}) {
@@ -141,6 +142,12 @@ export class CombatSystem {
     const hpLost = Math.min(target.hp, remaining);
     target.hp = Math.max(0, target.hp - hpLost);
     target.hitFlash = 0.16;
+    if (source) {
+      target.lastHitAngle = Math.atan2(target.y - source.y, target.x - source.x);
+      target.lastHitReaction = resolveUnitAttackVfxProfile(source)?.hitReaction || attackType;
+    } else {
+      target.lastHitReaction = attackType;
+    }
 
     // Track battle statistics
     const sourceIsAlly = source ? source.side === 'ally' : target.side === 'enemy';
@@ -319,6 +326,12 @@ export class CombatSystem {
               kind: 'shield',
               sourceUid: unit.uid,
               sourceSide: unit.side,
+              sourceUnitId: unit.unitId,
+              sourceBossId: unit.bossId || null,
+              sourceEliteId: unit.eliteId || null,
+              sourceClass: unit.unitClass,
+              sourceIsBoss: Boolean(unit.isBoss),
+              sourceIsElite: Boolean(unit.isElite),
               x: unit.x,
               y: unit.y,
               targetUid: target.uid,
@@ -347,6 +360,12 @@ export class CombatSystem {
             kind: 'healing',
             sourceUid: unit.uid,
             sourceSide: unit.side,
+            sourceUnitId: unit.unitId,
+            sourceBossId: unit.bossId || null,
+            sourceEliteId: unit.eliteId || null,
+            sourceClass: unit.unitClass,
+            sourceIsBoss: Boolean(unit.isBoss),
+            sourceIsElite: Boolean(unit.isElite),
             x: unit.x,
             y: unit.y,
             targetUid: target.uid,
@@ -380,6 +399,12 @@ export class CombatSystem {
           kind: projCfg.splashRadius > 0 ? 'aoe' : projCfg.type === 'healing' || projCfg.type === 'shield' ? 'magical' : projCfg.type || 'magical',
           sourceUid: unit.uid,
           sourceSide: unit.side,
+          sourceUnitId: unit.unitId,
+          sourceBossId: unit.bossId || null,
+          sourceEliteId: unit.eliteId || null,
+          sourceClass: unit.unitClass,
+          sourceIsBoss: Boolean(unit.isBoss),
+          sourceIsElite: Boolean(unit.isElite),
           x: unit.x,
           y: unit.y,
           targetUid: target.uid,

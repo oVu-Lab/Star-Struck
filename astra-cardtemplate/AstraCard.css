@@ -46,6 +46,20 @@
   cursor: default;
 }
 
+/* Localized Inspect zoom container & full-viewport canvas (prevents container edge clipping) */
+.astra-card--zoomable {
+  overflow: visible;
+  cursor: zoom-in;
+}
+
+.astra-card--zoomable.astra-card--zoomed {
+  cursor: grab;
+}
+
+.astra-card--dragging {
+  cursor: grabbing !important;
+}
+
 .astra-card:focus-visible {
   outline: 2px solid var(--astra-selected-color);
   outline-offset: -2px;
@@ -79,6 +93,14 @@
   display: block;
   opacity: 0;
   transition: opacity 0.28s ease-out;
+}
+
+.astra-card--zoomable .astra-card__canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1;
 }
 
 .astra-card--ready .astra-card__canvas {
