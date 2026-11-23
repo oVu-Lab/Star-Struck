@@ -60,8 +60,10 @@ export class SkillSystem {
   /**
    * Activates the Commander's ultimate ability, consuming 100 Ultimate Energy and
    * resolving real combat damage, healing, shields, and buffs through CombatSystem.
+   * When `deferDamage` is true (e.g., Astra's staged Starfall Judgment), enemy damage
+   * is deferred onto the synchronized impact waves while healing/buffs resolve cleanly.
    */
-  activateUltimate({ unitManager = null, combatSystem = null } = {}) {
+  activateUltimate({ unitManager = null, combatSystem = null, deferDamage = false } = {}) {
     if (this._activating) {
       return { ok: false, reason: 'Ultimate is already activating.' };
     }
@@ -89,13 +91,20 @@ export class SkillSystem {
 
     if (unitManager && combatSystem) {
       const durationSec = eff.durationSec || 8;
+      const rawDamage = eff.damage ? Math.round(eff.damage * cmdScale) : 0;
 
-      // Damage & debuff all living enemies (ASTRA, Seraphina, Kael)
-      if ((eff.damage && eff.damage > 0) || eff.slowEnemies || eff.defenseShred) {
+      if (deferDamage && rawDamage > 0) {
+        summary.stagedDamage = true;
+        summary.pendingRawDamage = rawDamage;
+        summary.attackType = eff.attackType || 'magical';
+        summary.armorPierce = eff.armorPierce || 0;
+      }
+
+      // Damage & debuff all living enemies (Seraphina, Kael, or non-deferred Astra)
+      if ((!deferDamage && rawDamage > 0) || eff.slowEnemies || eff.defenseShred) {
         const enemies = unitManager.getBySide('enemy');
-        const rawDamage = eff.damage ? Math.round(eff.damage * cmdScale) : 0;
         for (const enemy of enemies) {
-          if (rawDamage > 0) {
+          if (!deferDamage && rawDamage > 0) {
             const res = combatSystem.applyDamage({
               source: null, // Commander off-field strike does not refund own ultimate energy
               target: enemy,

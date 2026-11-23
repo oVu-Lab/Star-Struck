@@ -69,6 +69,12 @@ export class BattleScreen {
     this._ultPulseTimer = null;
     this._ultCompleteTimer = null;
     this._lastUltPulseMs = 0;
+    this._astraCinemaActive = false;
+    this._astraCinemaExiting = false;
+    this._astraCinemaTimer = null;
+    this._astraCinemaExitTimer = null;
+    this._astraCinemaCleanups = [];
+    this._pendingUltNotice = null;
   }
 
   mount(container, params = {}) {
@@ -313,6 +319,21 @@ export class BattleScreen {
           </div>
         </div>
 
+        <div id="astra-ultimate-cinema" class="astra-ult-cinema" hidden aria-hidden="true">
+          <video
+            id="astra-ultimate-video"
+            class="astra-ult-cinema__video"
+            src="/astra-cardtemplate/assets-astra/ultimate-animation.webm"
+            playsinline
+            preload="auto"
+          ></video>
+          <div class="astra-ult-cinema__veil" aria-hidden="true"></div>
+          <div class="astra-ult-cinema__caption" aria-hidden="true">
+            <span id="astra-cinema-eyebrow" class="astra-ult-cinema__eyebrow">ASTRA VALEN · CELESTIAL AWAKENING</span>
+            <span id="astra-cinema-title" class="astra-ult-cinema__title">Starfall Judgment</span>
+          </div>
+        </div>
+
         <div id="battle-outcome-splash" class="battle-outcome-splash" aria-live="assertive" hidden></div>
 
         <div id="battle-results-overlay" class="battle-results-overlay" hidden></div>
@@ -500,6 +521,7 @@ export class BattleScreen {
 
     // Keyboard controls: 1-6 cards, Space/Q Ultimate, P Pause, S Speed, Enter Start, Esc Deselect, Shift+D Debug
     this._keyHandler = (ev) => {
+      if (this._astraCinemaActive) return;
       const tag = ev.target?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || ev.target?.isContentEditable) return;
       if (ev.shiftKey && ev.code === 'KeyD') {
@@ -596,16 +618,29 @@ export class BattleScreen {
       eventBus.on('cards:nonUnitPlayed', (payload) => this._playNonUnitCardVfx(payload)),
       eventBus.on('commander:ultimateActivated', ({ commander: cmd, skill, summary }) => {
         this._showCutin(cmd, skill);
-        if (summary && (summary.enemiesHit > 0 || summary.alliesHealed > 0)) {
+        if (summary) {
           const parts = [];
-          if (summary.totalDamage > 0) parts.push(`${summary.totalDamage} damage`);
+          if (!summary.stagedDamage && summary.totalDamage > 0) {
+            parts.push(`${summary.totalDamage} damage`);
+          }
           if (summary.totalHeal > 0) parts.push(`${summary.totalHeal} healed`);
           if (parts.length > 0) {
-            this._ctx.notify(`${skill?.name || 'Ultimate'}: ${parts.join(' · ')}`);
+            const msg = `${skill?.name || 'Ultimate'}: ${parts.join(' · ')}`;
+            if (this._astraCinemaActive) {
+              this._pendingUltNotice = msg;
+            } else {
+              this._ctx.notify(msg);
+            }
           }
         }
       }),
+      eventBus.on('commander:ultimateCompleted', ({ commanderId, totalDamage }) => {
+        if (commanderId === 'astra' && totalDamage > 0) {
+          this._ctx.notify?.(`Starfall Judgment: ${totalDamage} total damage`);
+        }
+      }),
       eventBus.on('battle:completed', (results) => {
+        this._stopAstraAwakening({ releaseHold: true });
         this._cardPlayVfx?.stop();
         this._scheduleResultsReveal(results);
       }),
@@ -613,6 +648,7 @@ export class BattleScreen {
   }
 
   unmount() {
+    this._stopAstraAwakening({ releaseHold: true });
     this._clearMergeVfx();
     this._clearUltimateBarFx();
     this._cardPlayVfx?.stop();
@@ -665,6 +701,7 @@ export class BattleScreen {
       ? this._ctx.progressionSystem.resolveBattleEntryStage()
       : this._ctx.progressionSystem.getSelectedStage();
     this._hudCache = {};
+    this._stopAstraAwakening({ releaseHold: true });
     this._clearUltimateBarFx();
     this._cardPlayVfx?.stop();
     this._isInitialHandSync = true;
@@ -1989,6 +2026,7 @@ export class BattleScreen {
       overlay.hidden = true;
       overlay.innerHTML = '';
       this._hudCache = {};
+      this._stopAstraAwakening({ releaseHold: true });
       this._clearUltimateBarFx();
       this._isInitialHandSync = true;
       this._clearMergeVfx();
@@ -2010,6 +2048,7 @@ export class BattleScreen {
         this._resultsRevealTimer = null;
       }
       this._resultsShownSessionId = null;
+      this._stopAstraAwakening({ releaseHold: true });
       this._ctx.progressionSystem.selectStage(results.nextStageId, { explicit: true });
       overlay.hidden = true;
       overlay.innerHTML = '';
@@ -2020,8 +2059,190 @@ export class BattleScreen {
     });
   }
 
+  _startAstraAwakening(commander, skill) {
+    if (!this._container) return;
+    const overlay = this._container.querySelector('#astra-ultimate-cinema');
+    const video = this._container.querySelector('#astra-ultimate-video');
+    if (!overlay || !video) {
+      this._ctx.battleManager?.completeAstraAwakening?.();
+      return;
+    }
+
+    this._stopAstraAwakening({ releaseHold: false });
+    this._astraCinemaActive = true;
+    this._astraCinemaExiting = false;
+    this._ctx.battleManager?.beginAstraAwakening?.();
+
+    const eyebrow = this._container.querySelector('#astra-cinema-eyebrow');
+    const title = this._container.querySelector('#astra-cinema-title');
+    if (eyebrow) {
+      eyebrow.textContent = `${(commander?.name || 'Astra Valen').toUpperCase()} · CELESTIAL AWAKENING`;
+    }
+    if (title) {
+      title.textContent = skill?.name || 'Starfall Judgment';
+    }
+
+    const s = this._ctx.gameState?.settings || {};
+    const sfxVol = typeof s.sfxVolume === 'number' ? Math.max(0, Math.min(1, s.sfxVolume)) : 0.65;
+    const isMuted = Boolean(s.muted) || Boolean(s.sfxMuted) || sfxVol <= 0.001;
+    video.muted = isMuted;
+    video.volume = isMuted ? 0 : sfxVol;
+
+    overlay.hidden = false;
+    overlay.classList.remove('is-exiting');
+    void overlay.offsetWidth;
+    overlay.classList.add('is-visible');
+
+    try {
+      video.currentTime = 0;
+    } catch (_) {}
+
+    const onEnded = () => this._finishAstraAwakening();
+    const onError = () => this._finishAstraAwakening();
+    const onTimeUpdate = () => {
+      if (
+        Number.isFinite(video.duration) &&
+        video.duration > 0.4 &&
+        video.currentTime >= video.duration - 0.16
+      ) {
+        this._finishAstraAwakening();
+      }
+    };
+
+    video.addEventListener('ended', onEnded);
+    video.addEventListener('error', onError);
+    video.addEventListener('timeupdate', onTimeUpdate);
+    this._astraCinemaCleanups.push(
+      () => video.removeEventListener('ended', onEnded),
+      () => video.removeEventListener('error', onError),
+      () => video.removeEventListener('timeupdate', onTimeUpdate),
+    );
+
+    this._astraCinemaTimer = setTimeout(() => {
+      this._finishAstraAwakening();
+    }, 3350);
+
+    try {
+      const playPromise = video.play();
+      if (playPromise && typeof playPromise.catch === 'function') {
+        playPromise.catch(() => {
+          if (!this._astraCinemaActive || this._astraCinemaExiting) return;
+          video.muted = true;
+          try {
+            const retryPromise = video.play();
+            if (retryPromise && typeof retryPromise.catch === 'function') {
+              retryPromise.catch(() => this._finishAstraAwakening());
+            }
+          } catch (_) {
+            this._finishAstraAwakening();
+          }
+        });
+      }
+    } catch (_) {
+      this._finishAstraAwakening();
+    }
+  }
+
+  _finishAstraAwakening() {
+    if (!this._astraCinemaActive || this._astraCinemaExiting) return;
+    this._astraCinemaExiting = true;
+
+    if (this._astraCinemaTimer) {
+      clearTimeout(this._astraCinemaTimer);
+      this._astraCinemaTimer = null;
+    }
+    while (this._astraCinemaCleanups.length > 0) {
+      const cleanup = this._astraCinemaCleanups.pop();
+      cleanup?.();
+    }
+
+    const overlay = this._container?.querySelector('#astra-ultimate-cinema');
+    const video = this._container?.querySelector('#astra-ultimate-video');
+
+    // Synchronize transition: release hold and start Phase Two right under the luminous dissolve
+    this._ctx.battleManager?.completeAstraAwakening?.();
+    if (this._pendingUltNotice) {
+      const msg = this._pendingUltNotice;
+      this._pendingUltNotice = null;
+      this._ctx.notify?.(msg);
+    }
+
+    const reducedMotion = Boolean(
+      typeof window !== 'undefined' &&
+        typeof window.matchMedia === 'function' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    );
+
+    if (overlay) {
+      overlay.classList.add('is-exiting');
+      overlay.classList.remove('is-visible');
+    }
+
+    const exitDelay = reducedMotion ? 40 : 250;
+    if (this._astraCinemaExitTimer) clearTimeout(this._astraCinemaExitTimer);
+    this._astraCinemaExitTimer = setTimeout(() => {
+      this._astraCinemaExitTimer = null;
+      if (video && typeof video.pause === 'function') {
+        try {
+          video.pause();
+          video.currentTime = 0;
+        } catch (_) {}
+      }
+      if (overlay) {
+        overlay.hidden = true;
+        overlay.classList.remove('is-visible', 'is-exiting');
+      }
+      this._astraCinemaActive = false;
+      this._astraCinemaExiting = false;
+    }, exitDelay);
+  }
+
+  _stopAstraAwakening({ releaseHold = false } = {}) {
+    if (this._astraCinemaTimer) {
+      clearTimeout(this._astraCinemaTimer);
+      this._astraCinemaTimer = null;
+    }
+    if (this._astraCinemaExitTimer) {
+      clearTimeout(this._astraCinemaExitTimer);
+      this._astraCinemaExitTimer = null;
+    }
+    while (this._astraCinemaCleanups.length > 0) {
+      const cleanup = this._astraCinemaCleanups.pop();
+      cleanup?.();
+    }
+    const overlay = this._container?.querySelector('#astra-ultimate-cinema');
+    const video = this._container?.querySelector('#astra-ultimate-video');
+    if (video && typeof video.pause === 'function') {
+      try {
+        video.pause();
+        video.currentTime = 0;
+      } catch (_) {}
+    }
+    if (overlay) {
+      overlay.hidden = true;
+      overlay.classList.remove('is-visible', 'is-exiting');
+    }
+    this._astraCinemaActive = false;
+    this._astraCinemaExiting = false;
+    this._pendingUltNotice = null;
+    if (releaseHold) {
+      this._ctx.battleManager?.cancelAstraAwakening?.();
+    }
+  }
+
   _showCutin(commander, skill) {
     if (!this._container) return;
+    const video = this._container.querySelector('#astra-ultimate-video');
+    const canPlayFullscreenCinema =
+      commander?.id === 'astra' &&
+      typeof HTMLVideoElement !== 'undefined' &&
+      video instanceof HTMLVideoElement &&
+      typeof video.play === 'function';
+    if (canPlayFullscreenCinema) {
+      this._startAstraAwakening(commander, skill);
+      return;
+    }
+
     const overlay = this._container.querySelector('#ultimate-cutin');
     const eyebrow = this._container.querySelector('#cutin-commander');
     const title = this._container.querySelector('#cutin-skill');

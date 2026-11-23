@@ -3001,6 +3001,82 @@
   color: var(--text-on-dark-muted);
 }
 
+/* Phase One Fullscreen Celestial Awakening Video Overlay (Astra Ultimate) */
+.astra-ult-cinema {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 150;
+  background: #05060b;
+  pointer-events: auto;
+  opacity: 0;
+  overflow: hidden;
+  transition: opacity 110ms ease-out;
+}
+
+.astra-ult-cinema[hidden] {
+  display: none;
+}
+
+.astra-ult-cinema.is-visible {
+  opacity: 1;
+}
+
+.astra-ult-cinema.is-exiting {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 240ms ease-out;
+}
+
+.astra-ult-cinema__video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.astra-ult-cinema__veil {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(circle at 50% 45%, rgba(255, 252, 240, 0.88) 0%, rgba(246, 226, 179, 0.48) 46%, rgba(12, 16, 36, 0.08) 100%);
+  transition: opacity 180ms ease-out;
+}
+
+.astra-ult-cinema.is-exiting .astra-ult-cinema__veil {
+  opacity: 0.92;
+}
+
+.astra-ult-cinema__caption {
+  position: absolute;
+  left: clamp(20px, 4vw, 48px);
+  bottom: clamp(20px, 4vh, 42px);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  pointer-events: none;
+  text-shadow: 0 2px 14px rgba(4, 6, 14, 0.92), 0 0 22px rgba(226, 183, 91, 0.45);
+}
+
+.astra-ult-cinema__eyebrow {
+  font-family: var(--font-ui);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #f6e2b3;
+}
+
+.astra-ult-cinema__title {
+  font-family: var(--font-display);
+  font-size: clamp(1.35rem, 2.4vw, 2.1rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #fffdf6;
+}
+
 /* Dramatic Brief Outcome Splash before Results Modal */
 .battle-outcome-splash {
   position: absolute;
@@ -4128,5 +4204,12 @@
   }
   .dock-commander-card__bar-wrap.is-ult-ready .dock-commander-card__bar-aura {
     opacity: 0.78;
+  }
+  .astra-ult-cinema,
+  .astra-ult-cinema__veil {
+    transition: none !important;
+  }
+  .astra-ult-cinema.is-exiting .astra-ult-cinema__veil {
+    opacity: 0 !important;
   }
 }

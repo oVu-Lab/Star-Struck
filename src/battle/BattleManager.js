@@ -13,6 +13,13 @@ import { UNIT_STATES } from './UnitManager.js';
 import { CARD_CATEGORIES } from '../systems/CardSystem.js';
 import { getNonUnitCardVfxProfile, isNonUnitCard } from '../rendering/NonUnitCardVfxConfig.js';
 import {
+  buildStarfallDamageStages,
+  createStarfallPlan,
+  getStarfallCameraSchedule,
+  STARFALL_DURATION_SEC,
+  STARFALL_REDUCED_DURATION_SEC,
+} from '../rendering/AstraStarfallVfx.js';
+import {
   UNIT_ATTACK_FX_KINDS,
   resolveUnitAttackVfxProfile,
 } from '../rendering/UnitAttackVfxConfig.js';
@@ -113,6 +120,9 @@ export class BattleManager {
     this._tutorialRefillPaused = false;
     this._tutorialProtectEnemies = false;
     this._tutorialActionFilter = null;
+    this._cinematicHold = false;
+    this._starfallVictoryHoldTimer = 0;
+    this._activeStarfallSequences = [];
     this._unsubs = [];
 
     this._bindCombatFeedback();
@@ -1142,6 +1152,8 @@ export class BattleManager {
     this._tutorialRefillPaused = false;
     this._tutorialProtectEnemies = false;
     this._tutorialActionFilter = null;
+    this.cancelAstraAwakening();
+    this._clearActiveStarfallSequences();
     this._cards?.clearBattleTimers?.();
     if (wasTutorial) {
       this._cards?.setCardGenerator?.(null);
@@ -2116,6 +2128,80 @@ export class BattleManager {
     return { x: best.x, y: best.y };
   }
 
+  _isReducedMotionActive() {
+    return Boolean(
+      typeof window !== 'undefined' &&
+        typeof window.matchMedia === 'function' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    );
+  }
+
+  _scheduleStarfallCameraAndParticles({ reducedMotion = false } = {}) {
+    const schedule = getStarfallCameraSchedule({ reducedMotion });
+    if (this._anim) {
+      for (const imp of schedule.impulses) {
+        this._anim.scheduleCameraImpulse?.({ ...imp, reducedMotion });
+      }
+      for (const flash of schedule.flashes) {
+        this._anim.scheduleScreenFlash?.(flash);
+      }
+    }
+    if (this._renderer && this._particles) {
+      const { width, height } = this._renderer.getDimensions();
+      this._particles.spawnBurst(
+        width * 0.5,
+        height * 0.34,
+        '#f6e2b3',
+        reducedMotion ? 10 : 22,
+        { speedScale: 1.15, shape: 'star' },
+      );
+    }
+  }
+
+  beginAstraAwakening() {
+    const reducedMotion = this._isReducedMotionActive();
+    this._cinematicHold = true;
+    this._starfallVictoryHoldTimer = reducedMotion ? 2.0 : 3.25;
+  }
+
+  completeAstraAwakening() {
+    this._cinematicHold = false;
+    const reducedMotion = this._isReducedMotionActive();
+    const effects = this._anim?.getWorldEffects?.() || [];
+    let resumedReduced = reducedMotion;
+    for (let i = 0; i < effects.length; i += 1) {
+      const fx = effects[i];
+      if (fx.kind === 'starfall' && fx.meta?.awaitingAwakening) {
+        fx.meta.awaitingAwakening = false;
+        fx.age = 0;
+        if (fx.reducedMotion) resumedReduced = true;
+      }
+    }
+    this._scheduleStarfallCameraAndParticles({ reducedMotion: resumedReduced });
+  }
+
+  cancelAstraAwakening() {
+    this._cinematicHold = false;
+    this._starfallVictoryHoldTimer = 0;
+    this._clearActiveStarfallSequences();
+  }
+
+  _clearActiveStarfallSequences() {
+    if (!Array.isArray(this._activeStarfallSequences)) return;
+    for (let i = 0; i < this._activeStarfallSequences.length; i += 1) {
+      this._activeStarfallSequences[i].completed = true;
+    }
+    this._activeStarfallSequences.length = 0;
+  }
+
+  getActiveStarfallSequences() {
+    return this._activeStarfallSequences;
+  }
+
+  isCinematicHoldActive() {
+    return Boolean(this._cinematicHold);
+  }
+
   triggerUltimate() {
     if (
       this._phase !== BATTLE_PHASES.ACTIVE_COMBAT &&
@@ -2129,9 +2215,30 @@ export class BattleManager {
         return { ok: false, reason: filterRes.reason || 'Follow the current tutorial step first.' };
       }
     }
+
+    const enemySnapshots = (this._units?.getBySide?.('enemy') || []).map((u) => ({
+      uid: u.uid,
+      x: u.x,
+      y: u.y,
+      isBoss: Boolean(u.isBoss),
+      isElite: Boolean(u.isElite),
+    }));
+    const allySnapshots = (this._units?.getBySide?.('ally') || []).map((u) => ({
+      uid: u.uid,
+      x: u.x,
+      y: u.y,
+    }));
+
+    const { commander: activeCmd, ultimate: activeUlt } = this._skills.getActiveCommanderSkills();
+    const isAstraStarfall =
+      Boolean(this._anim) &&
+      activeCmd?.id === 'astra' &&
+      activeUlt?.id === 'ult_starfall_barrage';
+
     const res = this._skills.activateUltimate({
       unitManager: this._units,
       combatSystem: this._combat,
+      deferDamage: isAstraStarfall,
     });
     if (res.ok) {
       this._combat._stats.ultimatesUsed += 1;
@@ -2148,25 +2255,188 @@ export class BattleManager {
                 ? 'bastion'
                 : 'starfall';
 
-      this._anim?.triggerScreenShake(9, 0.5);
-      this._anim?.triggerScreenFlash(ultColor, 0.42, 0.25);
-      this._anim?.spawnWorldEffect({
-        kind: fxKind,
-        x: 50,
-        y: 50,
-        radius: 50,
-        color: ultColor,
-        secondaryColor: cmdId === 'astra' ? '#ffffff' : '#edf2fa',
-        duration: 1.25,
-      });
-      if (this._renderer && this._particles) {
-        const { width, height } = this._renderer.getDimensions();
-        this._particles.spawnBurst(width * 0.5, height * 0.45, ultColor, 26, { speedScale: 1.35 });
+      if (cmdId === 'astra') {
+        const reducedMotion = this._isReducedMotionActive();
+        const quality = this._state?.settings?.graphicsQuality || 'high';
+        const duration = reducedMotion ? STARFALL_REDUCED_DURATION_SEC : STARFALL_DURATION_SEC;
+        const starfallPlan = createStarfallPlan({
+          enemies: enemySnapshots,
+          allies: allySnapshots,
+          seed: Math.floor(Math.random() * 100000),
+          quality,
+          reducedMotion,
+        });
+        this._anim?.triggerScreenFlash('#fff6dc', 0.3, 0.22);
+        const fxRef = this._anim?.spawnWorldEffect({
+          kind: 'starfall',
+          x: 50,
+          y: 50,
+          radius: 50,
+          color: ultColor,
+          secondaryColor: '#ffffff',
+          duration,
+          reducedMotion,
+          meta: {
+            awaitingAwakening: Boolean(this._cinematicHold),
+            starfallPlan,
+          },
+        });
+        const pendingRawDamage = res.summary?.pendingRawDamage ?? 0;
+        if (fxRef && pendingRawDamage > 0) {
+          const stages = buildStarfallDamageStages({
+            totalRawDamage: pendingRawDamage,
+            duration,
+          });
+          this._activeStarfallSequences.push({
+            sessionId: this._sessionId,
+            fxRef,
+            stages,
+            totalRawDamage: pendingRawDamage,
+            attackType: res.summary?.attackType || 'magical',
+            armorPierce: res.summary?.armorPierce || 0,
+            dealtByUid: new Map(),
+            hitEnemyUids: new Set(),
+            totalDamageApplied: 0,
+            completed: false,
+          });
+        }
+        if (!this._cinematicHold) {
+          this._scheduleStarfallCameraAndParticles({ reducedMotion });
+        }
+      } else {
+        this._anim?.triggerScreenShake(9, 0.5);
+        this._anim?.triggerScreenFlash(ultColor, 0.42, 0.25);
+        this._anim?.spawnWorldEffect({
+          kind: fxKind,
+          x: 50,
+          y: 50,
+          radius: 50,
+          color: ultColor,
+          secondaryColor: '#edf2fa',
+          duration: 1.25,
+        });
+        if (this._renderer && this._particles) {
+          const { width, height } = this._renderer.getDimensions();
+          this._particles.spawnBurst(width * 0.5, height * 0.45, ultColor, 26, { speedScale: 1.35 });
+        }
       }
       this._audio?.playUltimate();
       this._syncCountersToState();
     }
     return res;
+  }
+
+  _updateActiveStarfallDamage() {
+    if (!this._activeStarfallSequences || this._activeStarfallSequences.length === 0) return;
+    if (
+      this._phase !== BATTLE_PHASES.ACTIVE_COMBAT &&
+      this._phase !== BATTLE_PHASES.WAVE_TRANSITION
+    ) {
+      return;
+    }
+
+    for (let sIdx = this._activeStarfallSequences.length - 1; sIdx >= 0; sIdx -= 1) {
+      const seq = this._activeStarfallSequences[sIdx];
+      if (!seq || seq.completed || seq.sessionId !== this._sessionId) {
+        this._activeStarfallSequences.splice(sIdx, 1);
+        continue;
+      }
+      const fx = seq.fxRef;
+      if (!fx || fx.meta?.awaitingAwakening) continue;
+
+      const timelineSec = fx.age;
+      let allResolved = true;
+
+      for (let i = 0; i < seq.stages.length; i += 1) {
+        const st = seq.stages[i];
+        if (st.resolved) continue;
+        if (timelineSec + 1e-6 < st.triggerTime) {
+          allResolved = false;
+          continue;
+        }
+
+        st.resolved = true;
+        const enemies = this._units?.getBySide?.('enemy') || [];
+        const isFinalStage = i === seq.stages.length - 1;
+        let stageDamageApplied = 0;
+        let stageEnemiesHit = 0;
+
+        for (let eIdx = 0; eIdx < enemies.length; eIdx += 1) {
+          const enemy = enemies[eIdx];
+          if (!enemy || enemy.hp <= 0 || enemy.state === UNIT_STATES.DEAD) continue;
+
+          let dmgRes;
+          if (isFinalStage && seq.dealtByUid.has(enemy.uid)) {
+            const effDefense = this._units.getEffectiveStat(enemy, 'defense');
+            const fullExpected = this._combat.calculateDamage({
+              attack: seq.totalRawDamage,
+              defense: effDefense,
+              attackType: seq.attackType,
+              armorPierce: seq.armorPierce,
+              critChance: 0,
+            }).amount;
+            const prevDealt = seq.dealtByUid.get(enemy.uid) || 0;
+            const remaining = Math.max(1, fullExpected - prevDealt);
+            dmgRes = this._combat.applyDamage({
+              source: null,
+              target: enemy,
+              rawAttack: remaining,
+              attackType: seq.attackType,
+              armorPierce: seq.armorPierce,
+              critChance: 0,
+              unitManager: this._units,
+              skillSystem: null,
+              bypassMitigation: true,
+            });
+          } else {
+            dmgRes = this._combat.applyDamage({
+              source: null,
+              target: enemy,
+              rawAttack: st.rawDamage,
+              attackType: seq.attackType,
+              armorPierce: seq.armorPierce,
+              critChance: 0,
+              unitManager: this._units,
+              skillSystem: null,
+            });
+          }
+
+          if (dmgRes?.applied) {
+            const prev = seq.dealtByUid.get(enemy.uid) || 0;
+            seq.dealtByUid.set(enemy.uid, prev + dmgRes.amount);
+            seq.hitEnemyUids.add(enemy.uid);
+            seq.totalDamageApplied += dmgRes.amount;
+            stageDamageApplied += dmgRes.amount;
+            stageEnemiesHit += 1;
+          }
+        }
+
+        this._audio?.playHit?.(st.index >= 3, 'magical');
+        this._syncCountersToState();
+        this._eventBus?.emit('commander:ultimateStageResolved', {
+          commanderId: 'astra',
+          stageIndex: st.index,
+          stageId: st.id,
+          stageName: st.name,
+          triggerTime: st.triggerTime,
+          timelineSec,
+          rawDamage: st.rawDamage,
+          stageDamageApplied,
+          enemiesHit: stageEnemiesHit,
+        });
+      }
+
+      if (allResolved || seq.stages.every((st) => st.resolved)) {
+        seq.completed = true;
+        this._activeStarfallSequences.splice(sIdx, 1);
+        this._eventBus?.emit('commander:ultimateCompleted', {
+          commanderId: 'astra',
+          totalDamage: seq.totalDamageApplied,
+          enemiesHit: seq.hitEnemyUids.size,
+          stagesResolved: seq.stages.length,
+        });
+      }
+    }
   }
 
   /**
@@ -2187,6 +2457,7 @@ export class BattleManager {
 
     this._phaseTimer += dt;
     this._anim?.update(dt);
+    this._updateActiveStarfallDamage();
     this._targeting.tick(dt);
 
     // Phase: BATTLE_START brief tactical intro -> spawns Wave 1
@@ -2230,6 +2501,9 @@ export class BattleManager {
 
     const nextElapsed = (this._state.battle.elapsedSec || 0) + dt;
     this._combat.setElapsedTime(nextElapsed);
+    if (this._starfallVictoryHoldTimer > 0) {
+      this._starfallVictoryHoldTimer = Math.max(0, this._starfallVictoryHoldTimer - dt);
+    }
 
     // 2. Card cooldowns & timed slot refills
     this._cards.updateCooldowns(dt);
@@ -2360,6 +2634,9 @@ export class BattleManager {
     const allSpawned = this._waves.allWavesSpawned();
     const bossCleared = !this._waves.stageHasBoss() || (this._waves.isBossSpawned() && !this._units.getActiveBoss());
     if (allSpawned && activeEnemies === 0 && bossCleared) {
+      if (this._starfallVictoryHoldTimer > 0) {
+        return;
+      }
       this._finalizeBattle(true);
       return;
     }
@@ -2376,6 +2653,8 @@ export class BattleManager {
     this._rewardsApplied = true;
 
     // Immediately stop all battle screen-shake/flash effects, active projectiles, pending refills, and transient pointer state
+    this.cancelAstraAwakening();
+    this._clearActiveStarfallSequences();
     this._cards?.clearBattleTimers?.();
     this._projectiles?.clear?.();
     this._anim?.clearScreenEffects?.();
@@ -2480,7 +2759,7 @@ export class BattleManager {
 
     const dims = this._renderer?.getDimensions() || { width: 1200, height: 500 };
 
-    if (this._state.battle.status === 'running') {
+    if (this._state.battle.status === 'running' && !this._cinematicHold) {
       const scaledDt = rawDt * (this._state.battle.speedMultiplier || 1);
       this._accumulator = Math.min(0.25, this._accumulator + scaledDt);
       while (this._accumulator >= FIXED_DT) {

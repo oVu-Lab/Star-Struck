@@ -11,6 +11,7 @@
 
 import { UNIT_STATES } from '../battle/UnitManager.js';
 import { renderHolographicCardEffects } from './AstraGlitterEffects.js';
+import { drawAstraStarfallWorldEffect } from './AstraStarfallVfx.js';
 import { drawNonUnitWorldEffect, isNonUnitWorldEffect } from './NonUnitCardVfxRenderer.js';
 import {
   isUnitAttackWorldEffect,
@@ -1584,7 +1585,7 @@ export class BattleRenderer {
 
   _drawWorldEffects(ctx, bf, w, h, layer, unitByUid = null) {
     const effects = this._anim.getWorldEffects();
-    const skyKinds = new Set(['starfall', 'volley', 'tempest', 'sanctuary', 'bastion', 'slash', 'lightning', 'lance']);
+    const skyKinds = new Set(['volley', 'tempest', 'sanctuary', 'bastion', 'slash', 'lightning', 'lance']);
 
     for (let i = 0; i < effects.length; i += 1) {
       const fx = effects[i];
@@ -1594,6 +1595,10 @@ export class BattleRenderer {
       }
       if (isUnitAttackWorldEffect(fx.kind)) {
         drawUnitAttackWorldEffect(ctx, bf, w, h, fx, layer, unitByUid, this._anim.getElapsed());
+        continue;
+      }
+      if (fx.kind === 'starfall') {
+        drawAstraStarfallWorldEffect(ctx, bf, w, h, fx, layer, unitByUid, this._lastDaisRect);
         continue;
       }
       const t = Math.min(1, fx.age / Math.max(0.05, fx.duration));
@@ -1664,22 +1669,19 @@ export class BattleRenderer {
         continue;
       }
 
-      if (fx.kind === 'starfall' || fx.kind === 'volley') {
-        const isVolley = fx.kind === 'volley';
-        const beamCoords = isVolley
-          ? [[56, 26], [68, 44], [78, 30], [64, 68], [82, 56], [72, 78]]
-          : [[32, 30], [55, 45], [74, 34], [62, 70], [82, 60]];
+      if (fx.kind === 'volley') {
+        const beamCoords = [[56, 26], [68, 44], [78, 30], [64, 68], [82, 56], [72, 78]];
         ctx.save();
         ctx.globalAlpha = alpha * 0.88;
         for (let b = 0; b < beamCoords.length; b += 1) {
           const bp = bf.worldToScreen(beamCoords[b][0], beamCoords[b][1], w, h);
-          const tiltX = isVolley ? -42 : 0;
+          const tiltX = -42;
           const grad = ctx.createLinearGradient(bp.x + tiltX, 0, bp.x, bp.y);
           grad.addColorStop(0, 'rgba(226, 183, 91, 0)');
           grad.addColorStop(0.5, fx.color || '#e2b75b');
           grad.addColorStop(1, '#ffffff');
           ctx.strokeStyle = grad;
-          ctx.lineWidth = (isVolley ? 11 : 18) * (1 - t * 0.6);
+          ctx.lineWidth = 11 * (1 - t * 0.6);
           ctx.beginPath();
           ctx.moveTo(bp.x + tiltX, 0);
           ctx.lineTo(bp.x, bp.y);

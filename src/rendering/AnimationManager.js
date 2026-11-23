@@ -149,7 +149,11 @@ export class AnimationManager {
   }) {
     if (this._effects.length >= this._maxEffects) {
       const oldest = this._effects.shift();
-      if (oldest) this._effectPool.push(oldest);
+      if (oldest) {
+        oldest.meta = null;
+        oldest.targets = null;
+        this._effectPool.push(oldest);
+      }
     }
     const fx = this._effectPool.length > 0 ? this._effectPool.pop() : {};
     // Supported kinds:
@@ -179,6 +183,7 @@ export class AnimationManager {
     fx.age = 0;
     fx.duration = duration;
     this._effects.push(fx);
+    return fx;
   }
 
   getFloatingTexts() {
@@ -198,6 +203,8 @@ export class AnimationManager {
       if (fx.meta?.sourceUid !== sourceUid) continue;
       if (kindSet && !kindSet.has(fx.kind)) continue;
       this._effects.splice(i, 1);
+      fx.meta = null;
+      fx.targets = null;
       this._effectPool.push(fx);
       removed += 1;
     }
@@ -255,9 +262,12 @@ export class AnimationManager {
 
     for (let i = this._effects.length - 1; i >= 0; i -= 1) {
       const fx = this._effects[i];
+      if (fx.meta?.awaitingAwakening) continue;
       fx.age += dt;
       if (fx.age >= fx.duration) {
         this._effects.splice(i, 1);
+        fx.meta = null;
+        fx.targets = null;
         this._effectPool.push(fx);
       }
     }
@@ -341,6 +351,13 @@ export class AnimationManager {
     this.clearScreenEffects();
     this._elapsed = 0;
     while (this._floatingTexts.length > 0) this._textPool.push(this._floatingTexts.pop());
-    while (this._effects.length > 0) this._effectPool.push(this._effects.pop());
+    while (this._effects.length > 0) {
+      const fx = this._effects.pop();
+      if (fx) {
+        fx.meta = null;
+        fx.targets = null;
+        this._effectPool.push(fx);
+      }
+    }
   }
 }
