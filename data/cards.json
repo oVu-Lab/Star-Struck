@@ -215,7 +215,8 @@
       "name": "Astral Nova",
       "upgradedName": "Supernova Burst",
       "maxName": "Celestial Cataclysm",
-      "iconAssetId": "effect_astral_burst",
+      "iconAssetId": "card_art_astral_nova",
+      "backgroundAssetId": "card_bg_astral_nova",
       "cost": 22,
       "cooldownSec": 4.0,
       "effect": {
@@ -239,7 +240,8 @@
       "name": "Sanctuary Wave",
       "upgradedName": "Radiant Tide",
       "maxName": "Divine Revival",
-      "iconAssetId": "card_emblem_cleric",
+      "iconAssetId": "card_art_sanctuary_wave",
+      "backgroundAssetId": "card_bg_sanctuary_wave",
       "cost": 24,
       "cooldownSec": 4.8,
       "effect": {
@@ -261,7 +263,8 @@
       "name": "Stasis Pulse",
       "upgradedName": "Chrono Lock",
       "maxName": "Temporal Freeze",
-      "iconAssetId": "card_emblem_chrono",
+      "iconAssetId": "card_art_stasis_pulse",
+      "backgroundAssetId": "card_bg_stasis_pulse",
       "cost": 30,
       "cooldownSec": 5.5,
       "effect": {
@@ -284,7 +287,8 @@
       "name": "Orbital Lance",
       "upgradedName": "Hyperion Piercer",
       "maxName": "Starbreaker Beam",
-      "iconAssetId": "card_emblem_breaker",
+      "iconAssetId": "card_art_orbital_lance",
+      "backgroundAssetId": "card_bg_orbital_lance",
       "cost": 24,
       "cooldownSec": 4.2,
       "effect": {
@@ -308,7 +312,8 @@
       "name": "Gravity Vortex",
       "upgradedName": "Singularity Well",
       "maxName": "Event Horizon",
-      "iconAssetId": "card_emblem_chrono",
+      "iconAssetId": "card_art_gravity_vortex",
+      "backgroundAssetId": "card_bg_gravity_vortex",
       "cost": 26,
       "cooldownSec": 5.0,
       "effect": {
@@ -333,7 +338,8 @@
       "name": "Arc Surge",
       "upgradedName": "Tempest Chain",
       "maxName": "Astral Maelstrom",
-      "iconAssetId": "effect_astral_burst",
+      "iconAssetId": "card_art_chain_lightning",
+      "backgroundAssetId": "card_bg_chain_lightning",
       "cost": 28,
       "cooldownSec": 4.8,
       "effect": {
@@ -357,7 +363,8 @@
       "name": "Full Assault",
       "upgradedName": "Blitz Directive",
       "maxName": "Unstoppable Charge",
-      "iconAssetId": "card_emblem_cavalry",
+      "iconAssetId": "card_art_full_assault",
+      "backgroundAssetId": "card_bg_full_assault",
       "cost": 20,
       "cooldownSec": 5.0,
       "effect": {
@@ -380,7 +387,8 @@
       "name": "Focus Fire",
       "upgradedName": "Precision Lock",
       "maxName": "Execution Mark",
-      "iconAssetId": "card_emblem_archer",
+      "iconAssetId": "card_art_focus_fire",
+      "backgroundAssetId": "card_bg_focus_fire",
       "cost": 18,
       "cooldownSec": 4.5,
       "effect": {
@@ -403,7 +411,8 @@
       "name": "Emergency Defense",
       "upgradedName": "Iron Formation",
       "maxName": "Impenetrable Line",
-      "iconAssetId": "card_emblem_shield",
+      "iconAssetId": "card_art_emergency_defense",
+      "backgroundAssetId": "card_bg_emergency_defense",
       "cost": 22,
       "cooldownSec": 5.0,
       "effect": {
@@ -426,7 +435,8 @@
       "name": "Flank Directive",
       "upgradedName": "Phantom Pincer",
       "maxName": "Shadow Envelopment",
-      "iconAssetId": "card_emblem_cavalry",
+      "iconAssetId": "card_art_flank_maneuver",
+      "backgroundAssetId": "card_bg_flank_maneuver",
       "cost": 18,
       "cooldownSec": 4.8,
       "effect": {
@@ -449,7 +459,8 @@
       "name": "Siege Protocol",
       "upgradedName": "Armor Breacher Order",
       "maxName": "Bastion Crusher",
-      "iconAssetId": "card_emblem_breaker",
+      "iconAssetId": "card_art_siege_formation",
+      "backgroundAssetId": "card_bg_siege_formation",
       "cost": 22,
       "cooldownSec": 5.2,
       "effect": {
@@ -472,7 +483,8 @@
       "name": "Suppressive Volley",
       "upgradedName": "Crossfire Lockdown",
       "maxName": "Overwhelming Barrage",
-      "iconAssetId": "card_emblem_archer",
+      "iconAssetId": "card_art_suppressive_volley",
+      "backgroundAssetId": "card_bg_suppressive_volley",
       "cost": 24,
       "cooldownSec": 5.2,
       "effect": {
@@ -495,7 +507,7 @@
       "name": "Aegis Blessing",
       "upgradedName": "Bastion Ward",
       "maxName": "Astral Bulwark",
-      "iconAssetId": "card_emblem_shield",
+      "iconAssetId": "card_art_aegis_blessing",
       "cost": 26,
       "cooldownSec": 5.0,
       "effect": {
@@ -518,7 +530,7 @@
       "name": "Overclock Core",
       "upgradedName": "Hyper Relay",
       "maxName": "Astral Conduit",
-      "iconAssetId": "ui_emblem",
+      "iconAssetId": "card_art_overclock_core",
       "cost": 16,
       "cooldownSec": 5.5,
       "effect": {
@@ -540,7 +552,8 @@
       "name": "Mending Aura",
       "upgradedName": "Lumen Resonance",
       "maxName": "Sanctuary Beacon",
-      "iconAssetId": "card_emblem_cleric",
+      "iconAssetId": "card_art_mending_aura",
+      "backgroundAssetId": "card_bg_mending_aura",
       "cost": 26,
       "cooldownSec": 5.5,
       "effect": {
@@ -562,7 +575,8 @@
       "name": "Starlight Catalyst",
       "upgradedName": "Astral Dynamo",
       "maxName": "Celestial Ignition",
-      "iconAssetId": "ui_emblem",
+      "iconAssetId": "card_art_starlight_catalyst",
+      "backgroundAssetId": "card_bg_starlight_catalyst",
       "cost": 20,
       "cooldownSec": 6.0,
       "effect": {
@@ -584,7 +598,7 @@
       "name": "Purify Beacon",
       "upgradedName": "Sanctity Field",
       "maxName": "Aegis Absolution",
-      "iconAssetId": "card_emblem_cleric",
+      "iconAssetId": "card_art_cleanse_beacon",
       "cost": 18,
       "cooldownSec": 4.8,
       "effect": {
@@ -606,7 +620,8 @@
       "name": "Haste Relay",
       "upgradedName": "Velocity Matrix",
       "maxName": "Chrono Accelerator",
-      "iconAssetId": "card_emblem_chrono",
+      "iconAssetId": "card_art_haste_relay",
+      "backgroundAssetId": "card_bg_haste_relay",
       "cost": 22,
       "cooldownSec": 5.5,
       "effect": {

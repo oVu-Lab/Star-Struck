@@ -2250,8 +2250,52 @@
   transition: transform 200ms var(--ease-tactical);
 }
 
+.deck-card-row:not(.deck-card-row--unit) .deck-card-row__icon {
+  position: relative;
+  padding: 0;
+  overflow: hidden;
+  background: #f4ede0;
+}
+
+.deck-card-row:not(.deck-card-row--unit) .deck-card-row__icon img {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: cover;
+  object-position: center 42%;
+}
+
+.deck-card-row__icon.is-layered-art {
+  padding: 3px !important;
+}
+
+.deck-card-row__icon.is-layered-art .card-layer-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.deck-card-row__icon.is-layered-art .card-layer-fg {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center center;
+  filter: drop-shadow(0 2px 3px rgba(38, 28, 16, 0.34));
+}
+
 .deck-card-row:hover:not(.is-unavailable) .deck-card-row__icon img {
   transform: scale(1.08);
+}
+
+.deck-card-row:hover:not(.is-unavailable) .deck-card-row__icon.is-layered-art .card-layer-bg {
+  transform: scale(1.03);
 }
 
 .deck-card-row__body {
@@ -2454,6 +2498,46 @@ button.deck-slot:active {
 .deck-slot__icon img {
   max-height: 24px;
   width: auto;
+}
+
+.deck-slot:not(.deck-slot--unit) .deck-slot__icon {
+  position: relative;
+  padding: 0;
+  overflow: hidden;
+  background: #f4ede0;
+}
+
+.deck-slot:not(.deck-slot--unit) .deck-slot__icon img {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: cover;
+  object-position: center 42%;
+}
+
+.deck-slot__icon.is-layered-art {
+  padding: 2px !important;
+}
+
+.deck-slot__icon.is-layered-art .card-layer-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.deck-slot__icon.is-layered-art .card-layer-fg {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center center;
+  filter: drop-shadow(0 1px 3px rgba(38, 28, 16, 0.34));
 }
 
 .deck-slot__body {
@@ -3211,6 +3295,43 @@ button.deck-slot:focus-visible .deck-slot__remove {
   object-position: center 14%;
 }
 
+.summon-featured-chip__thumb.is-card-art {
+  position: relative;
+  background: #f4ede0;
+}
+
+.summon-featured-chip__thumb.is-card-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 42%;
+}
+
+.summon-featured-chip__thumb.is-layered-art {
+  padding: 2px;
+}
+
+.summon-featured-chip__thumb.is-layered-art .card-layer-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.summon-featured-chip__thumb.is-layered-art .card-layer-fg {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center center;
+  filter: drop-shadow(0 2px 3px rgba(38, 28, 16, 0.36));
+}
+
 .summon-featured-chip__info {
   min-width: 0;
   display: flex;
@@ -3684,6 +3805,46 @@ button.deck-slot:focus-visible .deck-slot__remove {
   width: auto;
 }
 
+.armory-card-tile:not(.armory-card-tile--unit) .armory-card-tile__emblem {
+  position: relative;
+  padding: 0;
+  overflow: hidden;
+  background: #f4ede0;
+}
+
+.armory-card-tile:not(.armory-card-tile--unit) .armory-card-tile__emblem img {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: cover;
+  object-position: center 42%;
+}
+
+.armory-card-tile__emblem.is-layered-art {
+  padding: 3px !important;
+}
+
+.armory-card-tile__emblem.is-layered-art .card-layer-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.armory-card-tile__emblem.is-layered-art .card-layer-fg {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center center;
+  filter: drop-shadow(0 2px 3px rgba(38, 28, 16, 0.34));
+}
+
 .inspector-emblem-stage {
   height: 112px;
   background:
@@ -3700,6 +3861,68 @@ button.deck-slot:focus-visible .deck-slot__remove {
   max-height: 76px;
   width: auto;
   filter: drop-shadow(0 6px 12px rgba(42, 34, 24, 0.24));
+}
+
+.inspector-emblem-stage.is-card-artwork {
+  height: 192px;
+  padding: 10px;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(212, 166, 58, 0.18), rgba(244, 237, 224, 0.45) 72%),
+    var(--surface-2);
+}
+
+.inspector-emblem-stage.is-card-artwork > img {
+  height: 100%;
+  width: auto;
+  max-height: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  object-position: center 42%;
+  border-radius: 4px;
+  border: 1px solid rgba(154, 122, 68, 0.45);
+  box-shadow: 0 8px 18px rgba(34, 26, 16, 0.24);
+  filter: none;
+}
+
+.inspector-art-composite {
+  position: relative;
+  height: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 4px;
+  border: 1px solid rgba(154, 122, 68, 0.52);
+  box-shadow:
+    0 8px 18px rgba(34, 26, 16, 0.22),
+    inset 0 0 0 1px rgba(255, 252, 244, 0.65);
+  overflow: hidden;
+  background: #f4ede0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+}
+
+.inspector-art-composite .card-layer-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  object-fit: cover;
+  object-position: center center;
+  z-index: 0;
+  pointer-events: none;
+  filter: none;
+}
+
+.inspector-art-composite .card-layer-fg {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  object-position: center center;
+  filter: drop-shadow(0 8px 14px rgba(38, 28, 16, 0.34));
 }
 
 /* ==========================================================================
@@ -4168,6 +4391,43 @@ button.summon-result-card:active {
   height: 100%;
   object-fit: cover;
   object-position: top center;
+}
+
+.summon-result-card__thumb.is-card-art {
+  position: relative;
+  background: #f4ede0;
+}
+
+.summon-result-card__thumb.is-card-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 42%;
+}
+
+.summon-result-card__thumb.is-layered-art {
+  padding: 2px;
+}
+
+.summon-result-card__thumb.is-layered-art .card-layer-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center center;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.summon-result-card__thumb.is-layered-art .card-layer-fg {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center center;
+  filter: drop-shadow(0 1px 3px rgba(38, 28, 16, 0.34));
 }
 
 .summon-result-card__meta {

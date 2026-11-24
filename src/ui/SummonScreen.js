@@ -88,7 +88,9 @@ function resolveFeaturedItems(banner, dataRegistry) {
         subtitle: card.category ? `${card.category.charAt(0).toUpperCase() + card.category.slice(1)} Card` : 'Tactical Card',
         rarity: card.rarity || 'SR',
         assetId: unitDef?.spriteAssetId || card.iconAssetId || '',
+        bgAssetId: !unitDef?.spriteAssetId ? card.backgroundAssetId || '' : '',
         kind: 'card',
+        isNonUnitArt: !unitDef?.spriteAssetId && card.category !== 'unit',
       });
     }
   } else if (Array.isArray(banner.featuredHeroIds)) {
@@ -355,11 +357,14 @@ export class SummonScreen {
                         </div>
                         <div class="summon-featured-strip">
                           ${featuredItems
-                            .map(
-                              (item) => `
+                            .map((item) => {
+                              const isTransparentFg = item.isNonUnitArt && assetManager.getConfig?.(item.assetId)?.format === 'png';
+                              const hasLayeredFg = Boolean(item.bgAssetId || isTransparentFg);
+                              return `
                                 <div class="summon-featured-chip is-${item.rarity.toLowerCase()}">
-                                  <span class="summon-featured-chip__thumb ${item.kind === 'hero' ? 'is-portrait' : ''}">
-                                    <img data-featured-art="${item.assetId}" alt="${item.name}" />
+                                  <span class="summon-featured-chip__thumb ${item.kind === 'hero' ? 'is-portrait' : item.isNonUnitArt ? 'is-card-art' : ''}${hasLayeredFg ? ' is-layered-art' : ''}">
+                                    ${item.bgAssetId ? `<img class="card-layer-bg" data-featured-bg="${item.bgAssetId}" alt="" aria-hidden="true" />` : ''}
+                                    <img${hasLayeredFg ? ' class="card-layer-fg"' : ''} data-featured-art="${item.assetId}" alt="${item.name}" />
                                   </span>
                                   <span class="summon-featured-chip__info">
                                     <span class="summon-featured-chip__rarity rarity-${item.rarity.toLowerCase()}">${item.rarity}</span>
@@ -367,8 +372,8 @@ export class SummonScreen {
                                     <span class="summon-featured-chip__sub">${item.subtitle}</span>
                                   </span>
                                 </div>
-                              `,
-                            )
+                              `;
+                            })
                             .join('')}
                         </div>
                       </div>
@@ -472,12 +477,20 @@ export class SummonScreen {
     }
 
     // Bind featured roster artwork
+    for (const bgEl of this._container.querySelectorAll('[data-featured-bg]')) {
+      const aid = bgEl.getAttribute('data-featured-bg');
+      if (aid) assetManager.bindImageElement(bgEl, aid);
+    }
     for (const featEl of this._container.querySelectorAll('[data-featured-art]')) {
       const aid = featEl.getAttribute('data-featured-art');
       if (aid) assetManager.bindImageElement(featEl, aid);
     }
 
     // Bind pull result thumbnails (when Results overlay is open)
+    for (const bgEl of this._container.querySelectorAll('[data-pull-bg]')) {
+      const aid = bgEl.getAttribute('data-pull-bg');
+      if (aid) assetManager.bindImageElement(bgEl, aid);
+    }
     for (const artEl of this._container.querySelectorAll('[data-pull-art]')) {
       const aid = artEl.getAttribute('data-pull-art');
       if (aid) assetManager.bindImageElement(artEl, aid);
@@ -737,6 +750,9 @@ export class SummonScreen {
                       : null;
                     const unitName = unitDef?.name || entry.unitUnlocked || null;
                     const artId = unitDef?.spriteAssetId || entry.card?.iconAssetId || '';
+                    const bgAssetId = !unitDef?.spriteAssetId ? entry.card?.backgroundAssetId || '' : '';
+                    const isTransparentFg = !unitDef?.spriteAssetId && entry.card?.category !== 'unit' && this._ctx.assetManager?.getConfig?.(artId)?.format === 'png';
+                    const hasLayeredFg = Boolean(bgAssetId || isTransparentFg);
                     const detail = entry.isNew
                       ? unitName
                         ? `New + Unit (${unitName})`
@@ -754,8 +770,9 @@ export class SummonScreen {
                         title="Inspect ${entry.card?.name || entry.cardId}"
                       >
                         <div class="summon-result-card__head">
-                          <span class="summon-result-card__thumb">
-                            <img data-pull-art="${artId}" alt="${entry.card?.name || entry.cardId}" />
+                          <span class="summon-result-card__thumb${!unitDef?.spriteAssetId && entry.card?.category !== 'unit' ? ' is-card-art' : ''}${hasLayeredFg ? ' is-layered-art' : ''}">
+                            ${bgAssetId ? `<img class="card-layer-bg" data-pull-bg="${bgAssetId}" alt="" aria-hidden="true" />` : ''}
+                            <img${hasLayeredFg ? ' class="card-layer-fg"' : ''} data-pull-art="${artId}" alt="${entry.card?.name || entry.cardId}" />
                           </span>
                           <div class="summon-result-card__meta">
                             <span class="rarity-${entry.rarity.toLowerCase()}" style="font-size: 0.72rem;">${entry.rarity} · Card</span>

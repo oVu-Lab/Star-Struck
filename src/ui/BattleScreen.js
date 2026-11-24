@@ -825,6 +825,7 @@ export class BattleScreen {
             <span class="tactical-card__tier tabular-nums"></span>
           </div>
           <div class="tactical-card__art">
+            <img class="tactical-card__bg" alt="" aria-hidden="true" hidden />
             <img class="tactical-card__img" alt="" />
             <span class="tactical-card__category"></span>
           </div>
@@ -884,6 +885,7 @@ export class BattleScreen {
         category: btn.querySelector('.tactical-card__category'),
         tier: btn.querySelector('.tactical-card__tier'),
         art: btn.querySelector('.tactical-card__art'),
+        bg: btn.querySelector('.tactical-card__bg'),
         img: btn.querySelector('.tactical-card__img'),
         body: btn.querySelector('.tactical-card__body'),
         name: btn.querySelector('.tactical-card__name'),
@@ -901,6 +903,7 @@ export class BattleScreen {
         instanceId: null,
         tier: 0,
         artAssetId: null,
+        bgAssetId: null,
         isEmpty: true,
       });
     }
@@ -1563,6 +1566,7 @@ export class BattleScreen {
           meta.instanceId = null;
           meta.tier = 0;
           meta.artAssetId = null;
+          meta.bgAssetId = null;
           meta.isEmpty = true;
         }
         node.root.classList.toggle('is-refilling', refill.active);
@@ -1686,19 +1690,42 @@ export class BattleScreen {
         if (slot.upgradeSummary) tooltipParts.push(`Merge Scaling: ${slot.upgradeSummary}`);
         node.root.title = tooltipParts.join('\n');
 
-        // Display full unit character art on unit cards, framed sigil art on skills/tactics/supports
+        // Display full unit character art on unit cards, layered BG + transparent PNG FG on non-unit cards
         const unitDef =
           slot.category === 'unit' && slot.unitId
             ? this._ctx.dataRegistry?.unitsById?.get(slot.unitId)
             : null;
         const resolvedArtId = unitDef?.spriteAssetId || slot.iconAssetId;
         const isUnitArt = Boolean(unitDef?.spriteAssetId);
+        const cardDef = !isUnitArt ? this._ctx.dataRegistry?.cardsById?.get(slot.cardId) : null;
+        const resolvedBgId = !isUnitArt ? (slot.backgroundAssetId || cardDef?.backgroundAssetId || null) : null;
+        const isTransparentFg = !isUnitArt && assetManager.getConfig?.(resolvedArtId)?.format === 'png';
+        const hasLayeredBg = Boolean(resolvedBgId);
+        const hasLayeredFg = Boolean(resolvedBgId || isTransparentFg);
+
+        if (node.art) {
+          node.art.classList.toggle('is-layered-art', hasLayeredFg);
+        }
+        if (node.bg) {
+          if (hasLayeredBg) {
+            if (meta.bgAssetId !== resolvedBgId || meta.isEmpty) {
+              assetManager.bindImageElement(node.bg, resolvedBgId);
+              meta.bgAssetId = resolvedBgId;
+            }
+            node.bg.hidden = false;
+          } else {
+            node.bg.hidden = true;
+            meta.bgAssetId = null;
+          }
+        }
 
         if (meta.artAssetId !== resolvedArtId || meta.isEmpty) {
           node.img.alt = slot.name;
-          node.img.className = `tactical-card__img ${isUnitArt ? 'is-unit-art' : 'is-emblem-art'}`;
+          node.img.className = `tactical-card__img ${isUnitArt ? 'is-unit-art' : hasLayeredFg ? 'is-layered-fg' : 'is-emblem-art'}`;
           assetManager.bindImageElement(node.img, resolvedArtId);
           meta.artAssetId = resolvedArtId;
+        } else if (!isUnitArt) {
+          node.img.className = `tactical-card__img ${hasLayeredFg ? 'is-layered-fg' : 'is-emblem-art'}`;
         }
       }
 

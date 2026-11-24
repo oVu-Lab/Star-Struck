@@ -823,14 +823,17 @@ export class FormationScreen {
                   const isFull = this._draftDeck.length >= deckSize;
                   const canAdd = !isSelected && !duplicateName && !isFull;
                   const cat = card.category || 'unit';
+                  const isTransparentFg = cat !== 'unit' && assetManager.getConfig?.(card.iconAssetId)?.format === 'png';
+                  const hasLayeredFg = Boolean(card.backgroundAssetId || isTransparentFg);
                   return `
                     <div
                       class="deck-card-row deck-card-row--${cat} ${isSelected ? 'is-in-deck' : ''} ${!isSelected && !canAdd ? 'is-unavailable' : ''}"
                       data-card-id="${card.id}"
                       title="${escAttr([card.description, card.upgradeSummary].filter(Boolean).join(' · '))}"
                     >
-                      <div class="deck-card-row__icon">
-                        <img data-deck-icon="${card.iconAssetId}" alt="${escAttr(card.name)}" />
+                      <div class="deck-card-row__icon${hasLayeredFg ? ' is-layered-art' : ''}">
+                        ${card.backgroundAssetId ? `<img class="card-layer-bg" data-deck-bg="${card.backgroundAssetId}" alt="" aria-hidden="true" />` : ''}
+                        <img${hasLayeredFg ? ' class="card-layer-fg"' : ''} data-deck-icon="${card.iconAssetId}" alt="${escAttr(card.name)}" />
                       </div>
                       <div class="deck-card-row__body">
                         <div class="deck-card-row__name">${card.name}</div>
@@ -917,11 +920,14 @@ export class FormationScreen {
               }
               const card = dataRegistry.cardsById.get(cid);
               const cat = card?.category || 'unit';
+              const isTransparentFg = cat !== 'unit' && assetManager.getConfig?.(card?.iconAssetId)?.format === 'png';
+              const hasLayeredFg = Boolean(card?.backgroundAssetId || isTransparentFg);
               const pulseClass = cid === this._pulseDeckCardId ? ' motion-pulse-commit' : '';
               return `
                 <button type="button" class="deck-slot deck-slot--${cat}${pulseClass}" data-deck-remove="${cid}" title="Remove ${escAttr(card?.name || cid)}">
-                  <span class="deck-slot__icon">
-                    <img data-deck-icon="${card?.iconAssetId || ''}" alt="" />
+                  <span class="deck-slot__icon${hasLayeredFg ? ' is-layered-art' : ''}">
+                    ${card?.backgroundAssetId ? `<img class="card-layer-bg" data-deck-bg="${card.backgroundAssetId}" alt="" aria-hidden="true" />` : ''}
+                    <img${hasLayeredFg ? ' class="card-layer-fg"' : ''} data-deck-icon="${card?.iconAssetId || ''}" alt="" />
                   </span>
                   <span class="deck-slot__body">
                     <span class="deck-slot__name">${card?.name || cid}</span>
@@ -966,6 +972,10 @@ export class FormationScreen {
       }
     }
 
+    for (const bgEl of bodyEl.querySelectorAll('[data-deck-bg]')) {
+      const bgId = bgEl.getAttribute('data-deck-bg');
+      if (bgId) assetManager.bindImageElement(bgEl, bgId);
+    }
     for (const imgEl of bodyEl.querySelectorAll('[data-deck-icon]')) {
       const assetId = imgEl.getAttribute('data-deck-icon');
       if (assetId) assetManager.bindImageElement(imgEl, assetId);

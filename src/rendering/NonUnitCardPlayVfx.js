@@ -265,6 +265,9 @@ export class NonUnitCardPlayVfx {
 
     const catLabel = CATEGORY_LABELS[card.category] || 'Tactic';
     const levelLabel = card.levelLabel || (tier >= 3 ? 'Lv.III' : tier === 2 ? 'Lv.II' : 'Lv.I');
+    const resolvedArtId = card.artAssetId || card.iconAssetId;
+    const isTransparentFg = Boolean(resolvedArtId && this._assetManager?.getConfig?.(resolvedArtId)?.format === 'png');
+    const hasLayeredFg = Boolean(card.backgroundAssetId || isTransparentFg);
 
     ghost.innerHTML = `
       <span class="card-play-ghost__aura"></span>
@@ -273,8 +276,9 @@ export class NonUnitCardPlayVfx {
           <span class="card-play-ghost__cost tabular-nums">${card.cost ?? ''}</span>
           <span class="card-play-ghost__tier tabular-nums">${levelLabel}</span>
         </div>
-        <div class="card-play-ghost__art">
-          <img class="card-play-ghost__img" alt="" />
+        <div class="card-play-ghost__art${hasLayeredFg ? ' is-layered-art' : ''}">
+          ${card.backgroundAssetId ? '<img class="card-play-ghost__bg" alt="" aria-hidden="true" />' : ''}
+          <img class="card-play-ghost__img${hasLayeredFg ? ' is-layered-fg' : ''}" alt="" />
           <span class="card-play-ghost__category">${catLabel}</span>
         </div>
         <div class="card-play-ghost__name">${card.name || ''}</div>
@@ -284,9 +288,13 @@ export class NonUnitCardPlayVfx {
       </div>
     `;
 
+    const bgImg = ghost.querySelector?.('.card-play-ghost__bg');
+    if (bgImg && card.backgroundAssetId && this._assetManager?.bindImageElement) {
+      this._assetManager.bindImageElement(bgImg, card.backgroundAssetId);
+    }
     const img = ghost.querySelector?.('.card-play-ghost__img');
-    if (img && card.artAssetId && this._assetManager?.bindImageElement) {
-      this._assetManager.bindImageElement(img, card.artAssetId);
+    if (img && resolvedArtId && this._assetManager?.bindImageElement) {
+      this._assetManager.bindImageElement(img, resolvedArtId);
     }
 
     this._ghostLayer.appendChild(ghost);

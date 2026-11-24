@@ -486,6 +486,7 @@ export class CardSystem {
       name,
       baseName: def.name,
       iconAssetId: def.iconAssetId,
+      backgroundAssetId: def.backgroundAssetId || null,
       cost: def.cost,
       cooldownSec: def.cooldownSec ?? 2.5,
       tier,

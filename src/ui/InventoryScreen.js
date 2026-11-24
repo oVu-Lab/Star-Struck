@@ -198,14 +198,17 @@ export class InventoryScreen {
                           const rarity = card.rarity || 'R';
                           const rarityLower = rarity.toLowerCase();
                           const isSelected = selectedCard?.id === card.id;
+                          const isTransparentFg = cat !== 'unit' && assetManager.getConfig?.(card.iconAssetId)?.format === 'png';
+                          const hasLayeredFg = Boolean(card.backgroundAssetId || isTransparentFg);
                           return `
                             <button
                               type="button"
                               class="armory-card-tile armory-card-tile--${cat} armory-card-tile--${rarityLower} ${unlocked ? '' : 'is-locked'} ${isSelected ? 'is-selected' : ''}"
                               data-select-entry="${card.id}"
                             >
-                              <div class="armory-card-tile__emblem">
-                                <img data-card-emblem="${card.iconAssetId}" alt="${card.name}" />
+                              <div class="armory-card-tile__emblem${hasLayeredFg ? ' is-layered-art' : ''}">
+                                ${card.backgroundAssetId ? `<img class="card-layer-bg" data-card-bg="${card.backgroundAssetId}" alt="" aria-hidden="true" />` : ''}
+                                <img${hasLayeredFg ? ' class="card-layer-fg"' : ''} data-card-emblem="${card.iconAssetId}" alt="${card.name}" />
                               </div>
                               <div style="min-width: 0; flex: 1;">
                                 <div style="font-family: var(--font-display); font-size: 0.86rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
@@ -266,6 +269,8 @@ export class InventoryScreen {
                     const cat = selectedCard.category || 'unit';
                     const rarity = selectedCard.rarity || 'R';
                     const rarityLower = rarity.toLowerCase();
+                    const isTransparentFg = cat !== 'unit' && assetManager.getConfig?.(selectedCard.iconAssetId)?.format === 'png';
+                    const hasLayeredFg = cat !== 'unit' && Boolean(selectedCard.backgroundAssetId || isTransparentFg);
                     return `
                       <div>
                         <div class="section-kicker">${CATEGORY_TITLES[cat]} Tactical Instruction</div>
@@ -279,8 +284,17 @@ export class InventoryScreen {
                         </div>
                       </div>
 
-                      <div class="inspector-emblem-stage">
-                        <img id="inspector-card-img" alt="${selectedCard.name}" />
+                      <div class="inspector-emblem-stage${cat !== 'unit' ? ' is-card-artwork' : ''}${hasLayeredFg ? ' is-layered-art' : ''}">
+                        ${
+                          hasLayeredFg
+                            ? `
+                              <div class="inspector-art-composite">
+                                ${selectedCard.backgroundAssetId ? '<img id="inspector-card-bg" class="card-layer-bg" alt="" aria-hidden="true" />' : ''}
+                                <img id="inspector-card-img" class="card-layer-fg" alt="${selectedCard.name}" />
+                              </div>
+                            `
+                            : `<img id="inspector-card-img" alt="${selectedCard.name}" />`
+                        }
                       </div>
 
                       <p style="font-size: 0.86rem; color: var(--text-secondary); line-height: 1.55;">
@@ -364,9 +378,17 @@ export class InventoryScreen {
     `;
 
     if (isCardsView) {
+      for (const bgEl of this._container.querySelectorAll('[data-card-bg]')) {
+        const bgId = bgEl.getAttribute('data-card-bg');
+        if (bgId) assetManager.bindImageElement(bgEl, bgId);
+      }
       for (const imgEl of this._container.querySelectorAll('[data-card-emblem]')) {
         const assetId = imgEl.getAttribute('data-card-emblem');
         if (assetId) assetManager.bindImageElement(imgEl, assetId);
+      }
+      const inspBg = this._container.querySelector('#inspector-card-bg');
+      if (inspBg && selectedCard?.backgroundAssetId) {
+        assetManager.bindImageElement(inspBg, selectedCard.backgroundAssetId);
       }
       const inspImg = this._container.querySelector('#inspector-card-img');
       if (inspImg && selectedCard) {
