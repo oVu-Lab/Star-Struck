@@ -6,8 +6,8 @@
  * Mock-Canvas Safe: Uses only universal Canvas 2D path calls (no bezierCurveTo/clip).
  */
 
-import { UNIT_STATES } from '../battle/UnitManager.js';
-import { clamp01, withAlpha } from './NonUnitVfxGeometry.js';
+import { evaluateUnitAnimationState } from './UnitAnimationProfiles.js';
+import { withAlpha } from './NonUnitVfxGeometry.js';
 
 export function quadTo(ctx, cpx, cpy, x, y) {
   if (typeof ctx.quadraticCurveTo === 'function') {
@@ -18,144 +18,8 @@ export function quadTo(ctx, cpx, cpy, x, y) {
   }
 }
 
-export function computeUnitObjectAnimation(unit, elapsed, design) {
-  const state = unit?.state || UNIT_STATES.IDLE;
-  const isDead = state === UNIT_STATES.DEAD;
-  const isMoving = state === UNIT_STATES.MOVING;
-  const isCasting = state === UNIT_STATES.CASTING;
-  const isStunned = state === UNIT_STATES.STUNNED;
-  const isHealing = state === UNIT_STATES.HEALING || (unit?.healAnim || 0) > 0;
-  const phase = unit?.phase || 0;
-  const facing = unit?.facing || 1;
-  const t = elapsed + phase;
-
-  const loco = design?.animProfile?.locomotion || 'hover_pulse';
-  let bobY = 0;
-  let tilt = 0;
-  let scaleX = 1;
-  let scaleY = 1;
-  let lungeX = 0;
-
-  if (isDead) {
-    return {
-      bobY: 0,
-      tilt: 0,
-      scaleX: 1,
-      scaleY: 1,
-      lungeX: 0,
-      castProgress: 0,
-      attackRatio: 0,
-      blink: false,
-      mood: 'hurt',
-      facing,
-      isMoving: false,
-      isCasting: false,
-      isDead: true,
-    };
-  }
-
-  if (isMoving) {
-    if (loco === 'heavy_march') {
-      bobY = Math.abs(Math.sin(t * 7.8)) * 3.2;
-      tilt = Math.sin(t * 7.8) * 0.08 * facing;
-      scaleY = 1 - Math.abs(Math.sin(t * 7.8)) * 0.04;
-      scaleX = 1 + Math.abs(Math.sin(t * 7.8)) * 0.03;
-    } else if (loco === 'banking_glide') {
-      bobY = 2.4 + Math.sin(t * 6.5) * 1.6;
-      tilt = 0.16 * facing + Math.sin(t * 8.0) * 0.04;
-    } else if (loco === 'pendulum_sway') {
-      bobY = 2.0 + Math.sin(t * 5.2) * 1.4;
-      tilt = Math.sin(t * 5.2) * 0.12 * facing;
-    } else if (loco === 'zippy_hover') {
-      bobY = 2.8 + Math.sin(t * 11.5) * 1.5;
-      tilt = 0.13 * facing;
-    } else if (loco === 'majestic_levitation') {
-      bobY = 3.2 + Math.sin(t * 3.1) * 2.0;
-      tilt = 0.04 * facing;
-    } else {
-      // hover_pulse
-      bobY = 2.4 + Math.sin(t * 5.8) * 1.8;
-      tilt = 0.07 * facing;
-    }
-  } else {
-    // Distinct per-archetype idle motion (no generic shared bounce)
-    if (loco === 'heavy_march') {
-      bobY = Math.sin(t * 2.4) * 0.7;
-      scaleY = 1 + Math.sin(t * 2.4) * 0.02;
-    } else if (loco === 'banking_glide') {
-      bobY = 2.0 + Math.sin(t * 4.2) * 1.8;
-      tilt = Math.sin(t * 2.6) * 0.06;
-    } else if (loco === 'pendulum_sway') {
-      bobY = 2.0 + Math.cos(t * 2.8) * 1.2;
-      tilt = Math.sin(t * 2.8) * 0.085;
-    } else if (loco === 'zippy_hover') {
-      bobY = 2.4 + Math.sin(t * 6.8) * 1.4;
-      tilt = Math.sin(t * 4.5) * 0.04;
-    } else if (loco === 'majestic_levitation') {
-      bobY = 3.0 + Math.sin(t * 2.1) * 2.1;
-      scaleX = 1 + Math.sin(t * 2.1) * 0.018;
-    } else {
-      bobY = 2.2 + Math.sin(t * 3.2) * 1.7;
-      scaleY = 1 + Math.sin(t * 3.2) * 0.025;
-    }
-  }
-
-  // Cast preparation progress (0..1)
-  let castProgress = 0;
-  if (isCasting) {
-    if (unit?.castingAbility) {
-      const dur = Math.max(0.1, unit.castingAbility.duration || 0.6);
-      castProgress = clamp01(1 - (unit.castingAbility.remaining || 0) / dur);
-    } else {
-      castProgress = 0.5 + 0.5 * Math.sin(t * 8);
-    }
-    bobY += 2.2 * Math.sin(castProgress * Math.PI);
-    scaleX += 0.05 * Math.sin(t * 16);
-    scaleY += 0.05 * Math.sin(t * 16);
-  }
-
-  // Attack animation envelope
-  const attackAnim = unit?.attackAnim || 0;
-  const attackRatio = attackAnim > 0 ? Math.sin(clamp01(attackAnim / 0.24) * Math.PI) : 0;
-  if (attackRatio > 0.01) {
-    const atkBeh = design?.animProfile?.attackBehavior || 'ram_tilt';
-    if (atkBeh === 'recoil_snap' || atkBeh === 'recoil_kick' || atkBeh === 'cannon_recoil') {
-      lungeX = -attackRatio * 4.5 * facing;
-      tilt -= attackRatio * 0.15 * facing;
-    } else if (atkBeh === 'anvil_overhead_slam') {
-      bobY += attackRatio * 5.0;
-      lungeX = attackRatio * 8.5 * facing;
-      tilt += attackRatio * 0.22 * facing;
-    } else {
-      lungeX = attackRatio * 7.5 * facing;
-      tilt += attackRatio * 0.14 * facing;
-    }
-  }
-
-  // Deterministic subtle blink every ~4.2 seconds
-  const blinkCycle = (elapsed + phase * 1.7) % 4.2;
-  const blink = blinkCycle > 4.04 && !isCasting && attackRatio < 0.1;
-
-  let mood = 'normal';
-  if (isStunned || (unit?.hitFlash || 0) > 0.04) mood = 'hurt';
-  else if (isCasting || attackRatio > 0.2) mood = 'focused';
-  else if (isHealing) mood = 'happy';
-
-  return {
-    bobY,
-    tilt,
-    scaleX,
-    scaleY,
-    lungeX,
-    castProgress,
-    attackRatio,
-    blink,
-    mood,
-    facing,
-    isMoving,
-    isCasting,
-    isDead: false,
-  };
+export function computeUnitObjectAnimation(unit, elapsed, design, options = null) {
+  return evaluateUnitAnimationState(unit, elapsed, design, options);
 }
 
 /**

@@ -112,7 +112,8 @@
   <script type="module">
     import { AssetManager } from './src/rendering/AssetManager.js';
     import { UNIT_OBJECT_DESIGNS, UNIT_OBJECT_ROSTER_IDS } from './src/rendering/UnitObjectDesignCatalog.js';
-    import { drawChibiObjectUnit } from './src/rendering/UnitObjectModelRenderer.js';
+    import { drawChibiObjectUnit, getUnitModelLayout } from './src/rendering/UnitObjectModelRenderer.js';
+    import { drawUnitAttackPrepVfx } from './src/rendering/UnitVfxOverhaulHelpers.js';
     import { UNIT_ATTACK_FX_KINDS, resolveUnitAttackVfxProfile } from './src/rendering/UnitAttackVfxConfig.js';
     import { drawUnitAttackWorldEffect, drawUnitProjectile } from './src/rendering/UnitAttackVfxRenderer.js';
     import { Battlefield } from './src/battle/Battlefield.js';
@@ -584,7 +585,7 @@
         card.appendChild(c);
         grid.appendChild(card);
       }
-    } else if (view.startsWith('vfx-')) {
+    } else if (view === 'vfx-playable' || view === 'vfx-enemy' || view === 'vfx-elites-bosses') {
       const targetGroup =
         view === 'vfx-playable'
           ? ['playable']
@@ -627,14 +628,14 @@
         const side = d.rosterGroup === 'playable' ? 'ally' : 'enemy';
         const profile = resolveUnitAttackVfxProfile(id, { mode: 'attack', side });
         const atkY = 62;
-        const attacker = makeUnit(id, UNIT_STATES.ATTACKING, { x: 18, y: atkY, facing: 1 });
+        const attacker = makeUnit(id, UNIT_STATES.ATTACKING, { x: 18, y: atkY, facing: 1, attackPrepOverride: 0.78 });
         const targetPos = { x: 76, y: atkY };
 
         const ap = bf.worldToScreen(attacker.x, attacker.y, 420, 240);
         const tp = bf.worldToScreen(targetPos.x, targetPos.y, 420, 240);
         const uScale = Math.max(0.85, Math.min(1.4, ap.scale / 3.8));
 
-        // Cast sigil + unit + attack/projectile + impact/skill
+        // Prep + Cast sigil + unit + front prep + attack/projectile + impact/skill
         const castFx = {
           kind: UNIT_ATTACK_FX_KINDS.CAST,
           x: attacker.x,
@@ -652,8 +653,11 @@
           seed: 12,
           meta: { mode: 'attack', sourceFacing: 1 },
         };
+        const prepLayout = getUnitModelLayout(attacker, { x: ap.x, y: ap.y, scale: uScale * 1.15, elapsed: 1.0 });
         drawUnitAttackWorldEffect(ctx, bf, 420, 240, castFx, 'ground', null, 1.0);
-        drawChibiObjectUnit(ctx, attacker, { x: ap.x, y: ap.y, scale: uScale * 1.15, elapsed: 1.0, assetManager });
+        drawUnitAttackPrepVfx(ctx, attacker, prepLayout, 1.0, 'back', false);
+        const drawnLayout = drawChibiObjectUnit(ctx, attacker, { x: ap.x, y: ap.y, scale: uScale * 1.15, elapsed: 1.0, assetManager });
+        drawUnitAttackPrepVfx(ctx, attacker, drawnLayout, 1.0, 'front', false);
         drawUnitAttackWorldEffect(ctx, bf, 420, 240, castFx, 'sky', null, 1.0);
 
         if (profile.attackKind === 'melee') {
@@ -863,6 +867,656 @@
         projectiles,
         telegraphs,
       });
+    } else if (view === 'vfx-live-clash') {
+      titleEl.textContent = 'Star Struck — VFX Overhaul Live Multi-Unit Clash (Normal Gameplay Zoom 1280×720)';
+      subEl.textContent = 'Simultaneous Solar, Chrono, Lunar, Crystal, Laser, Artillery, Elite & Boss Normal Attacks + Major Skills + Preparation VFX';
+      const wrap = document.createElement('div');
+      wrap.className = 'battle-wrap';
+      const canvas = document.createElement('canvas');
+      canvas.className = 'battle-canvas';
+      canvas.width = 1280;
+      canvas.height = 720;
+      wrap.appendChild(canvas);
+      root.appendChild(wrap);
+
+      const bf = new Battlefield();
+      const anim = new AnimationManager();
+      const particles = new ParticleSystem();
+      const mockState = { settings: { graphicsQuality: 'high' }, battle: { status: 'running', selectedCardSlot: -1 } };
+      const renderer = new BattleRenderer({
+        assetManager,
+        animationManager: anim,
+        particleSystem: particles,
+        gameState: mockState,
+      });
+      renderer.attach(canvas);
+      renderer.setBattlefield(bf);
+
+      const units = [
+        { ...makeUnit('solar_pyromancer', UNIT_STATES.ATTACKING, { attackPrepOverride: 0.85 }), x: 16, y: 28, hp: 300, maxHp: 300, shield: 0, facing: 1, tier: 3 },
+        { ...makeUnit('chrono_weaver', UNIT_STATES.CASTING), x: 18, y: 50, hp: 340, maxHp: 340, shield: 0, facing: 1, tier: 2 },
+        { ...makeUnit('arcane_archer', UNIT_STATES.ATTACKING, { attackPrepOverride: 0.7 }), x: 14, y: 72, hp: 310, maxHp: 310, shield: 0, facing: 1, tier: 2 },
+        { ...makeUnit('pulse_skirmisher', UNIT_STATES.ATTACKING), x: 26, y: 62, hp: 360, maxHp: 360, shield: 0, facing: 1, tier: 1 },
+        { ...makeUnit('heavy_shield_guard', UNIT_STATES.ATTACKING, { attackPrepOverride: 0.8 }), x: 40, y: 40, hp: 720, maxHp: 760, shield: 140, facing: 1, tier: 2 },
+        { ...makeUnit('wind_cavalry', UNIT_STATES.ATTACKING), x: 44, y: 66, hp: 430, maxHp: 450, shield: 0, facing: 1, tier: 2 },
+        { ...makeUnit('enemy_rift_stalker', UNIT_STATES.ATTACKING), x: 54, y: 64, hp: 350, maxHp: 410, shield: 0, facing: -1 },
+        { ...makeUnit('enemy_stasis_weaver', UNIT_STATES.CASTING), x: 70, y: 30, hp: 420, maxHp: 460, shield: 0, facing: -1 },
+        { ...makeUnit('enemy_cryo_warden', UNIT_STATES.ATTACKING, { attackPrepOverride: 0.8 }), x: 74, y: 52, hp: 510, maxHp: 540, shield: 80, facing: -1 },
+        { ...makeUnit('enemy_inferno_bombardier', UNIT_STATES.ATTACKING), x: 82, y: 72, hp: 440, maxHp: 480, shield: 0, facing: -1 },
+        { ...makeUnit('boss_chrono_arbiter', UNIT_STATES.CASTING), x: 80, y: 40, hp: 3600, maxHp: 4200, shield: 240, facing: -1, isBoss: true, visualScale: 1.68, auraColor: '#c084fc', name: 'Chrono Sovereign Vael' },
+      ];
+
+      // Active projectiles mid-flight (Solar, Chrono, Crystal, Laser, Mortar, Boss Astrolabe)
+      const projectiles = [
+        {
+          id: 'lc_solar', kind: 'magical', sourceUid: units[0].uid, targetUid: units[7].uid,
+          sourceSide: 'ally', vfxProfileId: 'solar_pyromancer', trajectory: 'arc_flare',
+          startX: 16, startY: 28, x: 42, y: 29, z: 4.5, prevX: 37, prevY: 29, prevZ: 4.2,
+          targetX: 70, targetY: 30, totalDist: 54, traveled: 26, age: 0.34, seed: 11,
+        },
+        {
+          id: 'lc_chrono', kind: 'magical', sourceUid: units[1].uid, targetUid: units[8].uid,
+          sourceSide: 'ally', vfxProfileId: 'chrono_weaver', trajectory: 'beam_tether',
+          startX: 18, startY: 50, x: 54, y: 51, z: 4.0, prevX: 48, prevY: 51, prevZ: 4.0,
+          targetX: 74, targetY: 52, totalDist: 56, traveled: 36, age: 0.28, seed: 22,
+        },
+        {
+          id: 'lc_crystal_arrow', kind: 'magical', sourceUid: units[2].uid, targetUid: units[9].uid,
+          sourceSide: 'ally', vfxProfileId: 'arcane_archer', trajectory: 'flat_dart',
+          startX: 14, startY: 72, x: 44, y: 72, z: 4.0, prevX: 38, prevY: 72, prevZ: 4.0,
+          targetX: 82, targetY: 72, totalDist: 68, traveled: 30, age: 0.26, seed: 33,
+        },
+        {
+          id: 'lc_laser', kind: 'magical', sourceUid: units[3].uid, targetUid: units[6].uid,
+          sourceSide: 'ally', vfxProfileId: 'pulse_skirmisher', trajectory: 'laser_straight',
+          startX: 26, startY: 62, x: 48, y: 63, z: 3.6,
+          targetX: 54, targetY: 64, totalDist: 28, traveled: 22, age: 0.16, seed: 44,
+        },
+        {
+          id: 'lc_cryo', kind: 'magical', sourceUid: units[8].uid, targetUid: units[4].uid,
+          sourceSide: 'enemy', vfxProfileId: 'enemy_cryo_warden', trajectory: 'arc_shard',
+          startX: 74, startY: 52, x: 56, y: 45, z: 4.2, prevX: 60, prevY: 47, prevZ: 4.1,
+          targetX: 40, targetY: 40, totalDist: 36, traveled: 18, age: 0.28, seed: 55,
+        },
+        {
+          id: 'lc_stasis', kind: 'magical', sourceUid: units[7].uid, targetUid: units[0].uid,
+          sourceSide: 'enemy', vfxProfileId: 'enemy_stasis_weaver', trajectory: 'orbit_tri',
+          startX: 70, startY: 30, x: 46, y: 29, z: 4.2, prevX: 51, prevY: 29, prevZ: 4.1,
+          targetX: 16, targetY: 28, totalDist: 54, traveled: 24, age: 0.3, seed: 66,
+        },
+      ];
+
+      // Active Lunar melee wave + Solar impact + Mortar impact + Major Boss Temporal Collapse + Telegraph
+      anim.spawnWorldEffect({
+        kind: UNIT_ATTACK_FX_KINDS.MELEE,
+        x: 44, y: 66, x2: 54, y2: 64, angle: Math.PI, radius: 9,
+        color: '#c084fc', secondaryColor: '#e9d5ff', duration: 0.34,
+        profileId: 'enemy_rift_stalker', style: 'rift_claw_xrend', side: 'enemy', scale: 1.0,
+      }).age = 0.13;
+
+      anim.spawnWorldEffect({
+        kind: UNIT_ATTACK_FX_KINDS.IMPACT,
+        x: 68, y: 28, angle: 0, radius: 10,
+        color: '#fb923c', secondaryColor: '#fde047', duration: 0.42,
+        profileId: 'solar_pyromancer', style: 'solar_corona_eruption', side: 'ally', scale: 1.0,
+      }).age = 0.14;
+
+      anim.spawnWorldEffect({
+        kind: UNIT_ATTACK_FX_KINDS.IMPACT,
+        x: 34, y: 74, angle: Math.PI, radius: 11,
+        color: '#f97316', secondaryColor: '#fde047', duration: 0.46,
+        profileId: 'enemy_inferno_bombardier', style: 'mortar_shrapnel_crater', side: 'enemy', scale: 1.0,
+      }).age = 0.16;
+
+      anim.spawnWorldEffect({
+        kind: UNIT_ATTACK_FX_KINDS.ABILITY,
+        x: 62, y: 42, radius: 15, color: '#c084fc', secondaryColor: '#f5d37a',
+        duration: 0.95, profileId: 'boss_chrono_arbiter', side: 'enemy', scale: 1.05,
+        meta: { abilityKind: 'aoe_damage', abilityId: 'boss_temporal_collapse' },
+      }).age = 0.36;
+
+      const telegraphs = [
+        {
+          x: 24, y: 48, radius: 14, color: '#a78bfa',
+          label: 'Chrono Snare', abilityId: 'unit_chrono_snare',
+          elapsed: 0.62, duration: 1.0,
+        },
+      ];
+
+      anim._elapsed = 1.8;
+      renderer.render({
+        stage: { id: 'stage_3_5', backgroundAssetId: 'bg_battle_orbital_ridge' },
+        battlefield: bf,
+        phase: 'active_combat',
+        units,
+        projectiles,
+        telegraphs,
+      });
+    } else if (view === 'motion-gate') {
+      titleEl.textContent = 'Star Struck — Representative Quality Gate (Normal Gameplay Camera 1280×720)';
+      subEl.textContent = 'Solar Pyromancer (Fluid Plasma) · Chrono Weaver (Ratchet Escapement) · Arcane Archer (3D Shattering Crystal)';
+      const wrap = document.createElement('div');
+      wrap.className = 'battle-wrap';
+      const canvas = document.createElement('canvas');
+      canvas.className = 'battle-canvas';
+      canvas.width = 1280;
+      canvas.height = 720;
+      wrap.appendChild(canvas);
+      root.appendChild(wrap);
+
+      const bf = new Battlefield();
+      const anim = new AnimationManager();
+      const particles = new ParticleSystem();
+      const gameState = { settings: { graphicsQuality: 'high' }, battle: { status: 'running', selectedCardSlot: -1 } };
+      const renderer = new BattleRenderer({
+        assetManager,
+        animationManager: anim,
+        particleSystem: particles,
+        gameState,
+      });
+      renderer.attach(canvas);
+      renderer.setBattlefield(bf);
+
+      const makeGateUnit = (uid, unitId, side, x, y, level = 2) => {
+        const isEnemy = side === 'enemy';
+        return {
+          uid,
+          unitId,
+          side,
+          x,
+          y,
+          facing: isEnemy ? -1 : 1,
+          hp: 900,
+          maxHp: 900,
+          level,
+          visualScale: 1.0,
+          state: UNIT_STATES.ATTACKING,
+          attackAnim: 0,
+          attackPrepOverride: 0,
+          castingAbility: null,
+          hitFlash: 0,
+          phase: y * 0.03,
+        };
+      };
+
+      const renderGateFrame = (cycleT, mode = 'normal') => {
+        const t = ((cycleT % 1) + 1) % 1;
+        const isSkill = mode === 'skill';
+        const elapsed = 1.0 + cycleT * 2.4;
+        anim._elapsed = elapsed;
+        anim._effects.length = 0;
+
+        const units = [
+          makeGateUnit('g_solar', 'solar_pyromancer', 'ally', 20, 26, 3),
+          makeGateUnit('g_chrono', 'chrono_weaver', 'ally', 20, 50, 2),
+          makeGateUnit('g_archer', 'arcane_archer', 'ally', 20, 74, 2),
+          makeGateUnit('t_top', 'enemy_void_vanguard', 'enemy', 72, 26, 2),
+          makeGateUnit('t_mid', 'enemy_cryo_warden', 'enemy', 72, 50, 2),
+          makeGateUnit('t_bot', 'enemy_obsidian_marksman', 'enemy', 72, 74, 2),
+        ];
+
+        const projectiles = [];
+        // Phase timing within 1.0 cycle:
+        // 0.00..0.28 Formation (prep/charge on unit)
+        // 0.28..0.38 Release flash + launch acceleration
+        // 0.28..0.60 Travel (normal attacks) / 0.30..1.00 Skill Eruption (skills)
+        // 0.60..1.00 Impact & Natural Dissipation (normal attacks)
+        if (!isSkill) {
+          if (t < 0.28) {
+            const prep = t / 0.28;
+            units[0].attackPrepOverride = prep;
+            units[1].attackPrepOverride = prep;
+            units[2].attackPrepOverride = prep;
+          } else if (t < 0.60) {
+            const pT = (t - 0.28) / 0.32;
+            const lunge = Math.max(0, 1 - pT * 3.0) * 0.22;
+            units[0].attackAnim = lunge;
+            units[1].attackAnim = lunge;
+            units[2].attackAnim = lunge;
+
+            if (pT < 0.38) {
+              const castAge = (pT / 0.38) * 0.18;
+              anim.spawnWorldEffect({
+                kind: UNIT_ATTACK_FX_KINDS.CAST, x: 20, y: 26, angle: 0, radius: 5,
+                color: '#f97316', secondaryColor: '#fde047', duration: 0.18,
+                profileId: 'solar_pyromancer', style: 'sunwheel_cast_sigil', side: 'ally', scale: 1.0,
+                meta: { mode: 'attack', sourceUid: 'g_solar', sourceFacing: 1 },
+              }).age = castAge;
+              anim.spawnWorldEffect({
+                kind: UNIT_ATTACK_FX_KINDS.CAST, x: 20, y: 50, angle: 0, radius: 5,
+                color: '#a78bfa', secondaryColor: '#f5d37a', duration: 0.18,
+                profileId: 'chrono_weaver', style: 'clocktick_rune_pulse', side: 'ally', scale: 1.0,
+                meta: { mode: 'attack', sourceUid: 'g_chrono', sourceFacing: 1 },
+              }).age = castAge;
+              anim.spawnWorldEffect({
+                kind: UNIT_ATTACK_FX_KINDS.CAST, x: 20, y: 74, angle: 0, radius: 5,
+                color: '#38bdf8', secondaryColor: '#e0f2fe', duration: 0.18,
+                profileId: 'arcane_archer', style: 'bowstring_rune_flash', side: 'ally', scale: 1.0,
+                meta: { mode: 'attack', sourceUid: 'g_archer', sourceFacing: 1 },
+              }).age = castAge;
+            }
+
+            const dist = 52;
+            const curX = 20 + dist * pT;
+            const prevX = 20 + dist * Math.max(0, pT - 0.04);
+            projectiles.push(
+              {
+                id: 'mg_solar', kind: 'magical', sourceUid: 'g_solar', targetUid: 't_top',
+                sourceSide: 'ally', vfxProfileId: 'solar_pyromancer', trajectory: 'target_lock',
+                startX: 20, startY: 26, x: curX, y: 26, z: 3.2, prevX, prevY: 26, prevZ: 3.1,
+                targetX: 72, targetY: 26, totalDist: dist, traveled: dist * pT, age: pT * 0.45, seed: 23,
+              },
+              {
+                id: 'mg_chrono', kind: 'magical', sourceUid: 'g_chrono', targetUid: 't_mid',
+                sourceSide: 'ally', vfxProfileId: 'chrono_weaver', trajectory: 'tether_channel',
+                startX: 20, startY: 50, x: curX, y: 50, z: 3.0, prevX, prevY: 50, prevZ: 3.0,
+                targetX: 72, targetY: 50, totalDist: dist, traveled: dist * pT, age: pT * 0.45, seed: 41,
+              },
+              {
+                id: 'mg_archer', kind: 'basic', sourceUid: 'g_archer', targetUid: 't_bot',
+                sourceSide: 'ally', vfxProfileId: 'arcane_archer', trajectory: 'flat_dart',
+                startX: 20, startY: 74, x: curX, y: 74, z: 3.0, prevX, prevY: 74, prevZ: 3.0,
+                targetX: 72, targetY: 74, totalDist: dist, traveled: dist * pT, age: pT * 0.45, seed: 31,
+              },
+            );
+          } else {
+            const impT = (t - 0.60) / 0.40;
+            const flash = impT < 0.35 ? (1 - impT / 0.35) * 0.14 : 0;
+            units[3].hitFlash = flash;
+            units[4].hitFlash = flash;
+            units[5].hitFlash = flash;
+
+            anim.spawnWorldEffect({
+              kind: UNIT_ATTACK_FX_KINDS.IMPACT, x: 72, y: 26, angle: 0, radius: 6,
+              color: '#f97316', secondaryColor: '#fde047', duration: 0.46,
+              profileId: 'solar_pyromancer', style: 'solar_corona_eruption', side: 'ally', scale: 1.0, seed: 43,
+            }).age = impT * 0.46;
+            anim.spawnWorldEffect({
+              kind: UNIT_ATTACK_FX_KINDS.IMPACT, x: 72, y: 50, angle: 0, radius: 6,
+              color: '#a78bfa', secondaryColor: '#f5d37a', duration: 0.46,
+              profileId: 'chrono_weaver', style: 'temporal_dial_snare', side: 'ally', scale: 1.0, seed: 61,
+            }).age = impT * 0.46;
+            anim.spawnWorldEffect({
+              kind: UNIT_ATTACK_FX_KINDS.IMPACT, x: 72, y: 74, angle: 0, radius: 6,
+              color: '#38bdf8', secondaryColor: '#e0f2fe', duration: 0.44,
+              profileId: 'arcane_archer', style: 'sapphire_pierce_star', side: 'ally', scale: 1.0, seed: 109,
+            }).age = impT * 0.44;
+          }
+        } else {
+          // Major skills showcase: Skill Formation (0..0.30) -> Skill Eruption & Dissipation (0.30..1.00)
+          if (t < 0.30) {
+            const castP = t / 0.30;
+            for (let i = 0; i < 3; i += 1) {
+              units[i].state = UNIT_STATES.CASTING;
+              units[i].castingAbility = { duration: 1.0, remaining: Math.max(0.02, 1 - castP) };
+            }
+          } else {
+            const abT = (t - 0.30) / 0.70;
+            anim.spawnWorldEffect({
+              kind: UNIT_ATTACK_FX_KINDS.ABILITY, x: 72, y: 26, radius: 13,
+              color: '#f97316', secondaryColor: '#fde047', duration: 0.9,
+              profileId: 'solar_pyromancer', side: 'ally', scale: 1.0, seed: 77,
+              meta: { abilityKind: 'aoe_damage', abilityId: 'unit_solar_flare' },
+            }).age = abT * 0.9;
+            anim.spawnWorldEffect({
+              kind: UNIT_ATTACK_FX_KINDS.ABILITY, x: 72, y: 50, radius: 13,
+              color: '#a78bfa', secondaryColor: '#f5d37a', duration: 0.9,
+              profileId: 'chrono_weaver', side: 'ally', scale: 1.0, seed: 83,
+              meta: { abilityKind: 'aoe_debuff', abilityId: 'unit_chrono_snare' },
+            }).age = abT * 0.9;
+            // Arcane Archer triple volley / shatter skill comparison in bottom lane
+            if (abT < 0.42) {
+              const pT = abT / 0.42;
+              for (const laneOff of [-4, 0, 4]) {
+                const curX = 20 + 52 * pT;
+                const prevX = 20 + 52 * Math.max(0, pT - 0.05);
+                projectiles.push({
+                  id: `mg_a_${laneOff}`, kind: 'basic', sourceUid: 'g_archer', targetUid: 't_bot',
+                  sourceSide: 'ally', vfxProfileId: 'arcane_archer', trajectory: 'flat_dart',
+                  startX: 20, startY: 74, x: curX, y: 74 + laneOff * Math.sin(pT * Math.PI), z: 3.0,
+                  prevX, prevY: 74 + laneOff * Math.sin(Math.max(0, pT - 0.05) * Math.PI), prevZ: 3.0,
+                  targetX: 72, targetY: 74, totalDist: 52, traveled: 52 * pT, age: pT * 0.35, seed: 31 + laneOff,
+                });
+              }
+            } else {
+              const sImp = (abT - 0.42) / 0.58;
+              anim.spawnWorldEffect({
+                kind: UNIT_ATTACK_FX_KINDS.IMPACT, x: 72, y: 74, angle: 0, radius: 8,
+                color: '#38bdf8', secondaryColor: '#e0f2fe', duration: 0.55,
+                profileId: 'arcane_archer', style: 'sapphire_pierce_star', side: 'ally', scale: 1.25, seed: 111,
+              }).age = sImp * 0.55;
+            }
+          }
+        }
+
+        renderer.render({
+          stage: { id: 'stage_1_3', backgroundAssetId: 'bg_battle_orbital_ridge' },
+          battlefield: bf,
+          phase: 'active_combat',
+          units,
+          projectiles,
+          telegraphs: [],
+        });
+      };
+
+      window.__setMotionGateFrame = renderGateFrame;
+      const initT = parseFloat(params.get('t') || '0.42');
+      const initMode = params.get('mode') || 'normal';
+      renderGateFrame(Number.isFinite(initT) ? initT : 0.42, initMode);
+    } else if (view === 'anim-flagships' || view === 'anim-all-33') {
+      const isAll = view === 'anim-all-33';
+      const ids = isAll
+        ? UNIT_OBJECT_ROSTER_IDS
+        : [
+            'chrono_weaver',
+            'solar_pyromancer',
+            'enemy_stasis_weaver',
+            'enemy_rift_stalker',
+            'enemy_dread_bannerman',
+            'enemy_abyssal_ravager',
+            'enemy_inferno_bombardier',
+            'boss_astral_leviathan',
+          ];
+      titleEl.textContent = isAll
+        ? 'Star Struck — All 33 Units Live Animation Showcase'
+        : 'Star Struck — Flagship Unit Component Animations';
+      subEl.textContent = 'Cycling: Idle (0-2s) → Move (2-4s) → Attack Prep/Release/Recovery (4-6s) → Skill Cast/Release (6-8s)';
+
+      const grid = document.createElement('div');
+      grid.style.display = 'grid';
+      grid.style.gridTemplateColumns = isAll ? 'repeat(11, minmax(0, 1fr))' : 'repeat(4, minmax(0, 1fr))';
+      grid.style.gap = isAll ? '6px' : '12px';
+      root.appendChild(grid);
+
+      const cellW = isAll ? 112 : 290;
+      const cellH = isAll ? 104 : 240;
+      const unitScale = isAll ? 1.15 : 2.25;
+
+      const entries = ids.map((id, idx) => {
+        const design = UNIT_OBJECT_DESIGNS[id];
+        const card = document.createElement('div');
+        card.className = `card ${design.rosterGroup === 'playable' ? 'ally' : design.rosterGroup}`;
+        card.style.padding = isAll ? '3px 4px' : '8px 10px';
+        card.innerHTML = `
+          <div class="card-title" style="font-size:${isAll ? 9.5 : 13}px">${design.name}</div>
+          <div class="card-sub" style="font-size:${isAll ? 8 : 10.5}px;margin-bottom:2px" data-phase>IDLE</div>
+        `;
+        const canvas = document.createElement('canvas');
+        canvas.width = cellW;
+        canvas.height = cellH;
+        canvas.style.width = `${cellW}px`;
+        canvas.style.height = `${cellH}px`;
+        card.appendChild(canvas);
+        grid.appendChild(card);
+
+        const unit = {
+          uid: `qa_anim_${idx}`,
+          id,
+          unitId: id,
+          side: design.rosterGroup === 'playable' ? 'ally' : 'enemy',
+          facing: 1,
+          tier: 1,
+          hp: 500,
+          maxHp: 500,
+          state: UNIT_STATES.IDLE,
+          attackInterval: 1.2,
+          attackCooldown: 1.0,
+          attackAnim: 0,
+          phase: idx * 0.45,
+        };
+        return {
+          id,
+          design,
+          unit,
+          canvas,
+          ctx: canvas.getContext('2d'),
+          phaseEl: card.querySelector('[data-phase]'),
+        };
+      });
+
+      function applyCycleState(unit, cycleT) {
+        unit.castingAbility = null;
+        unit.skillReleaseProgress = undefined;
+        unit.attackPrepOverride = undefined;
+        unit.attackAnim = 0;
+        unit.attackCooldown = 1.0;
+
+        if (cycleT < 2.0) {
+          unit.state = UNIT_STATES.IDLE;
+          return 'IDLE';
+        }
+        if (cycleT < 4.0) {
+          unit.state = UNIT_STATES.MOVING;
+          return 'MOVE';
+        }
+        if (cycleT < 6.0) {
+          const at = (cycleT - 4.0) % 1.0;
+          unit.state = UNIT_STATES.ATTACKING;
+          if (at < 0.34) {
+            unit.attackPrepOverride = at / 0.34;
+            return 'ATK: PREP';
+          }
+          if (at < 0.56) {
+            unit.attackAnim = 0.24 - ((at - 0.34) / 0.22) * 0.13;
+            return 'ATK: RELEASE';
+          }
+          if (at < 0.78) {
+            unit.attackAnim = Math.max(0.01, 0.11 - ((at - 0.56) / 0.22) * 0.11);
+            return 'ATK: RECOVER';
+          }
+          return 'ATK: READY';
+        }
+        const st = cycleT - 6.0;
+        if (st < 1.25) {
+          unit.state = UNIT_STATES.CASTING;
+          unit.castingAbility = { duration: 1.25, remaining: Math.max(0, 1.25 - st) };
+          return 'SKILL: CAST';
+        }
+        unit.state = UNIT_STATES.IDLE;
+        unit.skillReleaseProgress = Math.max(0, 1 - (st - 1.25) / 0.75);
+        return 'SKILL: RELEASE';
+      }
+
+      window.__renderAnimFrame = (t) => {
+        const cycleT = ((t % 8.0) + 8.0) % 8.0;
+        for (const e of entries) {
+          const label = applyCycleState(e.unit, cycleT);
+          e.phaseEl.textContent = label;
+          const ctx = e.ctx;
+          ctx.clearRect(0, 0, cellW, cellH);
+          const bg = ctx.createRadialGradient(cellW * 0.5, cellH * 0.52, 6, cellW * 0.5, cellH * 0.52, cellW * 0.6);
+          bg.addColorStop(0, '#141c34');
+          bg.addColorStop(1, '#080b14');
+          ctx.fillStyle = bg;
+          ctx.fillRect(0, 0, cellW, cellH);
+
+          // Subtle ground plane indicator when moving
+          if (e.unit.state === UNIT_STATES.MOVING) {
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.22)';
+            ctx.lineWidth = 1;
+            const offset = ((t * 55) % 24);
+            for (let gx = -24; gx < cellW + 24; gx += 24) {
+              ctx.beginPath();
+              ctx.moveTo(gx - offset, cellH * 0.84);
+              ctx.lineTo(gx - offset + 10, cellH * 0.84);
+              ctx.stroke();
+            }
+          }
+
+          drawChibiObjectUnit(ctx, e.unit, {
+            x: cellW * 0.5,
+            y: cellH * 0.76,
+            scale: unitScale * (e.design.rosterGroup === 'boss' ? 0.78 : e.design.rosterGroup === 'elite' ? 0.90 : 1.0),
+            elapsed: t,
+            assetManager,
+            reducedMotion: false,
+          });
+        }
+      };
+
+      window.__renderAnimFrame(0.5);
+      if (params.get('live') !== '0') {
+        let start = performance.now();
+        const tick = (now) => {
+          window.__renderAnimFrame((now - start) / 1000);
+          requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      }
+    } else if (view === 'anim-battle-live') {
+      titleEl.textContent = 'Star Struck — Normal Camera Live Animated Battlefield';
+      subEl.textContent = 'Multi-unit simultaneous Idle / Move / 3-Phase Attack / Skill animations at normal gameplay camera distance';
+      const wrap = document.createElement('div');
+      wrap.className = 'battle-wrap';
+      const canvas = document.createElement('canvas');
+      canvas.className = 'battle-canvas';
+      canvas.width = 1280;
+      canvas.height = 720;
+      wrap.appendChild(canvas);
+      root.appendChild(wrap);
+
+      const bf = new Battlefield();
+      const anim = new AnimationManager();
+      const particles = new ParticleSystem();
+      const mockState = { settings: { graphicsQuality: 'high' }, battle: { status: 'running', selectedCardSlot: -1 } };
+      const renderer = new BattleRenderer({
+        assetManager,
+        animationManager: anim,
+        particleSystem: particles,
+        gameState: mockState,
+      });
+      renderer.attach(canvas);
+      renderer.setBattlefield(bf);
+      const rosterUnits = [
+        { ...makeUnit('heavy_shield_guard', UNIT_STATES.ATTACKING), x: 40, y: 34, hp: 900, maxHp: 960, shield: 140, facing: 1, tier: 2, phase: 0.1 },
+        { ...makeUnit('wind_cavalry', UNIT_STATES.MOVING), x: 30, y: 74, hp: 430, maxHp: 450, shield: 0, facing: 1, tier: 2, phase: 0.8 },
+        { ...makeUnit('solar_pyromancer', UNIT_STATES.ATTACKING), x: 20, y: 32, hp: 300, maxHp: 300, shield: 0, facing: 1, tier: 3, phase: 1.4 },
+        { ...makeUnit('chrono_weaver', UNIT_STATES.CASTING), x: 18, y: 54, hp: 340, maxHp: 340, shield: 0, facing: 1, tier: 2, phase: 2.0 },
+        { ...makeUnit('aegis_sentinel', UNIT_STATES.IDLE), x: 26, y: 66, hp: 480, maxHp: 490, shield: 90, facing: 1, tier: 1, phase: 2.7 },
+        { ...makeUnit('field_cleric', UNIT_STATES.HEALING), x: 13, y: 44, hp: 350, maxHp: 350, shield: 0, facing: 1, tier: 1, phase: 0.4 },
+        { ...makeUnit('vanguard_breaker', UNIT_STATES.ATTACKING), x: 44, y: 52, hp: 580, maxHp: 610, shield: 0, facing: 1, tier: 2, phase: 1.1 },
+        { ...makeUnit('enemy_abyssal_ravager', UNIT_STATES.ATTACKING), x: 56, y: 52, hp: 460, maxHp: 580, shield: 0, facing: -1, phase: 0.3 },
+        { ...makeUnit('enemy_rift_stalker', UNIT_STATES.MOVING), x: 60, y: 72, hp: 360, maxHp: 410, shield: 0, facing: -1, phase: 1.7 },
+        { ...makeUnit('enemy_stasis_weaver', UNIT_STATES.CASTING), x: 70, y: 36, hp: 420, maxHp: 460, shield: 0, facing: -1, phase: 2.3 },
+        { ...makeUnit('enemy_dread_bannerman', UNIT_STATES.IDLE), x: 76, y: 62, hp: 510, maxHp: 540, shield: 0, facing: -1, phase: 0.9 },
+        { ...makeUnit('enemy_inferno_bombardier', UNIT_STATES.MOVING), x: 82, y: 74, hp: 440, maxHp: 480, shield: 0, facing: -1, phase: 1.5 },
+        { ...makeUnit('elite_chrono_enforcer', UNIT_STATES.CASTING), x: 66, y: 48, hp: 780, maxHp: 850, shield: 0, facing: -1, isElite: true, visualScale: 1.2, phase: 0.6 },
+        { ...makeUnit('boss_astral_leviathan', UNIT_STATES.CASTING), x: 80, y: 46, hp: 3800, maxHp: 4300, shield: 260, facing: -1, isBoss: true, visualScale: 1.65, auraColor: '#f97316', name: 'Astral Dreadnought Hyperion', phase: 1.9 },
+      ];
+
+      window.__renderAnimFrame = (t) => {
+        anim._elapsed = t;
+        for (const u of rosterUnits) {
+          const cycle = (t + u.phase) % 2.4;
+          if (u.state === UNIT_STATES.ATTACKING || u.state === UNIT_STATES.HEALING) {
+            if (cycle < 0.45) {
+              u.attackPrepOverride = cycle / 0.45;
+              u.attackAnim = 0;
+            } else if (cycle < 0.72) {
+              u.attackPrepOverride = 0;
+              u.attackAnim = 0.24 - ((cycle - 0.45) / 0.27) * 0.24;
+            } else {
+              u.attackPrepOverride = 0;
+              u.attackAnim = 0;
+            }
+          } else if (u.state === UNIT_STATES.CASTING) {
+            const c = (t * 0.55 + u.phase * 0.2) % 1.0;
+            u.castingAbility = { duration: 1.2, remaining: Math.max(0, 1.2 * (1 - c)) };
+          } else if (u.state === UNIT_STATES.MOVING) {
+            if (u._baseX == null) u._baseX = u.x;
+            u.x = u._baseX + Math.sin(t * 0.9 + u.phase) * 3.5;
+          }
+        }
+        renderer.render({
+          stage: { id: 'stage_3_5', backgroundAssetId: 'bg_battle_orbital_ridge' },
+          battlefield: bf,
+          phase: 'active_combat',
+          units: rosterUnits,
+          projectiles: [],
+          telegraphs: [],
+        });
+      };
+      window.__renderAnimFrame(0.8);
+    } else if (view === 'anim-phases-strip') {
+      const targetIds = (params.get('units') || 'chrono_weaver,solar_pyromancer,enemy_stasis_weaver,enemy_rift_stalker,enemy_dread_bannerman,enemy_abyssal_ravager,enemy_inferno_bombardier,elite_chrono_enforcer').split(',');
+      titleEl.textContent = 'Star Struck — Multi-Phase Motion Inspection Sheet';
+      subEl.textContent = 'Columns: Idle (t=0.4s) | Idle (t=1.6s) | Move | Attack Prep | Attack Release | Skill Cast / Release';
+
+      const table = document.createElement('div');
+      table.style.display = 'flex';
+      table.style.flexDirection = 'column';
+      table.style.gap = '6px';
+      root.appendChild(table);
+
+      const cols = [
+        { label: 'Idle A', t: 0.4, cfg: { state: UNIT_STATES.IDLE } },
+        { label: 'Idle B', t: 1.8, cfg: { state: UNIT_STATES.IDLE } },
+        { label: 'Move', t: 2.7, cfg: { state: UNIT_STATES.MOVING } },
+        { label: 'Atk Prep', t: 3.4, cfg: { state: UNIT_STATES.ATTACKING, attackPrepOverride: 0.85, attackAnim: 0 } },
+        { label: 'Atk Release', t: 3.8, cfg: { state: UNIT_STATES.ATTACKING, attackAnim: 0.20 } },
+        { label: 'Skill Cast', t: 4.5, cfg: { state: UNIT_STATES.CASTING, castingAbility: { duration: 1.0, remaining: 0.2 } } },
+        { label: 'Skill Burst', t: 5.0, cfg: { state: UNIT_STATES.IDLE, skillReleaseProgress: 0.72 } },
+      ];
+
+      for (const id of targetIds) {
+        const design = UNIT_OBJECT_DESIGNS[id];
+        if (!design) continue;
+        const row = document.createElement('div');
+        row.style.display = 'grid';
+        row.style.gridTemplateColumns = '145px repeat(7, 134px)';
+        row.style.gap = '6px';
+        row.style.alignItems = 'center';
+        row.style.background = '#0d1222';
+        row.style.border = '1px solid rgba(148,163,184,0.22)';
+        row.style.borderRadius = '6px';
+        row.style.padding = '4px 6px';
+
+        const nameBox = document.createElement('div');
+        nameBox.innerHTML = `<div style="font-size:11.5px;font-weight:700;color:#f8fafc">${design.name}</div><div style="font-size:9px;color:#94a3b8">${id}</div>`;
+        row.appendChild(nameBox);
+
+        for (const col of cols) {
+          const cell = document.createElement('div');
+          cell.style.display = 'flex';
+          cell.style.flexDirection = 'column';
+          cell.style.alignItems = 'center';
+          const lbl = document.createElement('div');
+          lbl.style.fontSize = '8.5px';
+          lbl.style.color = '#94a3b8';
+          lbl.textContent = col.label;
+          cell.appendChild(lbl);
+
+          const c = document.createElement('canvas');
+          c.width = 132;
+          c.height = 116;
+          const ctx = c.getContext('2d');
+          ctx.fillStyle = '#090d18';
+          ctx.fillRect(0, 0, 132, 116);
+          const u = {
+            id,
+            unitId: id,
+            side: design.rosterGroup === 'playable' ? 'ally' : 'enemy',
+            facing: 1,
+            tier: 1,
+            phase: 0,
+            attackInterval: 1.2,
+            attackCooldown: 1.0,
+            attackAnim: 0,
+            ...col.cfg,
+          };
+          drawChibiObjectUnit(ctx, u, {
+            x: 66,
+            y: 88,
+            scale: design.rosterGroup === 'boss' ? 0.92 : design.rosterGroup === 'elite' ? 1.08 : 1.25,
+            elapsed: col.t,
+            assetManager,
+            reducedMotion: false,
+          });
+          cell.appendChild(c);
+          row.appendChild(cell);
+        }
+        table.appendChild(row);
+      }
     }
     window.__QA_READY = true;
   </script>

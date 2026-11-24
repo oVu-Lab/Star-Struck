@@ -1844,40 +1844,59 @@ export function drawProgressiveLaserBeam(ctx, startP, targetP, {
   traceBeamStrip(Math.max(0.38, coreHalf * 0.58), 0.02);
   ctx.fill();
 
-  // 4. Subtle internal high-speed axial light shimmer (strictly inside core, zero bulges)
+  // 4. Dual internal high-speed axial photonic pulses + subtle wave structure inside sheath
   if (!reducedMotion && spanLen > 18 && breakup < 0.6 && typeof ctx.createLinearGradient === 'function') {
-    const pulseU = (flowPhase * 1.35) % 1;
-    const px = spanLen * pulseU;
-    const pSpan = Math.min(spanLen * 0.32, 26 * scale);
-    const x0 = Math.max(0, px - pSpan);
-    const x1 = Math.min(spanLen, px + pSpan);
-    if (x1 - x0 > 3) {
-      const shimmerGrad = ctx.createLinearGradient(x0, 0, x1, 0);
-      shimmerGrad.addColorStop(0, withAlpha('#ffffff', 0));
-      shimmerGrad.addColorStop(0.5, withAlpha('#ffffff', alpha * 0.55 * (1 - breakup)));
-      shimmerGrad.addColorStop(1, withAlpha('#ffffff', 0));
-      ctx.fillStyle = shimmerGrad;
-      ctx.fillRect(x0, -coreHalf * 0.75, x1 - x0, coreHalf * 1.5);
+    for (let k = 0; k < 2; k += 1) {
+      const pulseU = (flowPhase * (1.35 + k * 0.45) + k * 0.52) % 1;
+      const px = spanLen * pulseU;
+      const pSpan = Math.min(spanLen * 0.34, (30 - k * 6) * scale);
+      const x0 = Math.max(0, px - pSpan);
+      const x1 = Math.min(spanLen, px + pSpan);
+      if (x1 - x0 > 3) {
+        const shimmerGrad = ctx.createLinearGradient(x0, 0, x1, 0);
+        shimmerGrad.addColorStop(0, withAlpha('#ffffff', 0));
+        shimmerGrad.addColorStop(0.5, withAlpha(k === 0 ? '#ffffff' : secondaryColor, alpha * (k === 0 ? 0.68 : 0.48) * (1 - breakup)));
+        shimmerGrad.addColorStop(1, withAlpha('#ffffff', 0));
+        ctx.fillStyle = shimmerGrad;
+        const hBand = k === 0 ? coreHalf * 0.92 : sheathHalf * 0.62;
+        ctx.fillRect(x0, -hBand, x1 - x0, hBand * 2);
+      }
+    }
+    // Crisp photonic sine-filament running inside sheath for visible beam structure
+    if (spanLen > 28 && sheathHalf >= 3.2) {
+      ctx.strokeStyle = withAlpha(secondaryColor, alpha * 0.42 * (1 - breakup));
+      ctx.lineWidth = Math.max(0.8, 1.15 * scale);
+      ctx.beginPath();
+      const segs = Math.min(18, Math.max(6, Math.round(spanLen / 16)));
+      for (let i = 0; i <= segs; i += 1) {
+        const frac = i / segs;
+        const x = spanLen * frac;
+        const envF = Math.sin(frac * Math.PI);
+        const y = Math.sin(frac * Math.PI * 5 - flowPhase * 18) * sheathHalf * 0.62 * envF;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
     }
   }
 
   // 5. Focused emitter point flash & fast leading-edge photonic front
   if (muzzleFlare > 0.02 && sU < 0.08) {
     const mf = muzzleFlare;
-    drawSoftBloom(ctx, 0, 0, (sheathHalf * 2.8 + 4 * scale) * mf, '#ffffff', color, alpha * mf * 0.72);
-    drawStarFlare(ctx, 0, 0, (6.5 + mf * 5.5) * scale, 0.11, secondaryColor, '#ffffff', alpha * mf * 0.95, 0, 4);
+    drawSoftBloom(ctx, 0, 0, (sheathHalf * 3.1 + 5.5 * scale) * mf, '#ffffff', color, alpha * mf * 0.78);
+    drawStarFlare(ctx, 0, 0, (8.2 + mf * 7.0) * scale, 0.12, secondaryColor, '#ffffff', alpha * mf * 0.98, 0, 4);
   }
 
   if (leadingFlare > 0.02) {
     const lf = leadingFlare;
-    drawSoftBloom(ctx, spanLen, 0, (sheathHalf * 2.6 + 4.5 * scale) * lf, '#ffffff', color, alpha * lf * 0.78);
+    drawSoftBloom(ctx, spanLen, 0, (sheathHalf * 2.9 + 6.0 * scale) * lf, '#ffffff', color, alpha * lf * 0.84);
     // Sleek anisotropic optical flare stretched slightly along firing axis
     drawStarFlare(
       ctx,
       spanLen,
       0,
-      (7.5 + lf * 6.0) * scale,
-      0.1,
+      (9.5 + lf * 7.5) * scale,
+      0.11,
       secondaryColor,
       '#ffffff',
       alpha * lf * 0.98,

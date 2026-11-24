@@ -1358,6 +1358,71 @@ export const UNIT_ATTACK_VFX_PROFILES = Object.freeze({
 
 export const UNIT_ROSTER_IDS = Object.freeze(Object.keys(UNIT_ATTACK_VFX_PROFILES));
 
+/**
+ * Individualized per-unit VFX scale, skill hierarchy multiplier, and 2.5D model
+ * emitter calibration matching the redesigned 64-106px object models.
+ * Designed per-unit (never a blanket constant) to preserve visual hierarchy:
+ * agile/rapid units stay crisp & sleek, casters/artillery expand boldly,
+ * elites scale with authority, and bosses command battlefield presence.
+ */
+export const UNIT_VFX_OVERHAUL_CALIBRATION = Object.freeze({
+  // 10 Playable Allies (compact, razor-sharp normal attacks; clear skill hierarchy)
+  heavy_shield_guard: { vfxScale: 1.04, skillScale: 1.24, emitter: { screenForwardPx: 22, screenYOffsetPx: -2 } },
+  wind_cavalry: { vfxScale: 1.0, skillScale: 1.22, emitter: { screenForwardPx: 24, screenYOffsetPx: -3 } },
+  arcane_archer: { vfxScale: 0.96, skillScale: 1.2, emitter: { screenForwardPx: 20, screenYOffsetPx: -3 } },
+  field_cleric: { vfxScale: 1.02, skillScale: 1.24, emitter: { screenForwardPx: 14, screenYOffsetPx: -8 } },
+  vanguard_breaker: { vfxScale: 1.08, skillScale: 1.28, emitter: { screenForwardPx: 23, screenYOffsetPx: -4 } },
+  pulse_skirmisher: {
+    vfxScale: 0.94,
+    skillScale: 1.18,
+    emitter: { screenForwardPx: 20, screenYOffsetPx: -2 },
+    beamSpec: { chargeEnd: 0.14, reachEnd: 0.74, coreWidth: 2.2, sheathWidth: 6.2, haloWidth: 19.0 },
+  },
+  solar_pyromancer: { vfxScale: 1.06, skillScale: 1.32, emitter: { screenForwardPx: 18, screenYOffsetPx: -4 } },
+  aegis_sentinel: {
+    vfxScale: 1.0,
+    skillScale: 1.26,
+    emitter: { screenForwardPx: 21, screenYOffsetPx: -2 },
+    beamSpec: { chargeEnd: 0.18, reachEnd: 0.78, coreWidth: 2.5, sheathWidth: 7.4, haloWidth: 23.0 },
+  },
+  chrono_weaver: { vfxScale: 1.05, skillScale: 1.3, emitter: { screenForwardPx: 18, screenYOffsetPx: -3 } },
+  astral_construct: { vfxScale: 1.12, skillScale: 1.34, emitter: { screenForwardPx: 26, screenYOffsetPx: -4 } },
+
+  // 10 Dedicated Enemies
+  enemy_void_vanguard: { vfxScale: 1.02, skillScale: 1.22, emitter: { screenForwardPx: 22, screenYOffsetPx: -2 } },
+  enemy_rift_stalker: { vfxScale: 1.06, skillScale: 1.26, emitter: { screenForwardPx: 22, screenYOffsetPx: -3 } },
+  enemy_obsidian_marksman: {
+    vfxScale: 0.98,
+    skillScale: 1.22,
+    emitter: { screenForwardPx: 22, screenYOffsetPx: -2 },
+    beamSpec: { chargeEnd: 0.14, reachEnd: 0.72, coreWidth: 2.4, sheathWidth: 6.8, haloWidth: 22.0 },
+  },
+  enemy_corrupted_acolyte: { vfxScale: 1.0, skillScale: 1.22, emitter: { screenForwardPx: 16, screenYOffsetPx: -5 } },
+  enemy_abyssal_ravager: { vfxScale: 1.08, skillScale: 1.28, emitter: { screenForwardPx: 24, screenYOffsetPx: -3 } },
+  enemy_siege_juggernaut: { vfxScale: 1.14, skillScale: 1.36, emitter: { screenForwardPx: 26, screenYOffsetPx: -2 } },
+  enemy_cryo_warden: { vfxScale: 1.04, skillScale: 1.28, emitter: { screenForwardPx: 20, screenYOffsetPx: -4 } },
+  enemy_inferno_bombardier: { vfxScale: 1.08, skillScale: 1.32, emitter: { screenForwardPx: 18, screenYOffsetPx: -12 } },
+  enemy_stasis_weaver: { vfxScale: 1.05, skillScale: 1.28, emitter: { screenForwardPx: 18, screenYOffsetPx: -4 } },
+  enemy_dread_bannerman: { vfxScale: 1.04, skillScale: 1.26, emitter: { screenForwardPx: 20, screenYOffsetPx: -8 } },
+
+  // 8 Elites (authoritative, expressive without clutter)
+  elite_iron_bulwark: { vfxScale: 1.16, skillScale: 1.38, emitter: { screenForwardPx: 26, screenYOffsetPx: -2 } },
+  elite_storm_lancer: { vfxScale: 1.15, skillScale: 1.36, emitter: { screenForwardPx: 28, screenYOffsetPx: -4 } },
+  elite_astral_sniper: { vfxScale: 1.14, skillScale: 1.36, emitter: { screenForwardPx: 25, screenYOffsetPx: -4 } },
+  elite_cryo_archwarden: { vfxScale: 1.18, skillScale: 1.4, emitter: { screenForwardPx: 24, screenYOffsetPx: -5 } },
+  elite_abyssal_executioner: { vfxScale: 1.2, skillScale: 1.42, emitter: { screenForwardPx: 28, screenYOffsetPx: -4 } },
+  elite_inferno_captain: { vfxScale: 1.2, skillScale: 1.44, emitter: { screenForwardPx: 22, screenYOffsetPx: -14 } },
+  elite_chrono_enforcer: { vfxScale: 1.18, skillScale: 1.42, emitter: { screenForwardPx: 22, screenYOffsetPx: -4 } },
+  elite_siege_colossus: { vfxScale: 1.24, skillScale: 1.48, emitter: { screenForwardPx: 30, screenYOffsetPx: -3 } },
+
+  // 5 Bosses (commanding presence while preserving battlefield visibility)
+  boss_bastion_warden: { vfxScale: 1.32, skillScale: 1.56, emitter: { screenForwardPx: 34, screenYOffsetPx: -4 } },
+  boss_relay_archon: { vfxScale: 1.34, skillScale: 1.58, emitter: { screenForwardPx: 30, screenYOffsetPx: -6 } },
+  boss_obsidian_sovereign: { vfxScale: 1.38, skillScale: 1.62, emitter: { screenForwardPx: 36, screenYOffsetPx: -5 } },
+  boss_chrono_arbiter: { vfxScale: 1.38, skillScale: 1.64, emitter: { screenForwardPx: 32, screenYOffsetPx: -6 } },
+  boss_astral_leviathan: { vfxScale: 1.44, skillScale: 1.72, emitter: { screenForwardPx: 38, screenYOffsetPx: -6 } },
+});
+
 const CLASS_FALLBACK_IDS = Object.freeze({
   heavy_defender: 'heavy_shield_guard',
   swift_cavalry: 'wind_cavalry',
@@ -1401,6 +1466,12 @@ export function resolveUnitAttackVfxProfile(unitOrRef, { mode = 'attack', side =
     profile = UNIT_ATTACK_VFX_PROFILES.heavy_shield_guard;
   }
 
+  const cal = UNIT_VFX_OVERHAUL_CALIBRATION[profile.id] || {
+    vfxScale: 1.55,
+    skillScale: 1.7,
+    emitter: { screenForwardPx: 20, screenYOffsetPx: -3 },
+  };
+
   const isSupportMode = mode === 'heal' || mode === 'healing' || mode === 'shield';
   let palette = isSupportMode && profile.supportPalette ? profile.supportPalette : profile.palette;
 
@@ -1438,6 +1509,10 @@ export function resolveUnitAttackVfxProfile(unitOrRef, { mode = 'attack', side =
 
   return {
     ...profile,
+    vfxScale: cal.vfxScale,
+    skillScale: cal.skillScale,
+    emitter: cal.emitter || profile.emitter,
+    beamSpec: cal.beamSpec || profile.beamSpec,
     resolvedMode: isSupportMode ? mode : 'attack',
     resolvedSide: resolvedSide || (profile.rosterGroup === 'playable' ? 'ally' : 'enemy'),
     palette,

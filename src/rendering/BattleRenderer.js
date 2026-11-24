@@ -19,7 +19,11 @@ import {
   drawUnitAttackWorldEffect,
   drawUnitHitReactionOverlay,
 } from './UnitAttackVfxRenderer.js';
-import { drawChibiObjectUnit } from './UnitObjectModelRenderer.js';
+import { drawChibiObjectUnit, getUnitModelLayout } from './UnitObjectModelRenderer.js';
+import {
+  drawUnitAttackPrepVfx,
+  drawEnhancedAbilityTelegraph,
+} from './UnitVfxOverhaulHelpers.js';
 
 export const TERRAIN_THEMES = Object.freeze({
   orbital_bastion: {
@@ -368,7 +372,7 @@ export class BattleRenderer {
     }
 
     // 5. Boss/Skill Telegraphs on the ground plane
-    this._drawTelegraphs(ctx, bf, w, h, telegraphs);
+    this._drawTelegraphs(ctx, bf, w, h, telegraphs, elapsed);
 
     // 6. Ground World Effects (rings, heal waves, deploy seals, tactic pulses, boss entrance)
     this._drawWorldEffects(ctx, bf, w, h, 'ground', unitByUid);
@@ -1267,106 +1271,9 @@ export class BattleRenderer {
     ctx.restore();
   }
 
-  _drawTelegraphs(ctx, bf, w, h, telegraphs) {
+  _drawTelegraphs(ctx, bf, w, h, telegraphs, elapsed = 0) {
     for (let i = 0; i < telegraphs.length; i += 1) {
-      const tg = telegraphs[i];
-      const p = bf.worldToScreen(tg.x, tg.y, w, h);
-      const progress = Math.min(1, tg.elapsed / Math.max(0.05, tg.duration));
-      const rx = tg.radius * (p.scaleX ?? p.scale * 0.85);
-      const ry = tg.radius * (p.scaleY ?? p.scale * 0.46);
-      const color = tg.color || '#f87171';
-
-      ctx.save();
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 2;
-      ctx.setLineDash([6, 4]);
-      ctx.beginPath();
-      ctx.ellipse(p.x, p.y, rx, ry, 0, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      // Inner expanding warning fill
-      ctx.fillStyle = color;
-      ctx.globalAlpha = 0.14 + progress * 0.18;
-      ctx.beginPath();
-      ctx.ellipse(p.x, p.y, rx * progress, ry * progress, 0, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Inner progress ring edge
-      ctx.globalAlpha = 0.85;
-      ctx.lineWidth = 1.4;
-      ctx.beginPath();
-      ctx.ellipse(p.x, p.y, rx * progress, ry * progress, 0, 0, Math.PI * 2);
-      ctx.stroke();
-
-      // Ability-themed internal telegraph motif (solar rays, clock dial, hex grid, etc.)
-      const abId = tg.abilityId || '';
-      ctx.globalAlpha = 0.45 + progress * 0.35;
-      ctx.lineWidth = 1.1;
-      if (abId === 'unit_solar_flare' || abId === 'boss_orbital_cataclysm') {
-        for (let k = 0; k < 8; k += 1) {
-          const a = (k * Math.PI) / 4 + progress * 0.6;
-          ctx.beginPath();
-          ctx.moveTo(p.x + Math.cos(a) * rx * 0.25, p.y + Math.sin(a) * ry * 0.25);
-          ctx.lineTo(p.x + Math.cos(a) * rx * 0.92, p.y + Math.sin(a) * ry * 0.92);
-          ctx.stroke();
-        }
-      } else if (
-        abId === 'unit_chrono_snare' ||
-        abId === 'enemy_stasis_field' ||
-        abId === 'boss_temporal_collapse'
-      ) {
-        for (let k = 0; k < 12; k += 1) {
-          const a = (k * Math.PI) / 6;
-          ctx.beginPath();
-          ctx.moveTo(p.x + Math.cos(a) * rx * 0.8, p.y + Math.sin(a) * ry * 0.8);
-          ctx.lineTo(p.x + Math.cos(a) * rx * 0.98, p.y + Math.sin(a) * ry * 0.98);
-          ctx.stroke();
-        }
-        const hA = -Math.PI * 0.5 + progress * Math.PI * 2;
-        ctx.beginPath();
-        ctx.moveTo(p.x, p.y);
-        ctx.lineTo(p.x + Math.cos(hA) * rx * 0.68, p.y + Math.sin(hA) * ry * 0.68);
-        ctx.stroke();
-      } else if (
-        abId === 'unit_aegis_pulse' ||
-        abId === 'boss_aegis_shell' ||
-        abId === 'mod_ability_bulwark_aura'
-      ) {
-        ctx.beginPath();
-        for (let k = 0; k < 6; k += 1) {
-          const a = (k * Math.PI) / 3 + progress * 0.3;
-          const hx = p.x + Math.cos(a) * rx * 0.72;
-          const hy = p.y + Math.sin(a) * ry * 0.72;
-          if (k === 0) ctx.moveTo(hx, hy);
-          else ctx.lineTo(hx, hy);
-        }
-        ctx.closePath();
-        ctx.stroke();
-      } else if (abId === 'boss_arcane_barrage' || abId.startsWith('boss_summon_')) {
-        for (let k = 0; k < 4; k += 1) {
-          const a = (k * Math.PI) / 2 + Math.PI / 4;
-          ctx.beginPath();
-          ctx.moveTo(p.x + Math.cos(a) * rx * 0.3, p.y + Math.sin(a) * ry * 0.3);
-          ctx.lineTo(p.x + Math.cos(a) * rx * 0.9, p.y + Math.sin(a) * ry * 0.9);
-          ctx.stroke();
-        }
-      } else if (abId) {
-        ctx.beginPath();
-        ctx.ellipse(p.x, p.y, rx * 0.45, ry * 0.45, 0, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-
-      if (tg.label) {
-        ctx.globalAlpha = 0.95;
-        ctx.font = '700 9.5px "JetBrains Mono", monospace';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = '#08090e';
-        ctx.fillText(tg.label, p.x + 1, p.y - ry * 0.35 + 1);
-        ctx.fillStyle = '#f5dca0';
-        ctx.fillText(tg.label, p.x, p.y - ry * 0.35);
-      }
-      ctx.restore();
+      drawEnhancedAbilityTelegraph(ctx, bf, w, h, telegraphs[i], elapsed);
     }
   }
 
@@ -1458,7 +1365,29 @@ export class BattleRenderer {
       ctx.stroke();
     }
 
-    const { drawX, drawY, spriteSize } = drawChibiObjectUnit(ctx, unit, {
+    const prepLayout = !isDead
+      ? getUnitModelLayout(unit, {
+          x: p.x,
+          y: p.y,
+          scale,
+          elapsed,
+          deathProgress,
+        })
+      : null;
+
+    // Preparation Phase VFX (back layer — aura, solar corona, chrono clockface behind unit)
+    if (prepLayout) {
+      drawUnitAttackPrepVfx(
+        ctx,
+        unit,
+        prepLayout,
+        elapsed,
+        'back',
+        Boolean(prepLayout.anim?.reducedMotion),
+      );
+    }
+
+    const modelLayout = drawChibiObjectUnit(ctx, unit, {
       x: p.x,
       y: p.y,
       scale,
@@ -1466,6 +1395,19 @@ export class BattleRenderer {
       deathProgress,
       assetManager: this._assets,
     });
+    const { drawX, drawY, spriteSize } = modelLayout;
+
+    // Preparation Phase VFX (front layer — weapon charge sparks, crystal/lunar/cannon flares)
+    if (!isDead) {
+      drawUnitAttackPrepVfx(
+        ctx,
+        unit,
+        modelLayout,
+        elapsed,
+        'front',
+        Boolean(modelLayout.anim?.reducedMotion),
+      );
+    }
 
     // Directional elemental/physical hit reaction overlay
     if (unit.hitFlash > 0 && !isDead) {

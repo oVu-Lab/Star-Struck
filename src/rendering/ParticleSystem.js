@@ -366,7 +366,7 @@ export class ParticleSystem {
       ctx.globalAlpha = p.alpha;
       ctx.fillStyle = p.color;
       if (p.shape === 'diamond') {
-        const s = p.size * 1.25;
+        const s = p.size * 1.52;
         ctx.beginPath();
         ctx.moveTo(p.x, p.y - s);
         ctx.lineTo(p.x + s * 0.75, p.y);
@@ -374,9 +374,18 @@ export class ParticleSystem {
         ctx.lineTo(p.x - s * 0.75, p.y);
         ctx.closePath();
         ctx.fill();
+        ctx.fillStyle = p.coreColor || '#fffdf4';
+        ctx.globalAlpha = p.alpha * 0.75;
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y - s * 0.48);
+        ctx.lineTo(p.x + s * 0.34, p.y);
+        ctx.lineTo(p.x, p.y + s * 0.48);
+        ctx.lineTo(p.x - s * 0.34, p.y);
+        ctx.closePath();
+        ctx.fill();
       } else if (p.shape === 'star') {
-        const outer = p.size * 2.1;
-        const inner = p.size * 0.46;
+        const outer = p.size * 2.55;
+        const inner = p.size * 0.54;
         ctx.beginPath();
         for (let k = 0; k < 8; k += 1) {
           const r = k % 2 === 0 ? outer : inner;
@@ -390,80 +399,80 @@ export class ParticleSystem {
         ctx.fill();
         ctx.fillStyle = p.coreColor || '#fffdf4';
         ctx.beginPath();
-        ctx.arc(p.x, p.y, Math.max(0.8, p.size * 0.48), 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, Math.max(1.0, p.size * 0.56), 0, Math.PI * 2);
         ctx.fill();
       } else if (p.shape === 'streak') {
         const spd = Math.hypot(p.vx, p.vy) || 1;
         const nx = p.vx / spd;
         const ny = p.vy / spd;
-        const len = Math.max(6, p.size * 3.8);
+        const len = Math.max(8, p.size * 4.5);
         ctx.strokeStyle = p.color;
-        ctx.lineWidth = Math.max(1.2, p.size * 0.72);
+        ctx.lineWidth = Math.max(1.5, p.size * 0.88);
         ctx.lineCap = 'round';
         ctx.beginPath();
         ctx.moveTo(p.x - nx * len, p.y - ny * len);
-        ctx.lineTo(p.x + nx * len * 0.3, p.y + ny * len * 0.3);
+        ctx.lineTo(p.x + nx * len * 0.35, p.y + ny * len * 0.35);
         ctx.stroke();
         ctx.strokeStyle = p.coreColor || '#fffdf4';
-        ctx.lineWidth = Math.max(0.65, p.size * 0.3);
+        ctx.lineWidth = Math.max(0.8, p.size * 0.38);
         ctx.stroke();
       } else if (p.shape === 'petal') {
         ctx.save();
         ctx.translate(p.x, p.y);
         ctx.rotate((p.rotation || 0) + (1 - p.alpha) * 2.2);
         ctx.beginPath();
-        ctx.ellipse(0, 0, p.size * 1.45, p.size * 0.62, 0, 0, Math.PI * 2);
+        ctx.ellipse(0, 0, p.size * 1.7, p.size * 0.72, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.fillStyle = p.coreColor || '#fffdf4';
-        ctx.globalAlpha = p.alpha * 0.65;
+        ctx.globalAlpha = p.alpha * 0.68;
         ctx.beginPath();
-        ctx.ellipse(0, 0, p.size * 0.72, p.size * 0.28, 0, 0, Math.PI * 2);
+        ctx.ellipse(0, 0, p.size * 0.82, p.size * 0.34, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
       } else if (p.shape === 'shard') {
         // Angular beveled fragment (metal chip, ice crystal, or armor splinter)
         const rot = Math.atan2(p.vy, p.vx);
-        const len = p.size * 2.4;
-        const hw = p.size * 0.78;
+        const len = p.size * 2.9;
+        const hw = p.size * 0.94;
         ctx.save();
         ctx.translate(p.x, p.y);
         ctx.rotate(rot);
         ctx.beginPath();
-        ctx.moveTo(len * 0.65, 0);
+        ctx.moveTo(len * 0.68, 0);
         ctx.lineTo(-len * 0.15, -hw);
         ctx.lineTo(-len * 0.65, -hw * 0.25);
         ctx.lineTo(-len * 0.35, hw * 0.85);
         ctx.closePath();
         ctx.fill();
         ctx.fillStyle = p.coreColor || '#fffdf4';
-        ctx.globalAlpha = p.alpha * 0.7;
+        ctx.globalAlpha = p.alpha * 0.78;
         ctx.beginPath();
-        ctx.moveTo(len * 0.52, 0);
-        ctx.lineTo(-len * 0.08, -hw * 0.42);
-        ctx.lineTo(-len * 0.28, hw * 0.3);
+        ctx.moveTo(len * 0.54, 0);
+        ctx.lineTo(-len * 0.08, -hw * 0.44);
+        ctx.lineTo(-len * 0.28, hw * 0.32);
         ctx.closePath();
         ctx.fill();
         ctx.restore();
       } else if (p.shape === 'ring') {
-        const rad = p.size * (1.2 + (1 - p.alpha) * 1.8);
+        const rad = p.size * (1.45 + (1 - p.alpha) * 2.1);
         ctx.strokeStyle = p.color;
-        ctx.lineWidth = Math.max(0.9, p.size * 0.45 * p.alpha);
+        ctx.lineWidth = Math.max(1.1, p.size * 0.54 * p.alpha);
         ctx.beginPath();
         ctx.arc(p.x, p.y, rad, 0, Math.PI * 2);
         ctx.stroke();
       } else if (p.shape === 'spark') {
-        ctx.globalAlpha = p.alpha * 0.45;
+        ctx.globalAlpha = p.alpha * 0.48;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size * 1.65, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, p.size * 2.0, 0, Math.PI * 2);
         ctx.fill();
         ctx.globalAlpha = p.alpha;
         ctx.fillStyle = p.coreColor || '#fffdf4';
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size * 0.65, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, p.size * 0.82, 0, Math.PI * 2);
         ctx.fill();
       } else {
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, p.size * 1.15, 0, Math.PI * 2);
         ctx.fill();
       }
     }

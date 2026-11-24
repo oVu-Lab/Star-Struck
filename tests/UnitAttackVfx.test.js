@@ -29,6 +29,7 @@ import { drawProgressiveLaserBeam } from '../src/rendering/NonUnitVfxGeometry.js
 import {
   UNIT_ATTACK_FX_KINDS,
   UNIT_ATTACK_VFX_PROFILES,
+  UNIT_VFX_OVERHAUL_CALIBRATION,
   UNIT_ROSTER_IDS,
   TRAJECTORY_PROFILES,
   resolveUnitAttackVfxProfile,
@@ -43,6 +44,17 @@ import {
   resolveLiveTargetScreenPoint,
   computeLaserPhaseState,
 } from '../src/rendering/UnitAttackVfxRenderer.js';
+import {
+  drawUnitAttackPrepVfx,
+  drawEnhancedAbilityTelegraph,
+} from '../src/rendering/UnitVfxOverhaulHelpers.js';
+import { getUnitModelLayout } from '../src/rendering/UnitObjectModelRenderer.js';
+import {
+  ratchetStepAngle,
+  timeDilatedTravelCurve,
+  evaluateImpactStages,
+  organicContourFactor,
+} from '../src/rendering/UnitVfxMotionEngine.js';
 
 const ROOT = process.cwd();
 const readJson = (rel) => JSON.parse(fs.readFileSync(path.join(ROOT, 'data', rel), 'utf8'));
@@ -898,3 +910,187 @@ test('Laser Attack VFX: interrupted casts, stunned/dead attackers, battle finali
   assert.equal(animationManager.getWorldEffects().length, 0);
   assert.equal(particleSystem.getActiveCount(), 0);
 });
+
+test('VFX Overhaul: all 33 units have individualized scale calibration and clear normal-vs-skill visual hierarchy', () => {
+  assert.equal(Object.keys(UNIT_VFX_OVERHAUL_CALIBRATION).length, 33);
+  const uniqueAttackScales = new Set();
+  for (const id of UNIT_ROSTER_IDS) {
+    const cal = UNIT_VFX_OVERHAUL_CALIBRATION[id];
+    assert.ok(cal, `Missing UNIT_VFX_OVERHAUL_CALIBRATION entry for ${id}`);
+    assert.ok(cal.vfxScale >= 0.85 && cal.vfxScale <= 1.55, `${id} vfxScale out of disciplined range: ${cal.vfxScale}`);
+    assert.ok(
+      cal.skillScale > cal.vfxScale,
+      `${id} skillScale (${cal.skillScale}) must exceed normal vfxScale (${cal.vfxScale})`,
+    );
+    assert.ok(cal.emitter && Number.isFinite(cal.emitter.screenForwardPx), `${id} missing model emitter calibration`);
+    uniqueAttackScales.add(cal.vfxScale);
+
+    const resolved = resolveUnitAttackVfxProfile(id, { mode: 'attack', side: 'ally' });
+    assert.equal(resolved.vfxScale, cal.vfxScale);
+    assert.equal(resolved.skillScale, cal.skillScale);
+  }
+  assert.ok(uniqueAttackScales.size >= 10, `Expected individualized per-unit scales (>= 10 distinct values), got ${uniqueAttackScales.size}`);
+});
+
+test('VFX Overhaul: preparation phase VFX renders finite geometry for all 33 units during normal attack prep and major skill casting', () => {
+  const canvas = createStrictTrackingCanvas(1280, 720);
+  const ctx = canvas.getContext('2d');
+
+  for (const id of UNIT_ROSTER_IDS) {
+    const profile = UNIT_ATTACK_VFX_PROFILES[id];
+    const side = profile.rosterGroup === 'playable' ? 'ally' : 'enemy';
+
+    // Normal attack preparation phase
+    const atkUnit = {
+      uid: `prep_atk_${id}`,
+      unitId: id,
+      side,
+      facing: side === 'ally' ? 1 : -1,
+      state: UNIT_STATES.ATTACKING,
+      attackPrepOverride: 0.78,
+      attackAnim: 0,
+      phase: 0.4,
+    };
+    const atkLayout = getUnitModelLayout(atkUnit, { x: 420, y: 360, scale: 1.0, elapsed: 1.2 });
+    canvas.resetDrawCalls();
+    drawUnitAttackPrepVfx(ctx, atkUnit, atkLayout, 1.2, 'back', false);
+    drawUnitAttackPrepVfx(ctx, atkUnit, atkLayout, 1.2, 'front', false);
+    assert.ok(canvas.getDrawCalls() > 0, `Expected non-zero attack prep VFX draw calls for ${id}`);
+
+    // Major skill casting phase
+    const castUnit = {
+      uid: `prep_cast_${id}`,
+      unitId: id,
+      side,
+      facing: side === 'ally' ? 1 : -1,
+      state: UNIT_STATES.CASTING,
+      castingAbility: { duration: 1.0, remaining: 0.25 },
+      attackAnim: 0,
+      phase: 0.6,
+    };
+    const castLayout = getUnitModelLayout(castUnit, { x: 420, y: 360, scale: 1.0, elapsed: 1.5 });
+    canvas.resetDrawCalls();
+    drawUnitAttackPrepVfx(ctx, castUnit, castLayout, 1.5, 'back', false);
+    drawUnitAttackPrepVfx(ctx, castUnit, castLayout, 1.5, 'front', false);
+    assert.ok(canvas.getDrawCalls() > 0, `Expected non-zero skill cast prep VFX draw calls for ${id}`);
+  }
+});
+
+test('VFX Overhaul: enhanced ability telegraphs render finite geometry across all telegraph archetypes', () => {
+  const bf = new Battlefield();
+  const canvas = createStrictTrackingCanvas(1280, 720);
+  const ctx = canvas.getContext('2d');
+  const abilities = [
+    { abilityId: 'unit_solar_flare', color: '#f97316', label: 'Solar Flare' },
+    { abilityId: 'boss_orbital_cataclysm', color: '#fb923c', label: 'Orbital Cataclysm' },
+    { abilityId: 'unit_chrono_snare', color: '#a78bfa', label: 'Chrono Snare' },
+    { abilityId: 'enemy_stasis_field', color: '#38bdf8', label: 'Stasis Field' },
+    { abilityId: 'boss_temporal_collapse', color: '#c084fc', label: 'Temporal Collapse' },
+    { abilityId: 'unit_aegis_pulse', color: '#38bdf8', label: 'Aegis Pulse' },
+    { abilityId: 'boss_arcane_barrage', color: '#e879f9', label: 'Arcane Barrage' },
+    { abilityId: 'generic_slam', color: '#f87171', label: 'Impact' },
+  ];
+
+  for (const ab of abilities) {
+    canvas.resetDrawCalls();
+    drawEnhancedAbilityTelegraph(
+      ctx,
+      bf,
+      1280,
+      720,
+      { x: 52, y: 50, radius: 14, elapsed: 0.65, duration: 1.1, ...ab },
+      2.4,
+    );
+    assert.ok(canvas.getDrawCalls() > 0, `Expected non-zero draw calls for telegraph ${ab.abilityId}`);
+  }
+});
+
+test('VFX Motion Engine: natural easing, ratcheting escapement, time-dilation curve, and 3-stage impact progression', () => {
+  // Time-dilated travel curve: exact endpoints, deliberate mid-flight dilation slowdown, rapid release/snap
+  assert.equal(timeDilatedTravelCurve(0), 0);
+  assert.equal(timeDilatedTravelCurve(1), 1);
+  const earlyVel = timeDilatedTravelCurve(0.15) - timeDilatedTravelCurve(0.05);
+  const midVel = timeDilatedTravelCurve(0.55) - timeDilatedTravelCurve(0.45);
+  const lateVel = timeDilatedTravelCurve(0.95) - timeDilatedTravelCurve(0.85);
+  assert.ok(midVel < earlyVel && midVel < lateVel, 'Mid-flight time dilation must slow relative to release and snap');
+
+  // Ratcheting escapement: exact endpoints, monotonic without overshoot, elastic snap+recoil with overshoot
+  const stepAngle = Math.PI / 3;
+  assert.equal(ratchetStepAngle(0, 6, stepAngle), 0);
+  assert.ok(Math.abs(ratchetStepAngle(1, 6, stepAngle) - 6 * stepAngle) < 1e-6);
+  let prevAngle = -Infinity;
+  for (let i = 0; i <= 20; i += 1) {
+    const a = ratchetStepAngle(i / 20, 6, stepAngle, { overshoot: 0 });
+    assert.ok(Number.isFinite(a) && a >= prevAngle - 1e-6);
+    prevAngle = a;
+  }
+  const peakSnap = ratchetStepAngle(0.38 / 6, 6, stepAngle, { overshoot: 0.16, accelerate: false });
+  const settledDetent = ratchetStepAngle(0.75 / 6, 6, stepAngle, { overshoot: 0.16, accelerate: false });
+  assert.ok(peakSnap > settledDetent && Math.abs(settledDetent - stepAngle) < 1e-6, 'Escapement should overshoot slightly then settle on detent');
+
+  // 3-stage impact lifecycle: pinch -> burst -> aftermath
+  assert.equal(evaluateImpactStages(0.08).phase, 'pinch');
+  assert.equal(evaluateImpactStages(0.42).phase, 'burst');
+  assert.equal(evaluateImpactStages(0.88).phase, 'aftermath');
+
+  // Organic contour distortion stays finite and strictly positive
+  for (let i = 0; i < 16; i += 1) {
+    const f = organicContourFactor((i * Math.PI) / 8, 2.3, 17, 0.25);
+    assert.ok(Number.isFinite(f) && f > 0.4 && f < 1.6);
+  }
+});
+
+test('VFX Motion Rework: all signature unit/elite/boss skills render finite geometry across pinch, burst, and dissipation', () => {
+  const bf = new Battlefield();
+  const canvas = createStrictTrackingCanvas(1280, 720);
+  const ctx = canvas.getContext('2d');
+  const skillCases = [
+    { abilityId: 'unit_solar_flare', profileId: 'solar_pyromancer', kind: 'aoe_damage', color: '#f97316' },
+    { abilityId: 'unit_chrono_snare', profileId: 'chrono_weaver', kind: 'aoe_damage', color: '#a78bfa' },
+    { abilityId: 'unit_bulwark_guard', profileId: 'heavy_shield_guard', kind: 'self_defense', color: '#38bdf8' },
+    { abilityId: 'unit_flank_surge', profileId: 'wind_cavalry', kind: 'self_buff', color: '#34d399' },
+    { abilityId: 'unit_armor_sunder', profileId: 'vanguard_breaker', kind: 'aoe_damage', color: '#fb923c' },
+    { abilityId: 'unit_armor_sunder', profileId: 'enemy_abyssal_ravager', kind: 'aoe_damage', color: '#fb7185' },
+    { abilityId: 'unit_aegis_pulse', profileId: 'aegis_sentinel', kind: 'ally_barrier', color: '#38bdf8' },
+    { abilityId: 'unit_aegis_pulse', profileId: 'enemy_cryo_warden', kind: 'ally_barrier', color: '#67e8f9' },
+    { abilityId: 'unit_construct_overdrive', profileId: 'astral_construct', kind: 'self_buff', color: '#f5d37a' },
+    { abilityId: 'enemy_shield_bash', profileId: 'enemy_void_vanguard', kind: 'aoe_damage', color: '#f43f5e' },
+    { abilityId: 'enemy_tremor_slam', profileId: 'enemy_siege_juggernaut', kind: 'aoe_damage', color: '#ea580c' },
+    { abilityId: 'enemy_stasis_field', profileId: 'enemy_stasis_weaver', kind: 'aoe_damage', color: '#818cf8' },
+    { abilityId: 'enemy_dread_rally', profileId: 'enemy_dread_bannerman', kind: 'ally_buff', color: '#f43f5e' },
+    { abilityId: 'boss_aegis_shell', profileId: 'boss_bastion_warden', kind: 'self_defense', color: '#f5d37a' },
+    { abilityId: 'boss_shockwave', profileId: 'boss_bastion_warden', kind: 'aoe_damage', color: '#f5d37a' },
+    { abilityId: 'boss_arcane_barrage', profileId: 'boss_relay_archon', kind: 'aoe_damage', color: '#38bdf8' },
+    { abilityId: 'boss_temporal_collapse', profileId: 'boss_chrono_arbiter', kind: 'aoe_damage', color: '#c084fc' },
+    { abilityId: 'boss_phase_mend', profileId: 'boss_chrono_arbiter', kind: 'self_heal', color: '#34d399' },
+    { abilityId: 'boss_orbital_cataclysm', profileId: 'boss_astral_leviathan', kind: 'aoe_damage', color: '#fb923c' },
+    { abilityId: 'boss_void_siphon', profileId: 'boss_astral_leviathan', kind: 'drain_aoe', color: '#a855f7' },
+    { abilityId: 'boss_summon_guard', profileId: 'boss_bastion_warden', kind: 'summon', color: '#f5d37a' },
+  ];
+
+  for (const sc of skillCases) {
+    canvas.resetDrawCalls();
+    for (const ratio of [0.1, 0.45, 0.85]) {
+      const fx = {
+        kind: UNIT_ATTACK_FX_KINDS.ABILITY,
+        x: 52,
+        y: 50,
+        angle: 0,
+        radius: 14,
+        color: sc.color,
+        age: ratio,
+        duration: 1.0,
+        profileId: sc.profileId,
+        side: sc.profileId.startsWith('enemy_') || sc.profileId.startsWith('boss_') ? 'enemy' : 'ally',
+        scale: 1.0,
+        seed: 55,
+        meta: { abilityId: sc.abilityId, abilityKind: sc.kind },
+      };
+      drawUnitAttackWorldEffect(ctx, bf, 1280, 720, fx, 'ground');
+      drawUnitAttackWorldEffect(ctx, bf, 1280, 720, fx, 'sky');
+    }
+    assert.ok(canvas.getDrawCalls() > 0, `Expected non-zero draw calls for skill ${sc.abilityId} (${sc.profileId})`);
+  }
+});
+
+
