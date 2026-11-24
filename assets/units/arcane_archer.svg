@@ -1,6 +1,32 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
-  <circle cx="50" cy="40" r="16" fill="#1a2c4f" stroke="#a78bfa" stroke-width="4"/>
-  <rect x="34" y="60" width="32" height="44" rx="6" fill="#13223e" stroke="#a78bfa" stroke-width="4"/>
-  <path d="M76 26 Q108 64 76 102" fill="none" stroke="#38bdf8" stroke-width="5"/>
-  <line x1="68" y1="64" x2="112" y2="64" stroke="#e2b75b" stroke-width="4"/>
+  <defs>
+    <linearGradient id="bowHorn" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#a78bfa"/><stop offset="50%" stop-color="#4c1d95"/><stop offset="100%" stop-color="#140a2e"/>
+    </linearGradient>
+    <linearGradient id="silv" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f8fafc"/><stop offset="50%" stop-color="#c4b5fd"/><stop offset="100%" stop-color="#475569"/>
+    </linearGradient>
+    <linearGradient id="azCry" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f0f9ff"/><stop offset="50%" stop-color="#38bdf8"/><stop offset="100%" stop-color="#1e1b4b"/>
+    </linearGradient>
+  </defs>
+  <!-- Taut arcane bowstring -->
+  <polyline points="42,14 18,64 42,114" fill="none" stroke="#7dd3fc" stroke-width="3.2"/>
+  <polyline points="42,14 18,64 42,114" fill="none" stroke="#ffffff" stroke-width="1.2"/>
+  <!-- Sculpted recurve bow limbs -->
+  <path d="M68 58 C88 38, 78 20, 42 13 C64 26, 72 42, 62 64 C72 86, 64 102, 42 115 C78 108, 88 90, 68 70 Z" fill="url(#bowHorn)" stroke="#08041c" stroke-width="2.2"/>
+  <!-- Silver filigree limb collars & nock tips -->
+  <path d="M67 42 Q76 38 78 46 Q70 50 67 42 Z" fill="url(#silv)" stroke="#0d0a24" stroke-width="1.3"/>
+  <path d="M67 86 Q76 90 78 82 Q70 78 67 86 Z" fill="url(#silv)" stroke="#0d0a24" stroke-width="1.3"/>
+  <circle cx="42" cy="14" r="3.5" fill="url(#silv)" stroke="#0d0a24" stroke-width="1.2"/>
+  <circle cx="42" cy="114" r="3.5" fill="url(#silv)" stroke="#0d0a24" stroke-width="1.2"/>
+  <!-- Nocked crystal great-arrow & 2 flanking shards -->
+  <rect x="18" y="62.3" width="84" height="3.4" rx="1.5" fill="#7dd3fc" stroke="#090b24" stroke-width="1"/>
+  <polygon points="118,64 96,55 101,64" fill="#f0f9ff" stroke="#090b24" stroke-width="1.4"/>
+  <polygon points="118,64 101,64 96,73" fill="#38bdf8" stroke="#090b24" stroke-width="1.4"/>
+  <polygon points="108,42 94,38 98,42 94,46" fill="url(#azCry)" stroke="#090b24" stroke-width="1.1"/>
+  <polygon points="108,86 94,82 98,86 94,90" fill="url(#azCry)" stroke="#090b24" stroke-width="1.1"/>
+  <!-- Central faceted star-crystal sight prism -->
+  <polygon points="65,48 77,64 65,80 53,64" fill="url(#azCry)" stroke="#090b24" stroke-width="1.8"/>
+  <polygon points="65,48 77,64 65,64" fill="#ffffff" opacity="0.45"/>
 </svg>

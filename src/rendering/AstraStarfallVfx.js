@@ -31,14 +31,17 @@ import {
   createDetRng,
 } from './NonUnitVfxGeometry.js';
 
-export const STARFALL_DURATION_SEC = 4.4;
-export const STARFALL_REDUCED_DURATION_SEC = 2.6;
+export const STARFALL_DURATION_SEC = 5.65;
+export const STARFALL_REDUCED_DURATION_SEC = 3.2;
 
 export const STARFALL_DAMAGE_STAGE_DEFS = Object.freeze([
-  { index: 1, id: 'opening_impact', name: 'Opening Impact', impactTimeSec: 0.68, weight: 0.15 },
-  { index: 2, id: 'main_starfall', name: 'Main Starfall', impactTimeSec: 1.48, weight: 0.25 },
-  { index: 3, id: 'heavy_impact', name: 'Heavy Impact', impactTimeSec: 2.28, weight: 0.25 },
-  { index: 4, id: 'final_nova', name: 'Final Nova', impactTimeSec: 3.00, weight: 0.35 },
+  { index: 1, id: 'shower_1', name: 'Meteor Shower', phase: 'shower', impactTimeSec: 0.58, weight: 0.10 },
+  { index: 2, id: 'shower_2', name: 'Meteor Shower', phase: 'shower', impactTimeSec: 1.00, weight: 0.10 },
+  { index: 3, id: 'shower_3', name: 'Meteor Shower', phase: 'shower', impactTimeSec: 1.42, weight: 0.10 },
+  { index: 4, id: 'shower_4', name: 'Meteor Shower', phase: 'shower', impactTimeSec: 1.84, weight: 0.10 },
+  { index: 5, id: 'shower_5', name: 'Meteor Shower', phase: 'shower', impactTimeSec: 2.26, weight: 0.10 },
+  { index: 6, id: 'shower_6', name: 'Meteor Shower', phase: 'shower', impactTimeSec: 2.68, weight: 0.10 },
+  { index: 7, id: 'colossal_impact', name: 'Colossal Meteor Impact', phase: 'colossal', impactTimeSec: 4.35, weight: 0.40 },
 ]);
 
 /**
@@ -82,7 +85,7 @@ export const STAR_ARCHETYPES = Object.freeze([
   'fragment',
   'brilliant',
   'celestial',
-  'sovereign',
+  'colossal',
 ]);
 
 export const IMPACT_STYLES = Object.freeze([
@@ -93,7 +96,7 @@ export const IMPACT_STYLES = Object.freeze([
   'nova_wave',
 ]);
 
-const MAX_TRAIL_SAMPLES = 15;
+const MAX_TRAIL_SAMPLES = 18;
 const TRAIL_PTS = Array.from({ length: MAX_TRAIL_SAMPLES }, () => ({ x: 0, y: 0 }));
 const TRAIL_LEFT = Array.from({ length: MAX_TRAIL_SAMPLES }, () => ({ x: 0, y: 0 }));
 const TRAIL_RIGHT = Array.from({ length: MAX_TRAIL_SAMPLES }, () => ({ x: 0, y: 0 }));
@@ -105,31 +108,31 @@ function lerp(a, b, t) {
 
 function getArchetypeStats(archetype) {
   switch (archetype) {
-    case 'sovereign':
+    case 'colossal':
       return {
-        sizeMul: 1.58,
-        fallDurationMin: 0.64,
-        fallDurationMax: 0.78,
-        impactDuration: 1.02,
-        trailSpan: 0.68,
-        trailWidth: 11.5,
-        shardCount: 10,
-        orbiterCount: 3,
+        sizeMul: 3.3,
+        fallDurationMin: 0.8,
+        fallDurationMax: 0.8,
+        impactDuration: 1.3,
+        trailSpan: 0.92,
+        trailWidth: 28,
+        shardCount: 16,
+        orbiterCount: 4,
         hasGroundMark: true,
-        groundMarkRadius: 9.2,
+        groundMarkRadius: 15,
       };
     case 'celestial':
       return {
         sizeMul: 1.24,
-        fallDurationMin: 0.54,
-        fallDurationMax: 0.68,
-        impactDuration: 0.84,
+        fallDurationMin: 0.52,
+        fallDurationMax: 0.64,
+        impactDuration: 0.82,
         trailSpan: 0.58,
-        trailWidth: 7.8,
+        trailWidth: 7.6,
         shardCount: 8,
         orbiterCount: 2,
         hasGroundMark: true,
-        groundMarkRadius: 6.4,
+        groundMarkRadius: 6.2,
       };
     case 'brilliant':
       return {
@@ -214,7 +217,7 @@ function spaceOutPoint(desiredX, desiredY, placedPts, minSep = 8.5, minX = 22, m
 
 function buildStarEntry({
   rng,
-  waveIndex,
+  streamPhase = 'shower',
   archetype,
   depthTier,
   impactTimeSec,
@@ -226,17 +229,19 @@ function buildStarEntry({
   impactStyle,
   timeScale,
   forcedFallDur = null,
+  forcedBaseZ = null,
+  forcedSpeedExp = null,
 }) {
   const stats = getArchetypeStats(archetype);
   const depthScale = getDepthMultiplier(depthTier);
   const rawFall = forcedFallDur ?? lerp(stats.fallDurationMin, stats.fallDurationMax, rng());
   const fallDuration = rawFall * timeScale;
   const impactTime = impactTimeSec * timeScale;
-  const startTime = Math.max(0.06 * timeScale, impactTime - fallDuration);
+  const startTime = Math.max(0.05 * timeScale, impactTime - fallDuration);
   const impactDuration = stats.impactDuration * timeScale;
 
-  // Smooth coordinated starting coordinates derived directly from wave formation slant
-  const baseZ = 34 + clamp01(targetY / 100) * 32 + rng() * 10;
+  // Smooth coordinated starting coordinates derived directly from stream slant
+  const baseZ = forcedBaseZ ?? (34 + clamp01(targetY / 100) * 32 + rng() * 10);
   const startX = targetX + slantX;
   const startY = targetY - depthPull;
 
@@ -244,19 +249,19 @@ function buildStarEntry({
   let chromaticTint = null;
   if (depthTier === 'far') {
     chromaticTint = rng() > 0.45 ? 'blue' : 'lavender';
-  } else if (archetype === 'celestial' || archetype === 'sovereign') {
+  } else if (archetype === 'celestial' || archetype === 'colossal') {
     chromaticTint = rng() > 0.5 ? 'blue' : 'lavender';
   }
 
   const orbiters = [];
   for (let o = 0; o < stats.orbiterCount; o += 1) {
     orbiters.push({
-      radiusMul: 1.55 + o * 0.52 + rng() * 0.25,
-      tilt: 0.36 + rng() * 0.3,
+      radiusMul: 1.55 + o * 0.48 + rng() * 0.22,
+      tilt: 0.36 + rng() * 0.28,
       inclination: (rng() - 0.5) * 0.65,
       speed: (4.2 + rng() * 3.0) * (o % 2 === 0 ? 1 : -1),
       phase: rng() * Math.PI * 2,
-      sizeMul: 0.24 + rng() * 0.12,
+      sizeMul: 0.24 + rng() * 0.1,
     });
   }
 
@@ -276,7 +281,7 @@ function buildStarEntry({
 
   const constellationNodes = [];
   if (stats.hasGroundMark) {
-    const nodeCount = archetype === 'sovereign' ? 6 : 5;
+    const nodeCount = archetype === 'colossal' ? 6 : 5;
     const baseRot = rng() * Math.PI * 2;
     for (let n = 0; n < nodeCount; n += 1) {
       const a = baseRot + (Math.PI * 2 * n) / nodeCount + (rng() - 0.5) * 0.24;
@@ -289,10 +294,10 @@ function buildStarEntry({
   }
 
   return {
-    waveIndex,
+    streamPhase,
     archetype,
     depthTier,
-    depthOrder: depthTier === 'far' ? 0 : depthTier === 'mid' ? 1 : 2,
+    depthOrder: depthTier === 'far' ? 0 : depthTier === 'mid' ? 1 : archetype === 'colossal' ? 3 : 2,
     startTime,
     fallDuration,
     impactTime,
@@ -304,9 +309,9 @@ function buildStarEntry({
     slantX,
     startZ: baseZ,
     gentleDrift: Math.max(-1.25, Math.min(1.25, gentleDrift)),
-    speedExp: 1.58 + rng() * 0.14,
-    size: stats.sizeMul * depthScale * (0.92 + rng() * 0.18),
-    brightness: (depthTier === 'far' ? 0.62 : depthTier === 'near' ? 1.0 : 0.92) * (0.9 + rng() * 0.1),
+    speedExp: forcedSpeedExp ?? (1.56 + rng() * 0.14),
+    size: stats.sizeMul * depthScale * (archetype === 'colossal' ? 1 : 0.9 + rng() * 0.2),
+    brightness: (depthTier === 'far' ? 0.62 : depthTier === 'near' ? 1.0 : 0.92) * (archetype === 'colossal' ? 1 : 0.9 + rng() * 0.1),
     rotSpeed: (rng() - 0.5) * (archetype === 'fragment' ? 0.45 : 2.2),
     rotPhase: rng() * Math.PI * 2,
     trailSpan: stats.trailSpan,
@@ -407,7 +412,7 @@ export function createStarfallPlan({
     });
   }
 
-  // 3. Organized 4-Wave Celestial Formations Aligned with Damage Stages
+  // 3. Continuous Overlapping Meteor Shower (0.45s - 3.05s) + Subsidence + ONE Colossal Final Meteor (3.55s - 4.35s)
   const stars = [];
   let impactCursor = 0;
   const nextImpactStyle = (preferred = null) => {
@@ -417,7 +422,7 @@ export function createStarfallPlan({
     return style;
   };
 
-  const biasTowardEnemy = (baseX, baseY, maxSnapDist = 14) => {
+  const biasTowardEnemy = (baseX, baseY, maxSnapDist = 15) => {
     if (enemyPts.length === 0) return { x: baseX, y: baseY };
     let best = null;
     let bestD = maxSnapDist;
@@ -431,256 +436,135 @@ export function createStarfallPlan({
     }
     if (!best) return { x: baseX, y: baseY };
     return {
-      x: lerp(baseX, Math.max(24, Math.min(94, best.x)), 0.52),
-      y: lerp(baseY, Math.max(12, Math.min(88, best.y)), 0.52),
+      x: lerp(baseX, Math.max(24, Math.min(94, best.x)), 0.56),
+      y: lerp(baseY, Math.max(12, Math.min(88, best.y)), 0.56),
     };
   };
 
-  // --- Wave 1: Opening Impact (Stage 1 crest at 0.68s) — Cohesive Upper-Left Diagonal Vanguard ---
-  const w1Placed = [];
-  const w1Base = [
-    { row: 0, x: 42, y: 26, arch: 'brilliant' },
-    { row: 0, x: 58, y: 44, arch: 'brilliant' },
-    { row: 0, x: 48, y: 68, arch: 'fragment' },
-    { row: 0, x: 70, y: 32, arch: 'fragment' },
-    { row: 1, x: 66, y: 54, arch: 'brilliant' },
-    { row: 1, x: 78, y: 66, arch: 'brilliant' },
-    { row: 1, x: 54, y: 80, arch: 'fragment' },
-    { row: 1, x: 84, y: 42, arch: 'fragment' },
-    { row: 1, x: 36, y: 48, arch: 'fragment' },
-  ];
-  const w1Count = Math.max(5, Math.min(w1Base.length, Math.round(w1Base.length * scaleFactor)));
-  for (let i = 0; i < w1Count; i += 1) {
-    const lane = w1Base[i];
-    const snapped = biasTowardEnemy(lane.x, lane.y, 13);
-    const tgt = spaceOutPoint(snapped.x, snapped.y, w1Placed, 9.5);
-    stars.push(
-      buildStarEntry({
-        rng,
-        waveIndex: 1,
-        archetype: lane.arch,
-        depthTier: 'mid',
-        impactTimeSec: 0.63 + lane.row * 0.06 + (rng() - 0.5) * 0.03,
-        targetX: tgt.x,
-        targetY: tgt.y,
-        slantX: -19 + (rng() - 0.5) * 2.2,
-        depthPull: 6,
-        gentleDrift: 0.75 + (rng() - 0.5) * 0.4,
-        impactStyle: nextImpactStyle(),
-        timeScale,
-      }),
-    );
-  }
-  const w1FarCount = reducedMotion ? 1 : 2;
-  for (let i = 0; i < w1FarCount; i += 1) {
-    stars.push(
-      buildStarEntry({
-        rng,
-        waveIndex: 1,
-        archetype: 'fragment',
-        depthTier: 'far',
-        impactTimeSec: 0.65 + i * 0.05,
-        targetX: 28 + i * 38 + (rng() - 0.5) * 6,
-        targetY: -6 + rng() * 10,
-        slantX: -19 + (rng() - 0.5) * 1.6,
-        depthPull: 5,
-        gentleDrift: 0.5,
-        impactStyle: nextImpactStyle(),
-        timeScale,
-      }),
-    );
-  }
+  const showerCount = Math.max(24, Math.round(66 * scaleFactor));
+  const recentMidPlacements = [];
 
-  // --- Wave 2: Main Starfall (Stage 2 crest at 1.48s) — 3 Offset Parallel Diagonal Starfall Rows ---
-  const w2Placed = [];
-  const w2Lanes = [
-    // Row 0 (1.36s)
-    { row: 0, x: 34, y: 22, arch: 'fragment' },
-    { row: 0, x: 50, y: 36, arch: 'brilliant' },
-    { row: 0, x: 68, y: 24, arch: 'brilliant' },
-    { row: 0, x: 44, y: 64, arch: 'fragment' },
-    { row: 0, x: 80, y: 50, arch: 'fragment' },
-    // Row 1 (1.47s) — Prominent central celestial stars flanked by balanced lanes
-    { row: 1, x: 58, y: 50, arch: 'celestial' },
-    { row: 1, x: 74, y: 36, arch: 'celestial' },
-    { row: 1, x: 40, y: 46, arch: 'brilliant' },
-    { row: 1, x: 64, y: 74, arch: 'brilliant' },
-    { row: 1, x: 86, y: 70, arch: 'fragment' },
-    { row: 1, x: 28, y: 76, arch: 'fragment' },
-    // Row 2 (1.57s)
-    { row: 2, x: 70, y: 58, arch: 'celestial' },
-    { row: 2, x: 52, y: 20, arch: 'brilliant' },
-    { row: 2, x: 84, y: 26, arch: 'brilliant' },
-    { row: 2, x: 52, y: 84, arch: 'fragment' },
-    { row: 2, x: 36, y: 34, arch: 'fragment' },
-  ];
-  const w2Count = Math.max(7, Math.min(w2Lanes.length, Math.round(w2Lanes.length * scaleFactor)));
-  for (let i = 0; i < w2Count; i += 1) {
-    const lane = w2Lanes[i];
-    const snapped = biasTowardEnemy(lane.x, lane.y, 12);
-    const tgt = spaceOutPoint(snapped.x, snapped.y, w2Placed, 9.0);
+  for (let i = 0; i < showerCount; i += 1) {
+    const uStream = i / Math.max(1, showerCount - 1);
+    // Steady overlapping flow through 2.68s, then gradual subsidence out to 3.04s
+    const impactTimeSec =
+      uStream < 0.88
+        ? lerp(0.45, 2.68, uStream / 0.88) + (rng() - 0.5) * 0.055
+        : lerp(2.71, 3.04, Math.pow((uStream - 0.88) / 0.12, 1.35));
+
+    const depthRoll = rng();
+    const depthTier = depthRoll < 0.18 ? 'far' : depthRoll > 0.86 ? 'near' : 'mid';
+
+    let archetype;
+    if (depthTier === 'far') {
+      archetype = 'fragment';
+    } else if (depthTier === 'near') {
+      archetype = rng() < 0.55 ? 'fragment' : 'brilliant';
+    } else {
+      const archRoll = rng();
+      if (uStream > 0.14 && uStream < 0.86 && archRoll > 0.82) {
+        archetype = 'celestial';
+      } else if (archRoll > 0.42) {
+        archetype = 'brilliant';
+      } else {
+        archetype = 'fragment';
+      }
+    }
+
+    let tgt;
+    if (depthTier === 'far') {
+      tgt = {
+        x: 18 + rng() * 76,
+        y: -8 + rng() * 13,
+      };
+    } else if (depthTier === 'near') {
+      tgt = {
+        x: 26 + rng() * 64,
+        y: 86 + rng() * 14,
+      };
+    } else {
+      // Sweep cleanly across battlefield lanes while biasing toward living enemy anchors
+      const laneX = 28 + ((i * 29) % 64) + (rng() - 0.5) * 12;
+      const laneY = 14 + ((i * 23) % 72) + (rng() - 0.5) * 10;
+      const snapped = biasTowardEnemy(laneX, laneY, 16);
+      // Enforce spacing only against recent impacts (within 0.42s) so streams stay clean & active
+      const activeWindowPts = [];
+      for (let r = recentMidPlacements.length - 1; r >= 0; r -= 1) {
+        if (impactTimeSec - recentMidPlacements[r].t > 0.42) break;
+        activeWindowPts.push(recentMidPlacements[r]);
+      }
+      tgt = spaceOutPoint(snapped.x, snapped.y, activeWindowPts, 8.5);
+      recentMidPlacements.push({ x: tgt.x, y: tgt.y, t: impactTimeSec });
+    }
+
+    const slantX = -17.5 + uStream * 2.2 + (rng() - 0.5) * 2.2;
     stars.push(
       buildStarEntry({
         rng,
-        waveIndex: 2,
-        archetype: lane.arch,
-        depthTier: 'mid',
-        impactTimeSec: 1.36 + lane.row * 0.1 + (rng() - 0.5) * 0.03,
+        streamPhase: 'shower',
+        archetype,
+        depthTier,
+        impactTimeSec,
         targetX: tgt.x,
         targetY: tgt.y,
-        slantX: -15 + (rng() - 0.5) * 2.2,
+        slantX,
         depthPull: 5.5,
-        gentleDrift: 0.6 + (rng() - 0.5) * 0.4,
-        impactStyle: nextImpactStyle(),
-        timeScale,
-      }),
-    );
-  }
-  const w2DepthCount = reducedMotion ? 2 : 4;
-  for (let i = 0; i < w2DepthCount; i += 1) {
-    const isNear = i % 2 === 1;
-    stars.push(
-      buildStarEntry({
-        rng,
-        waveIndex: 2,
-        archetype: isNear ? 'brilliant' : 'fragment',
-        depthTier: isNear ? 'near' : 'far',
-        impactTimeSec: 1.40 + i * 0.05,
-        targetX: isNear ? 38 + i * 16 : 22 + i * 20,
-        targetY: isNear ? 88 + (i % 3) * 5 : -8 + (i % 2) * 10,
-        slantX: -15 + (rng() - 0.5) * 1.8,
-        depthPull: 5.5,
-        gentleDrift: 0.55,
+        gentleDrift: (rng() - 0.5) * 1.4,
         impactStyle: nextImpactStyle(),
         timeScale,
       }),
     );
   }
 
-  // --- Wave 3: Heavy Impact (Stage 3 crest at 2.28s) — Symmetrical Steep Judgment Formation ---
-  const w3Placed = [];
-  const w3Lanes = [
-    // Symmetrical lead chevron & center sovereign herald (2.22s - 2.34s)
-    { row: 0, x: 64, y: 50, arch: 'sovereign' },
-    { row: 0, x: 52, y: 26, arch: 'celestial' },
-    { row: 0, x: 52, y: 74, arch: 'celestial' },
-    { row: 0, x: 78, y: 34, arch: 'celestial' },
-    { row: 0, x: 78, y: 66, arch: 'celestial' },
-    { row: 1, x: 40, y: 38, arch: 'brilliant' },
-    { row: 1, x: 40, y: 62, arch: 'brilliant' },
-    { row: 1, x: 66, y: 18, arch: 'brilliant' },
-    { row: 1, x: 66, y: 82, arch: 'brilliant' },
-    { row: 1, x: 88, y: 50, arch: 'celestial' },
-    { row: 2, x: 30, y: 24, arch: 'fragment' },
-    { row: 2, x: 30, y: 76, arch: 'fragment' },
-    { row: 2, x: 56, y: 38, arch: 'fragment' },
-    { row: 2, x: 56, y: 62, arch: 'fragment' },
-    { row: 2, x: 86, y: 22, arch: 'fragment' },
-    { row: 2, x: 86, y: 78, arch: 'fragment' },
-  ];
-  const w3Count = Math.max(8, Math.min(w3Lanes.length, Math.round(w3Lanes.length * scaleFactor)));
-  for (let i = 0; i < w3Count; i += 1) {
-    const lane = w3Lanes[i];
-    const snapped = lane.arch === 'sovereign' ? { x: epicenter.x, y: epicenter.y } : biasTowardEnemy(lane.x, lane.y, 9);
-    const tgt = spaceOutPoint(snapped.x, snapped.y, w3Placed, 8.8);
-    // Gentle symmetrical fan toward central axis while keeping cohesive downward plunge
-    const symFan = ((50 - tgt.y) / 50) * 2.8;
-    stars.push(
-      buildStarEntry({
-        rng,
-        waveIndex: 3,
-        archetype: lane.arch,
-        depthTier: 'mid',
-        impactTimeSec: 2.21 + lane.row * 0.055 + (rng() - 0.5) * 0.025,
-        targetX: tgt.x,
-        targetY: tgt.y,
-        slantX: -6 + symFan + (rng() - 0.5) * 1.4,
-        depthPull: 4.5,
-        gentleDrift: symFan * 0.25,
-        impactStyle: nextImpactStyle(),
-        timeScale,
-      }),
-    );
-  }
-  const w3DepthCount = reducedMotion ? 2 : 4;
-  for (let i = 0; i < w3DepthCount; i += 1) {
-    const isNear = i % 2 === 0;
-    stars.push(
-      buildStarEntry({
-        rng,
-        waveIndex: 3,
-        archetype: isNear ? 'celestial' : 'fragment',
-        depthTier: isNear ? 'near' : 'far',
-        impactTimeSec: 2.24 + i * 0.035,
-        targetX: 28 + i * 18,
-        targetY: isNear ? 88 + (i % 2) * 8 : -7 + (i % 2) * 10,
-        slantX: -6 + (rng() - 0.5) * 1.4,
-        depthPull: 4.5,
-        gentleDrift: 0.35,
-        impactStyle: nextImpactStyle(),
-        timeScale,
-      }),
-    );
-  }
+  // --- Brief Anticipation Beat (3.05s - 3.55s) -> ONE Final Colossal Meteor (3.55s - 4.35s) ---
+  const anticipationStart = 3.05 * timeScale;
+  const colossalStartSec = 3.55;
+  const colossalImpactSec = STARFALL_DAMAGE_STAGE_DEFS[STARFALL_DAMAGE_STAGE_DEFS.length - 1].impactTimeSec;
+  const colossalFallDur = colossalImpactSec - colossalStartSec;
+  const colossalMeteor = buildStarEntry({
+    rng,
+    streamPhase: 'colossal',
+    archetype: 'colossal',
+    depthTier: 'mid',
+    impactTimeSec: colossalImpactSec,
+    targetX: epicenter.x,
+    targetY: epicenter.y,
+    slantX: -22,
+    depthPull: 8,
+    gentleDrift: 0,
+    impactStyle: 'starburst',
+    timeScale,
+    forcedFallDur: colossalFallDur,
+    forcedBaseZ: 38 + clamp01(epicenter.y / 100) * 14,
+    forcedSpeedExp: 1.32,
+  });
+  stars.push(colossalMeteor);
 
-  // --- Wave 4: Final Nova Convergence (Stage 4 crest at 3.00s) — Symmetrical Crown Descent ---
-  const novaTime = STARFALL_DAMAGE_STAGE_DEFS[3].impactTimeSec * timeScale;
-  const finaleSpecs = [
-    { archetype: 'sovereign', dx: 0, dy: 0, slantX: -2, drift: 0, impactStyle: 'starburst' },
-    { archetype: 'sovereign', dx: -15, dy: -18, slantX: -6, drift: 0.6, impactStyle: 'crystal_shatter' },
-    { archetype: 'sovereign', dx: -15, dy: 18, slantX: -6, drift: -0.6, impactStyle: 'cross_flare' },
-    { archetype: 'celestial', dx: 16, dy: -16, slantX: 2, drift: 0.5, impactStyle: 'constellation_seal' },
-    { archetype: 'celestial', dx: 16, dy: 16, slantX: 2, drift: -0.5, impactStyle: 'nova_wave' },
-    { archetype: 'brilliant', dx: -24, dy: 0, slantX: -7, drift: 0, impactStyle: 'starburst' },
-    { archetype: 'brilliant', dx: 24, dy: 0, slantX: 3, drift: 0, impactStyle: 'cross_flare' },
-  ];
-  const finaleCount = reducedMotion ? 3 : quality === 'low' ? 4 : finaleSpecs.length;
-  for (let i = 0; i < finaleCount; i += 1) {
-    const spec = finaleSpecs[i];
-    const targetImpact = i === 0 ? 3.00 : 2.97 + (i % 2) * 0.02;
-    const fallDur = i < 3 ? 0.72 : 0.64;
-    stars.push(
-      buildStarEntry({
-        rng,
-        waveIndex: 4,
-        archetype: spec.archetype,
-        depthTier: 'mid',
-        impactTimeSec: targetImpact,
-        targetX: Math.max(18, Math.min(94, epicenter.x + spec.dx)),
-        targetY: Math.max(12, Math.min(88, epicenter.y + spec.dy)),
-        slantX: spec.slantX,
-        depthPull: 4,
-        gentleDrift: spec.drift,
-        impactStyle: spec.impactStyle,
-        timeScale,
-        forcedFallDur: fallDur,
-      }),
-    );
-  }
+  const novaTime = colossalImpactSec * timeScale;
 
-  // Sort strictly back-to-front by depthTier so nearer stars render over distant ones
+  // Sort back-to-front by depthTier (far -> mid -> near -> colossal)
   stars.sort((a, b) => a.depthOrder - b.depthOrder || a.startTime - b.startTime);
 
-  // 4. Grand Finale Nova Precomputed Rays, Shards & Lingering Motes
+  // 4. Colossal Meteor Impact Precomputed Rays, Shards & Lingering Motes
   const novaRays = [];
-  const rayCount = reducedMotion ? 12 : 20;
+  const rayCount = reducedMotion ? 14 : 24;
   for (let r = 0; r < rayCount; r += 1) {
     const isMajor = r % 2 === 0;
     novaRays.push({
-      angle: (Math.PI * 2 * r) / rayCount + (rng() - 0.5) * 0.06,
-      lengthMul: (isMajor ? 0.92 : 0.54) + rng() * 0.24,
-      width: (isMajor ? 5.2 : 2.6) + rng() * 1.4,
+      angle: (Math.PI * 2 * r) / rayCount + (rng() - 0.5) * 0.05,
+      lengthMul: (isMajor ? 0.96 : 0.58) + rng() * 0.24,
+      width: (isMajor ? 5.8 : 2.8) + rng() * 1.4,
       isCool: !isMajor && r % 4 === 1,
     });
   }
 
   const novaShards = [];
-  const novaShardCount = Math.max(12, Math.round(28 * scaleFactor));
+  const novaShardCount = Math.max(16, Math.round(36 * scaleFactor));
   for (let s = 0; s < novaShardCount; s += 1) {
     novaShards.push({
       angle: (Math.PI * 2 * s) / novaShardCount + (rng() - 0.5) * 0.22,
-      distMul: 0.45 + rng() * 0.78,
-      size: 2.6 + rng() * 3.8,
+      distMul: 0.45 + rng() * 0.84,
+      size: 2.8 + rng() * 4.2,
       isGlint: s % 3 === 0,
       isCool: s % 5 === 2,
       spin: (rng() - 0.5) * 4.5,
@@ -688,7 +572,7 @@ export function createStarfallPlan({
   }
 
   const lingeringMotes = [];
-  const moteCount = Math.max(16, Math.round(44 * scaleFactor));
+  const moteCount = Math.max(20, Math.round(52 * scaleFactor));
   for (let m = 0; m < moteCount; m += 1) {
     lingeringMotes.push({
       nx: 0.08 + rng() * 0.84,
@@ -714,12 +598,17 @@ export function createStarfallPlan({
     timeScale,
     reducedMotion: Boolean(reducedMotion),
     epicenter,
+    anticipationStart,
+    colossalStart: colossalStartSec * timeScale,
+    colossalImpact: novaTime,
+    colossalMeteor,
     novaTime,
-    novaDuration: Math.max(0.8, duration - novaTime),
+    novaDuration: Math.max(0.85, duration - novaTime),
     damageStages: STARFALL_DAMAGE_STAGE_DEFS.map((d) => ({
       index: d.index,
       id: d.id,
       name: d.name,
+      phase: d.phase,
       impactTime: Number((d.impactTimeSec * timeScale).toFixed(4)),
     })),
     canopyStars,
@@ -734,34 +623,34 @@ export function createStarfallPlan({
 
 /**
  * Returns synchronized camera impulses and screen flashes aligned to the
- * authoritative Starfall stage impact timeline.
+ * authoritative continuous shower and colossal impact timeline.
  */
 export function getStarfallCameraSchedule({ reducedMotion = false } = {}) {
   const timeScale =
     (reducedMotion ? STARFALL_REDUCED_DURATION_SEC : STARFALL_DURATION_SEC) /
     STARFALL_DURATION_SEC;
-  const stage2Time = Number((STARFALL_DAMAGE_STAGE_DEFS[1].impactTimeSec * timeScale).toFixed(4));
-  const stage3Time = Number((STARFALL_DAMAGE_STAGE_DEFS[2].impactTimeSec * timeScale).toFixed(4));
-  const stage4Time = Number((STARFALL_DAMAGE_STAGE_DEFS[3].impactTimeSec * timeScale).toFixed(4));
+  const showerMidA = Number((1.42 * timeScale).toFixed(4));
+  const showerMidB = Number((2.26 * timeScale).toFixed(4));
+  const colossalTime = Number((4.35 * timeScale).toFixed(4));
 
   if (reducedMotion) {
     return {
       impulses: [],
       flashes: [
         { delaySec: 0, color: '#fff6dc', durationSec: 0.28, maxAlpha: 0.14 },
-        { delaySec: stage4Time, color: '#fff8e2', durationSec: 0.42, maxAlpha: 0.16 },
+        { delaySec: colossalTime, color: '#fff8e2', durationSec: 0.44, maxAlpha: 0.18 },
       ],
     };
   }
   return {
     impulses: [
-      { delaySec: stage2Time, intensity: 3.0, durationSec: 0.22, dirX: 0.12, dirY: 1 },
-      { delaySec: stage3Time, intensity: 4.5, durationSec: 0.26, dirX: -0.1, dirY: 1 },
-      { delaySec: stage4Time, intensity: 7.5, durationSec: 0.38, dirX: 0, dirY: 1 },
+      { delaySec: showerMidA, intensity: 2.2, durationSec: 0.18, dirX: 0.12, dirY: 1 },
+      { delaySec: showerMidB, intensity: 2.8, durationSec: 0.20, dirX: -0.1, dirY: 1 },
+      { delaySec: colossalTime, intensity: 8.2, durationSec: 0.42, dirX: 0, dirY: 1 },
     ],
     flashes: [
       { delaySec: 0, color: '#fff6dc', durationSec: 0.34, maxAlpha: 0.18 },
-      { delaySec: stage4Time, color: '#fff8e2', durationSec: 0.54, maxAlpha: 0.32 },
+      { delaySec: colossalTime, color: '#fff8e2', durationSec: 0.56, maxAlpha: 0.34 },
     ],
   };
 }
@@ -930,7 +819,216 @@ function drawCurvedStarTrail(ctx, bf, w, h, star, uHead, vs, alpha) {
   return headAngle;
 }
 
+function drawColossalMeteor(ctx, bf, w, h, star, age, vs, reduced) {
+  const u = clamp01((age - star.startTime) / Math.max(0.05, star.fallDuration));
+  if (u <= 0 || u >= 1) return;
+
+  const entryFade = clamp01(u / 0.12);
+  const alpha = entryFade * star.brightness;
+
+  // Multi-layered colossal comet tail (outer atmospheric wake, gold plasma sheath, white core, cascading sparks)
+  const uTail = Math.max(0, u - star.trailSpan);
+  const count = MAX_TRAIL_SAMPLES;
+  for (let i = 0; i < count; i += 1) {
+    const s = i / (count - 1);
+    const tu = lerp(uTail, u, s);
+    evalStarWorldPoint(star, tu, _tmpWorldPt);
+    const sp = bf.worldToScreen(_tmpWorldPt.wx, _tmpWorldPt.wy, w, h, _tmpWorldPt.wz);
+    TRAIL_PTS[i].x = sp.x;
+    TRAIL_PTS[i].y = sp.y;
+  }
+
+  const head = TRAIL_PTS[count - 1];
+  const prev = TRAIL_PTS[count - 2];
+  const headAngle = Math.atan2(head.y - prev.y, head.x - prev.x);
+
+  const buildColossalRibbon = (maxW) => {
+    let lastNx = 0;
+    let lastNy = -1;
+    for (let i = 0; i < count; i += 1) {
+      const s = i / (count - 1);
+      const pA = TRAIL_PTS[Math.max(0, i - 1)];
+      const pB = TRAIL_PTS[Math.min(count - 1, i + 1)];
+      const dx = pB.x - pA.x;
+      const dy = pB.y - pA.y;
+      const len = Math.hypot(dx, dy);
+      let nx = lastNx;
+      let ny = lastNy;
+      if (len > 1e-4) {
+        nx = -dy / len;
+        ny = dx / len;
+        lastNx = nx;
+        lastNy = ny;
+      }
+      const taper = s >= 0.88 ? Math.sqrt(Math.max(0, (1 - s) / 0.12)) : Math.pow(s / 0.88, 1.25);
+      const hw = maxW * 0.5 * taper;
+      TRAIL_LEFT[i].x = TRAIL_PTS[i].x + nx * hw;
+      TRAIL_LEFT[i].y = TRAIL_PTS[i].y + ny * hw;
+      TRAIL_RIGHT[i].x = TRAIL_PTS[i].x - nx * hw;
+      TRAIL_RIGHT[i].y = TRAIL_PTS[i].y - ny * hw;
+    }
+  };
+
+  const traceColossalRibbon = () => {
+    ctx.beginPath();
+    ctx.moveTo(TRAIL_LEFT[0].x, TRAIL_LEFT[0].y);
+    for (let i = 1; i < count; i += 1) ctx.lineTo(TRAIL_LEFT[i].x, TRAIL_LEFT[i].y);
+    for (let i = count - 1; i >= 0; i -= 1) ctx.lineTo(TRAIL_RIGHT[i].x, TRAIL_RIGHT[i].y);
+    ctx.closePath();
+  };
+
+  const baseWidth = star.trailWidth * vs;
+  // Layer 1: Wide luminous pale-blue/champagne atmospheric wake
+  buildColossalRibbon(baseWidth * 2.45);
+  traceColossalRibbon();
+  ctx.fillStyle = withAlpha(STARFALL_PALETTE.paleBlue, alpha * 0.22);
+  ctx.fill();
+
+  // Layer 2: Rich golden celestial plasma sheath
+  buildColossalRibbon(baseWidth * 1.25);
+  traceColossalRibbon();
+  ctx.fillStyle = withAlpha(STARFALL_PALETTE.gold, alpha * 0.62);
+  ctx.fill();
+
+  // Layer 3: Intense champagne inner stream
+  buildColossalRibbon(baseWidth * 0.62);
+  traceColossalRibbon();
+  ctx.fillStyle = withAlpha(STARFALL_PALETTE.champagne, alpha * 0.84);
+  ctx.fill();
+
+  // Layer 4: Incandescent white spine
+  buildColossalRibbon(Math.max(2.2, baseWidth * 0.28));
+  traceColossalRibbon();
+  ctx.fillStyle = withAlpha(STARFALL_PALETTE.core, alpha * 0.96);
+  ctx.fill();
+
+  // Layer 5: Cascading diamond shards & 4-point sparks peeling along the colossal wake
+  for (let k = 2; k < count - 1; k += 2) {
+    const s = k / (count - 1);
+    const pt = TRAIL_PTS[k];
+    const side = k % 4 === 0 ? 1 : -1;
+    const off = side * baseWidth * (0.45 + (1 - s) * 0.55);
+    const sx = pt.x + Math.cos(headAngle + Math.PI * 0.5) * off;
+    const sy = pt.y + Math.sin(headAngle + Math.PI * 0.5) * off;
+    if (k % 4 === 0) {
+      drawDiamondPrism(ctx, sx, sy, 2.2 * vs, 4.8 * vs, headAngle + side * 0.35, {
+        color: STARFALL_PALETTE.gold,
+        secondaryColor: STARFALL_PALETTE.champagne,
+        coreColor: STARFALL_PALETTE.core,
+        alpha: alpha * s * 0.86,
+      });
+    } else {
+      drawStarFlare(
+        ctx,
+        sx,
+        sy,
+        (3.6 + s * 3.4) * vs,
+        0.16,
+        STARFALL_PALETTE.champagne,
+        STARFALL_PALETTE.core,
+        alpha * s * 0.88,
+        headAngle,
+        4,
+      );
+    }
+  }
+
+  // Monumental Colossal Head Silhouette
+  const baseR = 11.2 * star.size * vs; // ~37px base radius on 1280x720
+  const spin = reduced ? star.rotPhase : star.rotPhase + age * 1.45;
+
+  drawSoftBloom(ctx, head.x, head.y, baseR * 2.9, STARFALL_PALETTE.warmWhite, STARFALL_PALETTE.gold, alpha * 0.52);
+  drawSoftBloom(ctx, head.x, head.y, baseR * 1.55, STARFALL_PALETTE.core, STARFALL_PALETTE.champagne, alpha * 0.78);
+
+  // Sleek aerodynamic bow-shock crescent ahead of the colossal nose
+  ctx.save();
+  ctx.translate(head.x, head.y);
+  ctx.rotate(headAngle);
+  ctx.strokeStyle = withAlpha(STARFALL_PALETTE.core, alpha * 0.9);
+  ctx.lineWidth = 2.8 * vs;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.arc(0, 0, baseR * 1.28, -0.78, 0.78);
+  ctx.stroke();
+  ctx.strokeStyle = withAlpha(STARFALL_PALETTE.paleBlue, alpha * 0.52);
+  ctx.lineWidth = 5.4 * vs;
+  ctx.beginPath();
+  ctx.arc(0, 0, baseR * 1.38, -0.68, 0.68);
+  ctx.stroke();
+  ctx.restore();
+
+  // Multi-tiered 8-point sculpted crystalline core
+  drawBeveledStarShape(
+    ctx,
+    head.x,
+    head.y,
+    baseR * 1.34,
+    baseR * 0.34,
+    4,
+    spin + Math.PI * 0.25,
+    STARFALL_PALETTE.paleBlue,
+    STARFALL_PALETTE.champagne,
+    alpha * 0.9,
+  );
+  drawBeveledStarShape(
+    ctx,
+    head.x,
+    head.y,
+    baseR * 1.62,
+    baseR * 0.4,
+    4,
+    spin,
+    STARFALL_PALETTE.gold,
+    STARFALL_PALETTE.core,
+    alpha * 0.98,
+  );
+
+  // Commanding diffraction cross flares
+  drawStarFlare(
+    ctx,
+    head.x,
+    head.y,
+    baseR * 2.55,
+    0.075,
+    STARFALL_PALETTE.champagne,
+    STARFALL_PALETTE.core,
+    alpha * 0.96,
+    0,
+    4,
+  );
+
+  // Orbiting crystalline companion shards
+  for (let o = 0; o < star.orbiters.length; o += 1) {
+    const orb = star.orbiters[o];
+    const theta = orb.phase + (reduced ? 0 : age * orb.speed);
+    const orbitR = baseR * orb.radiusMul;
+    const lx = Math.cos(theta) * orbitR;
+    const ly = Math.sin(theta) * orbitR * orb.tilt;
+    const cosI = Math.cos(orb.inclination);
+    const sinI = Math.sin(orb.inclination);
+    const ox = head.x + lx * cosI - ly * sinI;
+    const oy = head.y + lx * sinI + ly * cosI;
+    drawStarFlare(
+      ctx,
+      ox,
+      oy,
+      baseR * orb.sizeMul * 1.35,
+      0.18,
+      o % 2 === 0 ? STARFALL_PALETTE.champagne : STARFALL_PALETTE.paleBlue,
+      STARFALL_PALETTE.core,
+      alpha * 0.94,
+      theta * 0.5,
+      4,
+    );
+  }
+}
+
 function drawFallingStarProjectile(ctx, bf, w, h, star, age, vs, reduced) {
+  if (star.archetype === 'colossal') {
+    drawColossalMeteor(ctx, bf, w, h, star, age, vs, reduced);
+    return;
+  }
+
   const u = clamp01((age - star.startTime) / Math.max(0.05, star.fallDuration));
   if (u <= 0 || u >= 1) return;
 
@@ -943,7 +1041,6 @@ function drawFallingStarProjectile(ctx, bf, w, h, star, age, vs, reduced) {
   const baseR = 9.5 * star.size * vs;
   const spin = reduced ? star.rotPhase : star.rotPhase + age * star.rotSpeed;
 
-  // Soft outer champagne-gold aura (subtle so core silhouette stays razor sharp)
   const bloomColor =
     star.chromaticTint === 'blue'
       ? STARFALL_PALETTE.paleBlue
@@ -952,7 +1049,6 @@ function drawFallingStarProjectile(ctx, bf, w, h, star, age, vs, reduced) {
         : STARFALL_PALETTE.gold;
 
   if (star.archetype === 'fragment') {
-    // Archetype 1: Elongated faceted crystalline spear-shard aligned along velocity
     drawSoftBloom(ctx, head.x, head.y, baseR * 1.4, STARFALL_PALETTE.champagne, bloomColor, alpha * 0.36);
     drawDiamondPrism(ctx, head.x, head.y, baseR * 0.42, baseR * 1.45, headAngle - Math.PI * 0.5, {
       color: STARFALL_PALETTE.gold,
@@ -965,7 +1061,6 @@ function drawFallingStarProjectile(ctx, bf, w, h, star, age, vs, reduced) {
   }
 
   if (star.archetype === 'brilliant') {
-    // Archetype 2: Sculpted 4-point faceted star with inner core diamond
     drawSoftBloom(ctx, head.x, head.y, baseR * 1.65, STARFALL_PALETTE.warmWhite, STARFALL_PALETTE.gold, alpha * 0.44);
     drawBeveledStarShape(
       ctx,
@@ -994,24 +1089,22 @@ function drawFallingStarProjectile(ctx, bf, w, h, star, age, vs, reduced) {
     return;
   }
 
-  // Archetype 3 ('celestial') & Archetype 4 ('sovereign'): Multi-layered 8-point crystalline stars + orbiters
-  const isSovereign = star.archetype === 'sovereign';
+  // Archetype 3 ('celestial'): Multi-layered 8-point crystalline star + orbiters
   drawSoftBloom(
     ctx,
     head.x,
     head.y,
-    baseR * (isSovereign ? 2.4 : 2.0),
+    baseR * 2.0,
     STARFALL_PALETTE.warmWhite,
     bloomColor,
-    alpha * (isSovereign ? 0.56 : 0.46),
+    alpha * 0.46,
   );
 
-  // Secondary rotated 4-point crystal layer (soft gold / pale chromatic accent)
   drawBeveledStarShape(
     ctx,
     head.x,
     head.y,
-    baseR * (isSovereign ? 1.28 : 1.12),
+    baseR * 1.12,
     baseR * 0.34,
     4,
     spin + Math.PI * 0.25,
@@ -1020,12 +1113,11 @@ function drawFallingStarProjectile(ctx, bf, w, h, star, age, vs, reduced) {
     alpha * 0.88,
   );
 
-  // Primary sculpted 8-point / 4-point white-gold crystalline body
   drawBeveledStarShape(
     ctx,
     head.x,
     head.y,
-    baseR * (isSovereign ? 1.56 : 1.32),
+    baseR * 1.32,
     baseR * 0.38,
     4,
     spin,
@@ -1034,12 +1126,11 @@ function drawFallingStarProjectile(ctx, bf, w, h, star, age, vs, reduced) {
     alpha * 0.98,
   );
 
-  // Diffraction cross glints for radiant gacha polish
   drawStarFlare(
     ctx,
     head.x,
     head.y,
-    baseR * (isSovereign ? 2.25 : 1.65),
+    baseR * 1.65,
     0.09,
     STARFALL_PALETTE.champagne,
     STARFALL_PALETTE.core,
@@ -1048,7 +1139,6 @@ function drawFallingStarProjectile(ctx, bf, w, h, star, age, vs, reduced) {
     4,
   );
 
-  // Tiny orbiting companion stars revolving in tilted ellipses
   for (let o = 0; o < star.orbiters.length; o += 1) {
     const orb = star.orbiters[o];
     const theta = orb.phase + (reduced ? 0 : age * orb.speed);
@@ -1059,21 +1149,6 @@ function drawFallingStarProjectile(ctx, bf, w, h, star, age, vs, reduced) {
     const sinI = Math.sin(orb.inclination);
     const ox = head.x + lx * cosI - ly * sinI;
     const oy = head.y + lx * sinI + ly * cosI;
-
-    // Hair-thin partial orbital arc behind satellite
-    if (!reduced) {
-      const prevTheta = theta - Math.sign(orb.speed) * 0.65;
-      const plx = Math.cos(prevTheta) * orbitR;
-      const ply = Math.sin(prevTheta) * orbitR * orb.tilt;
-      const pox = head.x + plx * cosI - ply * sinI;
-      const poy = head.y + plx * sinI + ply * cosI;
-      ctx.strokeStyle = withAlpha(STARFALL_PALETTE.champagne, alpha * 0.45);
-      ctx.lineWidth = 0.9 * vs;
-      ctx.beginPath();
-      ctx.moveTo(pox, poy);
-      ctx.lineTo(ox, oy);
-      ctx.stroke();
-    }
 
     drawStarFlare(
       ctx,
@@ -1104,7 +1179,7 @@ function drawStarGroundImpact(ctx, bf, w, h, star, age, vs) {
   const scaleY = center.scaleY || center.scale * 0.46;
 
   // Residual battlefield light pool at impact point
-  const baseWorldR = (star.archetype === 'sovereign' ? 12 : star.archetype === 'celestial' ? 8.5 : 5.5) * getDepthMultiplier(star.depthTier);
+  const baseWorldR = (star.archetype === 'colossal' ? 14 : star.archetype === 'celestial' ? 8.5 : 5.5) * getDepthMultiplier(star.depthTier);
   drawAmbientGroundLight(
     ctx,
     center.x,
@@ -1160,7 +1235,7 @@ function drawStarGroundImpact(ctx, bf, w, h, star, age, vs) {
           ctx,
           SCRATCH_NODES[i].x,
           SCRATCH_NODES[i].y,
-          (star.archetype === 'sovereign' ? 4.8 : 3.4) * vs,
+          (star.archetype === 'colossal' ? 5.4 : 3.4) * vs,
           0.22,
           STARFALL_PALETTE.gold,
           STARFALL_PALETTE.core,
@@ -1170,14 +1245,14 @@ function drawStarGroundImpact(ctx, bf, w, h, star, age, vs) {
         );
       }
 
-      if (star.archetype === 'sovereign' || star.archetype === 'celestial') {
+      if (star.archetype === 'colossal' || star.archetype === 'celestial') {
         const sealRx = star.groundMarkRadius * scaleX * grow;
         const sealRy = star.groundMarkRadius * scaleY * grow;
         drawSymmetricalSigilRing(ctx, center.x, center.y, sealRx, sealRy, {
-          count: star.archetype === 'sovereign' ? 8 : 4,
+          count: star.archetype === 'colossal' ? 8 : 4,
           arcFill: 0.56,
           rotation: star.rotPhase + p * 0.35,
-          lineWidth: (star.archetype === 'sovereign' ? 1.7 : 1.2) * vs,
+          lineWidth: (star.archetype === 'colossal' ? 1.9 : 1.2) * vs,
           color: STARFALL_PALETTE.gold,
           coreColor: STARFALL_PALETTE.warmWhite,
           alpha: markAlpha * 0.62,
@@ -1192,14 +1267,14 @@ function drawStarGroundImpact(ctx, bf, w, h, star, age, vs) {
   const waveRx = baseWorldR * scaleX * (0.28 + waveEase * 1.42);
   const waveRy = baseWorldR * scaleY * (0.28 + waveEase * 1.42);
   drawShockwaveRipple(ctx, center.x, center.y, waveRx, waveRy, {
-    width: (star.archetype === 'sovereign' ? 4.2 : star.archetype === 'celestial' ? 3.2 : 2.1) * (1 - p * 0.5) * vs,
+    width: (star.archetype === 'colossal' ? 4.6 : star.archetype === 'celestial' ? 3.2 : 2.1) * (1 - p * 0.5) * vs,
     color: star.chromaticTint === 'blue' ? STARFALL_PALETTE.paleBlue : STARFALL_PALETTE.gold,
     secondaryColor: STARFALL_PALETTE.champagne,
     coreColor: STARFALL_PALETTE.core,
     alpha: fade * 0.78 * star.brightness,
   });
 
-  if (star.archetype === 'sovereign' || star.archetype === 'celestial') {
+  if (star.archetype === 'colossal' || star.archetype === 'celestial') {
     const p2 = clamp01((p - 0.12) / 0.88);
     if (p2 > 0 && p2 < 1) {
       const r2 = easeOutCubic(p2);
@@ -1285,7 +1360,7 @@ function drawStarSkyImpact(ctx, bf, w, h, star, age, vs, reduced) {
       drawStarFlare(ctx, center.x, center.y, baseSize * (0.85 + expand * 1.3), 0.12, STARFALL_PALETTE.gold, STARFALL_PALETTE.core, burstEnv * 0.92, Math.PI * 0.25, 4);
     } else if (star.impactStyle === 'crystal_shatter') {
       // Radial faceted diamond crystals exploding outward
-      const crystalCount = star.archetype === 'sovereign' ? 7 : 5;
+      const crystalCount = star.archetype === 'colossal' ? 8 : 5;
       for (let c = 0; c < crystalCount; c += 1) {
         const ang = star.rotPhase + (Math.PI * 2 * c) / crystalCount;
         const dist = baseSize * (0.28 + expand * 1.35);
@@ -1309,8 +1384,8 @@ function drawStarSkyImpact(ctx, bf, w, h, star, age, vs, reduced) {
       });
       drawStarFlare(ctx, center.x, center.y, baseSize * 1.1, 0.14, STARFALL_PALETTE.champagne, STARFALL_PALETTE.core, burstEnv * 0.9, 0, 4);
     } else {
-      // 'nova_wave': 10 radial light streaks + crisp core glint
-      const rayNum = star.archetype === 'sovereign' ? 12 : 8;
+      // 'nova_wave': radial light streaks + crisp core glint
+      const rayNum = star.archetype === 'colossal' ? 12 : 8;
       for (let r = 0; r < rayNum; r += 1) {
         const ang = star.rotPhase + (Math.PI * 2 * r) / rayNum;
         const rIn = baseSize * (0.2 + expand * 0.45);
@@ -1487,6 +1562,81 @@ function drawAstraDaisSummoning(ctx, bf, w, h, plan, age, daisRect, vs) {
   }
 }
 
+function drawColossalAnticipation(ctx, bf, w, h, plan, age, vs, layer) {
+  const antStart = plan.anticipationStart ?? 3.05 * plan.timeScale;
+  const colStart = plan.colossalStart ?? 3.55 * plan.timeScale;
+  const colImpact = plan.colossalImpact ?? plan.novaTime;
+  if (age < antStart || age > colImpact) return;
+
+  const antSpan = Math.max(0.15, colStart - antStart);
+  const antRatio = clamp01((age - antStart) / antSpan);
+  const flightRatio = clamp01((age - colStart) / Math.max(0.1, colImpact - colStart));
+
+  if (layer === 'ground') {
+    const center = bf.worldToScreen(plan.epicenter.x, plan.epicenter.y, w, h);
+    const scaleX = center.scaleX || center.scale * 0.88;
+    const scaleY = center.scaleY || center.scale * 0.46;
+    const gatherAlpha = clamp01(antRatio * 1.4) * (0.45 + 0.55 * flightRatio);
+
+    // Growing convergence ground illumination beneath colossal descent
+    drawAmbientGroundLight(ctx, center.x, center.y, 26 * scaleX, 26 * scaleY, {
+      color: STARFALL_PALETTE.gold,
+      secondaryColor: STARFALL_PALETTE.champagne,
+      coreColor: STARFALL_PALETTE.warmWhite,
+      alpha: gatherAlpha * 0.48,
+    });
+
+    // Contracting celestial focus ring signaling the imminent colossal impact
+    const shrink = 1.35 - antRatio * 0.35 - flightRatio * 0.32;
+    drawSymmetricalSigilRing(ctx, center.x, center.y, 16 * scaleX * shrink, 16 * scaleY * shrink, {
+      count: 4,
+      arcFill: 0.58,
+      rotation: plan.reducedMotion ? 0 : age * 0.85,
+      lineWidth: 1.6 * vs,
+      color: STARFALL_PALETTE.champagne,
+      coreColor: STARFALL_PALETTE.core,
+      alpha: gatherAlpha * 0.72,
+      tickStyle: 'compass',
+    });
+    return;
+  }
+
+  // Sky layer: luminous sky rift opens at upper colossal trajectory entry point
+  const riftEnd = colStart + 0.3 * plan.timeScale;
+  if (age > riftEnd || !plan.colossalMeteor) return;
+  const riftEnv = smoothWindow((age - antStart) / Math.max(0.15, riftEnd - antStart), 0.25, 0.65, 1.0);
+  if (riftEnv <= 0.02) return;
+
+  evalStarWorldPoint(plan.colossalMeteor, 0.25, _tmpWorldPt);
+  const sp = bf.worldToScreen(_tmpWorldPt.wx, _tmpWorldPt.wy, w, h, _tmpWorldPt.wz);
+  const rx = sp.x;
+  const ry = Math.max(28, Math.min(h * 0.22, sp.y));
+
+  drawSoftBloom(ctx, rx, ry, 58 * vs, STARFALL_PALETTE.core, STARFALL_PALETTE.paleBlue, riftEnv * 0.55);
+  drawSoftBloom(ctx, rx, ry, 34 * vs, STARFALL_PALETTE.core, STARFALL_PALETTE.gold, riftEnv * 0.82);
+
+  // Converging light filaments drawing into the sky portal before colossal release
+  const rayCount = 6;
+  const reach = (52 - antRatio * 24) * vs;
+  for (let i = 0; i < rayCount; i += 1) {
+    const a = (Math.PI * 2 * i) / rayCount + (plan.reducedMotion ? 0 : age * 0.6);
+    drawTaperedNeedle(
+      ctx,
+      rx + Math.cos(a) * reach,
+      ry + Math.sin(a) * reach * 0.55,
+      rx + Math.cos(a) * (4 * vs),
+      ry + Math.sin(a) * (2.5 * vs),
+      {
+        width: 2.2 * vs,
+        color: i % 2 === 0 ? STARFALL_PALETTE.champagne : STARFALL_PALETTE.paleBlue,
+        coreColor: STARFALL_PALETTE.core,
+        alpha: riftEnv * 0.78,
+      },
+    );
+  }
+  drawStarFlare(ctx, rx, ry, (18 + antRatio * 14) * vs, 0.1, STARFALL_PALETTE.champagne, STARFALL_PALETTE.core, riftEnv * 0.96, 0, 4);
+}
+
 function drawGrandFinaleGround(ctx, bf, w, h, plan, age, vs) {
   const dt = age - plan.novaTime;
   const buildup = clamp01((age - (plan.novaTime - 0.55)) / 0.55);
@@ -1586,13 +1736,13 @@ function drawGrandFinaleSky(ctx, bf, w, h, plan, age, vs) {
       ctx.fillRect(0, 0, w, h);
     }
 
-    // 2. Radiant Golden-White Nova Burst (gradient-tapered rays + translucent layered starburst)
-    const burstAlpha = smoothWindow(p, 0.04, 0.22, 0.78);
+    // 2. Radiant Golden-White Colossal Impact Burst (gradient-tapered rays + translucent layered starburst)
+    const burstAlpha = smoothWindow(p, 0.03, 0.24, 0.82);
     if (burstAlpha > 0.015) {
-      const rayReach = Math.max(w, h) * (0.14 + easeOutQuart(Math.min(1, p * 1.45)) * 0.25);
+      const rayReach = Math.max(w, h) * (0.16 + easeOutQuart(Math.min(1, p * 1.45)) * 0.3);
       for (let i = 0; i < plan.novaRays.length; i += 1) {
         const ray = plan.novaRays[i];
-        const rIn = rayReach * 0.06;
+        const rIn = rayReach * 0.05;
         const rOut = rayReach * ray.lengthMul;
         const x1 = center.x + Math.cos(ray.angle) * rIn;
         const y1 = center.y + Math.sin(ray.angle) * rIn * 0.68;
@@ -1602,16 +1752,16 @@ function drawGrandFinaleSky(ctx, bf, w, h, plan, age, vs) {
 
         if (typeof ctx.createLinearGradient === 'function') {
           const rayGrad = ctx.createLinearGradient(x1, y1, x2, y2);
-          rayGrad.addColorStop(0, withAlpha(STARFALL_PALETTE.core, burstAlpha * 0.76));
-          rayGrad.addColorStop(0.32, withAlpha(STARFALL_PALETTE.champagne, burstAlpha * 0.5));
-          rayGrad.addColorStop(0.72, withAlpha(rayCol, burstAlpha * 0.22));
+          rayGrad.addColorStop(0, withAlpha(STARFALL_PALETTE.core, burstAlpha * 0.82));
+          rayGrad.addColorStop(0.32, withAlpha(STARFALL_PALETTE.champagne, burstAlpha * 0.56));
+          rayGrad.addColorStop(0.72, withAlpha(rayCol, burstAlpha * 0.24));
           rayGrad.addColorStop(1, withAlpha(rayCol, 0));
           ctx.strokeStyle = rayGrad;
         } else {
           ctx.strokeStyle = withAlpha(rayCol, burstAlpha * 0.45);
         }
         ctx.lineCap = 'round';
-        ctx.lineWidth = Math.max(1.0, ray.width * (1 - p * 0.5) * 0.72 * vs);
+        ctx.lineWidth = Math.max(1.1, ray.width * (1 - p * 0.48) * 0.78 * vs);
         ctx.beginPath();
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
@@ -1619,9 +1769,9 @@ function drawGrandFinaleSky(ctx, bf, w, h, plan, age, vs) {
       }
 
       // Layered translucent golden-white bloom + delicate prismatic sky crown (keeps center units legible)
-      const coreR = (44 + easeOutCubic(Math.min(1, p * 2)) * 78) * vs;
-      drawSoftBloom(ctx, center.x, center.y, coreR * 1.45, STARFALL_PALETTE.core, STARFALL_PALETTE.champagne, burstAlpha * 0.56);
-      drawSoftBloom(ctx, center.x, center.y, coreR * 0.85, STARFALL_PALETTE.core, STARFALL_PALETTE.gold, burstAlpha * 0.72);
+      const coreR = (58 + easeOutCubic(Math.min(1, p * 2.1)) * 96) * vs;
+      drawSoftBloom(ctx, center.x, center.y, coreR * 1.5, STARFALL_PALETTE.core, STARFALL_PALETTE.champagne, burstAlpha * 0.6);
+      drawSoftBloom(ctx, center.x, center.y, coreR * 0.9, STARFALL_PALETTE.core, STARFALL_PALETTE.gold, burstAlpha * 0.76);
 
       // Subtle pale-blue & champagne sky refraction halo
       drawEllipticalHalo(ctx, center.x, center.y, coreR * 0.72, coreR * 0.42, {
@@ -1773,6 +1923,7 @@ export function drawAstraStarfallWorldEffect(
         }
       }
 
+      drawColossalAnticipation(ctx, bf, w, h, plan, age, vs, 'ground');
       drawGrandFinaleGround(ctx, bf, w, h, plan, age, vs);
       return;
     }
@@ -1784,11 +1935,14 @@ export function drawAstraStarfallWorldEffect(
       // 2. Astra Commander Dais Summoning Ribbons & Ally Healing Motes
       drawAstraDaisSummoning(ctx, bf, w, h, plan, age, daisRect, vs);
 
-      // 3. Sky Emergence Rifts + Falling Star Projectiles (depth-sorted far -> mid -> near)
+      // 3. Anticipation Sky Portal before Colossal Meteor
+      drawColossalAnticipation(ctx, bf, w, h, plan, age, vs, 'sky');
+
+      // 4. Sky Emergence Rifts + Falling Star Projectiles (depth-sorted far -> mid -> near -> colossal)
       for (let i = 0; i < stars.length; i += 1) {
         const star = stars[i];
         const riftDt = age - (star.startTime - 0.16 * plan.timeScale);
-        if (riftDt > 0 && riftDt < 0.42 * plan.timeScale) {
+        if (star.archetype !== 'colossal' && riftDt > 0 && riftDt < 0.42 * plan.timeScale) {
           const rp = clamp01(riftDt / (0.42 * plan.timeScale));
           const riftEnv = Math.sin(rp * Math.PI);
           evalStarWorldPoint(star, 0, _tmpWorldPt);
@@ -1814,7 +1968,7 @@ export function drawAstraStarfallWorldEffect(
         }
       }
 
-      // 4. Multi-Layered Star Impacts
+      // 5. Multi-Layered Star Impacts
       for (let i = 0; i < stars.length; i += 1) {
         const star = stars[i];
         if (age >= star.impactTime && age <= star.impactTime + star.impactDuration) {
@@ -1822,7 +1976,7 @@ export function drawAstraStarfallWorldEffect(
         }
       }
 
-      // 5. Phase Four — Grand Finale Celestial Nova & Dissipation
+      // 6. Colossal Meteor Massive Final Impact & Lingering Celestial Aftermath
       drawGrandFinaleSky(ctx, bf, w, h, plan, age, vs);
     }
   } finally {

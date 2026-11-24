@@ -49,6 +49,12 @@ import {
   drawProgressiveLaserBeam,
   createDetRng,
 } from './NonUnitVfxGeometry.js';
+import {
+  drawGearWheel,
+  drawHexShieldTile,
+  drawFacetedCrystal,
+  quadTo,
+} from './UnitObjectModelHelpers.js';
 
 export function isUnitAttackWorldEffect(kind) {
   return UNIT_ATTACK_FX_KIND_SET.has(kind);
@@ -2215,6 +2221,69 @@ function _drawCastEffect(ctx, bf, w, h, fx, layer, t, profile, pal, unitByUid = 
       rotation: angle,
       steps: 14,
     });
+  } else if (style === 'sunwheel_cast_sigil') {
+    // Solar Pyromancer miniature corona & extending solar rays around sun body
+    const coronaR = (13 + easeOutCubic(t) * 8) * s;
+    drawSoftBloom(ctx, p.x, p.y - 2 * s, coronaR * 1.15, pal.core, pal.primary, env * 0.65);
+    drawEllipticalHalo(ctx, p.x, p.y - 2 * s, coronaR, coronaR, {
+      lineWidth: 1.8 * s,
+      color: pal.secondary,
+      coreColor: pal.core,
+      alpha: env * 0.9,
+    });
+    for (let i = 0; i < 8; i += 1) {
+      const a = (i * Math.PI) / 4 + t * 2.4;
+      const r0 = 9 * s;
+      const r1 = (16 + easeOutCubic(t) * 10) * s;
+      drawTaperedNeedle(
+        ctx,
+        p.x + Math.cos(a) * r0,
+        p.y - 2 * s + Math.sin(a) * r0,
+        p.x + Math.cos(a) * r1,
+        p.y - 2 * s + Math.sin(a) * r1,
+        {
+          width: 2.6 * s,
+          color: i % 2 === 0 ? pal.secondary : pal.primary,
+          coreColor: pal.core,
+          alpha: env * 0.92,
+          peakRatio: 0.35,
+        },
+      );
+    }
+  } else if (style === 'clocktick_rune_pulse' || style === 'boss_astrolabe_gate') {
+    // Chrono Weaver / Vael: orbiting gear alignment & spinning clock-hand flash
+    const isBoss = style === 'boss_astrolabe_gate';
+    const r = (isBoss ? 19 : 13) * s;
+    for (let i = 0; i < 3; i += 1) {
+      const ga = (i * Math.PI * 2) / 3 + t * 2.0;
+      drawGearWheel(ctx, p.x + Math.cos(ga) * r, p.y + Math.sin(ga) * r * 0.72, (isBoss ? 5.2 : 3.8) * s, 6, t * 4, {
+        fill: pal.spark || pal.secondary,
+        stroke: '#0c081d',
+        holeFill: pal.primary,
+        alpha: env * 0.9,
+      });
+    }
+    drawClockfaceDial(ctx, p.x, p.y, r * 0.95, r * 0.95, {
+      rotation: -t * 1.8,
+      handAngle1: -Math.PI * 0.5 + t * 4.2,
+      handAngle2: Math.PI * 0.3 - t * 2.1,
+      color: pal.primary,
+      secondaryColor: pal.spark || pal.secondary,
+      coreColor: pal.core,
+      alpha: env * 0.88,
+      lineWidth: 1.4 * s,
+    });
+  } else if (style === 'kinetic_brace') {
+    // Living Winged Shield forward kinetic barrier crest
+    drawGeodesicHexPlate(ctx, mx, my, 8.5 * s, 11 * s, {
+      rotation: angle,
+      color: pal.primary,
+      secondaryColor: pal.secondary,
+      coreColor: pal.core,
+      fillAlpha: env * 0.22,
+      strokeAlpha: env * 0.9,
+      lineWidth: 1.6 * s,
+    });
   } else {
     drawSoftBloom(ctx, mx, my, 10 * s, pal.core, pal.primary, env * 0.48);
     drawStarFlare(ctx, mx, my, 9 * s * (1 - t * 0.35), 0.16, pal.secondary, pal.core, env * 0.9, angle + t * 0.5, 4);
@@ -3452,6 +3521,12 @@ function _drawImpactEffect(ctx, bf, w, h, fx, layer, t, profile, pal, unitByUid 
       const r = (16 + ease * 18) * s;
       const hPillar = (30 + ease * 18) * s;
       drawSoftBloom(ctx, p.x, p.y, r * 1.15, pal.core, pal.primary, env * 0.56);
+      drawEllipticalHalo(ctx, p.x, p.y + 4 * s, r * 1.15, r * 0.56, {
+        lineWidth: 2.0 * s * (1 - t * 0.45),
+        color: pal.secondary,
+        coreColor: pal.core,
+        alpha: env * 0.85,
+      });
       drawTaperedBeamSpire(ctx, p.x, p.y + 8 * s, p.y - hPillar, {
         baseWidth: 16 * s * (1 - t * 0.45),
         topWidth: 2.5 * s,
@@ -3769,28 +3844,153 @@ function _drawHitEffect(ctx, bf, w, h, fx, layer, t, profile, pal) {
 }
 
 // ----------------------------------------------------------------------------
-// 2E. UNIT / ELITE / BOSS ABILITY RESOLUTION VFX (ua_ability)
+// 2E. BESPOKE 24-ABILITY SIGNATURE SKILL VFX (ua_ability)
+// Every unit, elite, and boss skill has its own visual language matching its
+// chibi object identity (miniature suns, layered clock rings, interlocking shields,
+// pinwheel cyclones, forge wedges, geodesic honeycombs, buzz-saw shredders, etc.).
 // ----------------------------------------------------------------------------
 function _drawUnitAbilityEffect(ctx, bf, w, h, fx, layer, t, profile, pal) {
   const gp = bf.worldToScreen(fx.x, fx.y, w, h, 0);
   const sp = bf.worldToScreen(fx.x, fx.y, w, h, 3.2);
   const ease = easeOutQuart(t);
-  const env = smoothWindow(t, 0.14, 0.34, 1.0);
+  const env = smoothWindow(t, 0.12, 0.38, 1.0);
   if (env <= 0.01) return;
 
+  const s = Math.max(0.75, Math.min(1.65, (gp.scale / 8.0) * (fx.scale || profile.scale || 1)));
   const worldR = Math.max(7, fx.radius || 14);
-  const rx = worldR * (gp.scaleX ?? gp.scale * 0.88) * (0.35 + ease * 0.72);
-  const ry = worldR * (gp.scaleY ?? gp.scale * 0.48) * (0.35 + ease * 0.72);
+  const rx = worldR * (gp.scaleX ?? gp.scale * 0.88) * (0.32 + ease * 0.75);
+  const ry = worldR * (gp.scaleY ?? gp.scale * 0.48) * (0.32 + ease * 0.75);
   const kind = fx.meta?.abilityKind || 'aoe_damage';
+  const abId = fx.meta?.abilityId || '';
+  const pid = profile?.id || fx.profileId || '';
   const abColor = fx.color || pal.primary;
 
+  // ---------------- GROUND LAYER ----------------
   if (layer === 'ground') {
+    if (abId === 'unit_solar_flare' || abId === 'boss_orbital_cataclysm') {
+      const isBoss = abId === 'boss_orbital_cataclysm';
+      // 3 expanding concentric radiant sunlight waves
+      for (let wIdx = 0; wIdx < 3; wIdx += 1) {
+        const wt = clamp01((t - wIdx * 0.12) / (1 - wIdx * 0.12));
+        if (wt <= 0.01) continue;
+        const wr = (0.28 + easeOutCubic(wt) * 0.78) * (isBoss ? rx * 1.15 : rx);
+        const wy = wr * (ry / Math.max(1, rx));
+        drawEllipticalHalo(ctx, gp.x, gp.y, wr, wy, {
+          lineWidth: (isBoss ? 2.8 : 2.1) * s * (1 - wt * 0.5),
+          color: wIdx === 1 ? pal.secondary : abColor,
+          coreColor: pal.core,
+          alpha: (1 - wt) * 0.9,
+        });
+      }
+      drawSymmetricalSigilRing(ctx, gp.x, gp.y, rx * 0.88, ry * 0.88, {
+        count: 8,
+        arcFill: 0.58,
+        rotation: t * 1.8,
+        lineWidth: 2.0 * s,
+        color: abColor,
+        coreColor: pal.core,
+        alpha: env * 0.85,
+        tickStyle: 'compass',
+      });
+      if (isBoss) {
+        drawRadialGroundCracks(ctx, gp.x, gp.y, rx * 0.92, ry * 0.92, {
+          count: 8,
+          seed: fx.seed || 77,
+          color: abColor,
+          coreColor: pal.core,
+          alpha: env * 0.82,
+          lineWidth: 2.0 * s,
+        });
+      }
+      return;
+    }
+
+    if (abId === 'unit_chrono_snare' || abId === 'boss_temporal_collapse' || abId === 'boss_phase_mend') {
+      const isBoss = abId === 'boss_temporal_collapse';
+      const isMend = abId === 'boss_phase_mend';
+      const spinDir = isMend ? -1 : 1;
+      // Layered counter-rotating Roman clockface ground dials
+      drawSoftBloom(ctx, gp.x, gp.y, rx * 0.95, pal.core, abColor, env * 0.28, ry / Math.max(1, rx));
+      drawClockfaceDial(ctx, gp.x, gp.y, rx, ry, {
+        rotation: t * 1.4 * spinDir,
+        handAngle1: -Math.PI * 0.5 + t * 4.5 * spinDir,
+        handAngle2: Math.PI * 0.2 - t * 2.2 * spinDir,
+        color: abColor,
+        secondaryColor: pal.spark || pal.secondary,
+        coreColor: pal.core,
+        alpha: env * 0.92,
+        lineWidth: (isBoss ? 2.4 : 1.8) * s,
+      });
+      drawClockfaceDial(ctx, gp.x, gp.y, rx * 0.62, ry * 0.62, {
+        rotation: -t * 2.2 * spinDir,
+        handAngle1: t * 3.0 * spinDir,
+        handAngle2: -t * 5.0 * spinDir,
+        color: pal.secondary,
+        secondaryColor: pal.core,
+        coreColor: pal.core,
+        alpha: env * 0.85,
+        lineWidth: 1.4 * s,
+      });
+      return;
+    }
+
+    if (abId === 'enemy_tremor_slam') {
+      drawSoftBloom(ctx, gp.x, gp.y, rx, pal.secondary, abColor, env * 0.34, ry / Math.max(1, rx));
+      drawRadialGroundCracks(ctx, gp.x, gp.y, rx * 0.95, ry * 0.95, {
+        count: 7,
+        seed: fx.seed || 51,
+        color: abColor,
+        coreColor: pal.core,
+        alpha: env * 0.88,
+        lineWidth: 2.1 * s,
+      });
+      drawEllipticalHalo(ctx, gp.x, gp.y, rx, ry, {
+        lineWidth: 2.5 * s * (1 - t * 0.4),
+        color: abColor,
+        coreColor: pal.core,
+        alpha: env * 0.85,
+      });
+      return;
+    }
+
+    if (abId === 'unit_aegis_pulse' || abId === 'boss_aegis_shell' || abId === 'mod_ability_bulwark_aura') {
+      drawSoftBloom(ctx, gp.x, gp.y, rx * 0.9, pal.core, abColor, env * 0.22, ry / Math.max(1, rx));
+      drawSymmetricalSigilRing(ctx, gp.x, gp.y, rx, ry, {
+        count: 6,
+        arcFill: 0.72,
+        rotation: t * 0.9,
+        lineWidth: 2.2 * s * (1 - t * 0.35),
+        color: abColor,
+        coreColor: pal.core,
+        alpha: env * 0.9,
+        tickStyle: 'diamond',
+        innerRingRatio: 0.66,
+        innerAlpha: 0.65,
+      });
+      return;
+    }
+
+    if (abId === 'unit_flank_surge' || abId === 'enemy_dread_rally' || abId === 'boss_war_banner' || abId === 'mod_ability_warlord_aura') {
+      for (let rIdx = 0; rIdx < 2; rIdx += 1) {
+        const rr = rx * (0.55 + rIdx * 0.38);
+        const rry = ry * (0.55 + rIdx * 0.38);
+        drawEllipticalHalo(ctx, gp.x, gp.y, rr, rry, {
+          lineWidth: (2.2 - rIdx * 0.6) * s,
+          color: rIdx === 0 ? abColor : pal.secondary,
+          coreColor: pal.core,
+          alpha: env * (0.9 - rIdx * 0.2),
+        });
+      }
+      return;
+    }
+
+    // Default structured ground sigil for remaining abilities
     drawSoftBloom(ctx, gp.x, gp.y, rx * 0.95, pal.core, abColor, env * 0.25, ry / Math.max(1, rx));
     drawSymmetricalSigilRing(ctx, gp.x, gp.y, rx, ry, {
       count: kind === 'ally_barrier' || kind === 'self_defense' ? 6 : 4,
       arcFill: 0.66,
       rotation: t * 1.4,
-      lineWidth: 2.4 * (1 - t * 0.4),
+      lineWidth: 2.3 * (1 - t * 0.4),
       color: abColor,
       coreColor: pal.core,
       alpha: env * 0.88,
@@ -3798,19 +3998,466 @@ function _drawUnitAbilityEffect(ctx, bf, w, h, fx, layer, t, profile, pal) {
       innerRingRatio: 0.64,
       innerAlpha: 0.55,
     });
-    if (kind === 'aoe_damage' && profile.usesGroundCracks) {
-      drawRadialGroundCracks(ctx, gp.x, gp.y, rx * 0.88, ry * 0.88, {
-        count: 8,
-        seed: fx.seed || 99,
-        color: abColor,
+    return;
+  }
+
+  // ---------------- SKY LAYER (All 24 Signature Skill VFX) ----------------
+
+  // 1. SOLAR PYROMANCER — Volumetric Miniature Sun + Curved Prominence Loops + Expanding Corona
+  if (abId === 'unit_solar_flare') {
+    const sunY = sp.y - (20 + Math.sin(t * Math.PI) * 14) * s;
+    const sunR = (13 + ease * 8) * (1 - Math.max(0, t - 0.72) * 2.5) * s;
+    drawSoftBloom(ctx, sp.x, sunY, Math.max(4, sunR * 2.6), pal.core, abColor, env * 0.8);
+
+    // Curved magnetic solar prominence arcs swirling around miniature sun
+    for (let i = 0; i < 6; i += 1) {
+      const a = (i * Math.PI) / 3 + t * 2.6;
+      const loopR = Math.max(5, sunR * (1.35 + 0.35 * ease));
+      ctx.save();
+      ctx.translate(sp.x, sunY);
+      ctx.rotate(a);
+      ctx.strokeStyle = withAlpha(i % 2 === 0 ? pal.secondary : abColor, env * 0.9);
+      ctx.lineWidth = (3.2 - t * 1.4) * s;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(sunR * 0.45, -sunR * 0.28);
+      quadTo(ctx, loopR * 1.3, 0, sunR * 0.45, sunR * 0.28);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Incandescent granulated solar core sphere + bronze astrolabe arc
+    if (sunR > 3) {
+      const coreG = ctx.createRadialGradient(sp.x - sunR * 0.2, sunY - sunR * 0.2, sunR * 0.1, sp.x, sunY, sunR);
+      coreG.addColorStop(0, '#ffffff');
+      coreG.addColorStop(0.5, pal.secondary);
+      coreG.addColorStop(1, abColor);
+      ctx.fillStyle = coreG;
+      ctx.beginPath();
+      ctx.arc(sp.x, sunY, sunR * 0.78, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Concentric volumetric solar flare wave + connecting prominence beam
+    drawTaperedBeamSpire(ctx, sp.x, gp.y, sunY, {
+      baseWidth: 18 * s * (1 - t * 0.35),
+      topWidth: 6 * s,
+      tipHeight: 12 * s,
+      color: abColor,
+      secondaryColor: pal.secondary,
+      coreColor: pal.core,
+      alpha: env * 0.84,
+      mode: 'lance',
+    });
+    drawStarFlare(ctx, sp.x, sunY, Math.max(4, sunR * 1.55), 0.16, pal.secondary, '#ffffff', env * 0.98, t * 2, 8);
+    return;
+  }
+
+  // 2. CHRONO WEAVER & VAEL — Dimensional Astrolabe Rings, Aligned Gears & Time Fractures
+  if (abId === 'unit_chrono_snare' || abId === 'boss_temporal_collapse') {
+    const isBoss = abId === 'boss_temporal_collapse';
+    const dialR = (isBoss ? 36 : 24) * s * (0.7 + ease * 0.35);
+    const cy = sp.y - 7 * s;
+
+    // Angled 2.5D tilted temporal astrolabe rings
+    for (const tilt of [-0.42, 0.42]) {
+      ctx.save();
+      ctx.translate(sp.x, cy);
+      ctx.rotate(tilt + t * (tilt > 0 ? 1.4 : -1.4));
+      drawEllipticalHalo(ctx, 0, 0, dialR * 1.15, dialR * 0.44, {
+        lineWidth: (isBoss ? 2.6 : 1.9) * s,
+        color: tilt > 0 ? '#e2b75b' : abColor,
         coreColor: pal.core,
-        alpha: env * 0.74,
-        lineWidth: 1.8,
+        alpha: env * 0.88,
+      });
+      ctx.restore();
+    }
+
+    // 4 luminous brass-cyan astrolabe nodes moving into perimeter alignment
+    for (let i = 0; i < 4; i += 1) {
+      const a = (i * Math.PI) / 2 + t * (isBoss ? 1.8 : 1.2);
+      const gx = sp.x + Math.cos(a) * dialR * 0.95;
+      const gy = cy + Math.sin(a) * dialR * 0.65;
+      const nodeR = (isBoss ? 5.2 : 3.8) * s;
+      drawSoftBloom(ctx, gx, gy, nodeR * 1.9, '#ffffff', abColor, env * 0.45);
+      drawStarFlare(ctx, gx, gy, nodeR * 1.35, 0.24, '#e2b75b', '#ffffff', env * 0.95, t * 2.5 + i, 4);
+    }
+
+    // Sweeping Roman clockface dial + radial time-fracture shards
+    drawClockfaceDial(ctx, sp.x, cy, dialR, dialR * 0.8, {
+      rotation: t * 1.6,
+      handAngle1: -Math.PI * 0.5 + t * 5.2,
+      handAngle2: Math.PI * 0.25 - t * 3.1,
+      color: abColor,
+      secondaryColor: '#e2b75b',
+      coreColor: pal.core,
+      alpha: env * 0.96,
+      lineWidth: (isBoss ? 2.5 : 1.9) * s,
+    });
+    for (let k = 0; k < 6; k += 1) {
+      const a = (k * Math.PI) / 3 + Math.PI / 6;
+      const rIn = dialR * 0.35;
+      const rOut = dialR * (0.85 + ease * 0.35);
+      drawTaperedNeedle(
+        ctx,
+        sp.x + Math.cos(a) * rIn,
+        cy + Math.sin(a) * rIn * 0.72,
+        sp.x + Math.cos(a) * rOut,
+        cy + Math.sin(a) * rOut * 0.72,
+        {
+          width: 2.6 * s * (1 - t * 0.4),
+          color: pal.secondary,
+          coreColor: '#ffffff',
+          alpha: env * 0.92,
+          peakRatio: 0.45,
+        },
+      );
+    }
+    return;
+  }
+
+  // 3. BOSS CHRONO ARBITER VAEL (boss_phase_mend) — Backwards-spinning emerald-gold rewind dial
+  if (abId === 'boss_phase_mend') {
+    const dialR = 26 * s;
+    drawClockfaceDial(ctx, sp.x, sp.y - 8 * s, dialR, dialR * 0.85, {
+      rotation: -t * 3.0,
+      handAngle1: -t * 7.5,
+      handAngle2: -t * 3.8,
+      color: '#34d399',
+      secondaryColor: '#fde047',
+      coreColor: '#ecfdf5',
+      alpha: env * 0.95,
+      lineWidth: 2.2 * s,
+    });
+    // Ascending golden rewind hourglass sand particles
+    for (let i = 0; i < 6; i += 1) {
+      const ox = Math.sin(i * 1.9 + t * 4) * 14 * s;
+      const oy = gp.y - ((t * 48 + i * 9) % 42) * s;
+      drawDiamondPrism(ctx, sp.x + ox, oy, 3.2 * s, 2.0 * s, 0, {
+        color: '#34d399',
+        secondaryColor: '#fde047',
+        coreColor: '#ffffff',
+        alpha: env * 0.9,
       });
     }
     return;
   }
 
+  // 4. HEAVY DEFENDER — 4 interlocking gilded kite-shield battlements around unit
+  if (abId === 'unit_bulwark_guard') {
+    for (let i = 0; i < 4; i += 1) {
+      const a = (i * Math.PI) / 2 + t * 1.1;
+      const ox = Math.cos(a) * (17 + ease * 6) * s;
+      const oy = Math.sin(a) * (10 + ease * 3) * s;
+      drawHexShieldTile(ctx, sp.x + ox, sp.y - 4 * s + oy, 7.5 * s, a, {
+        fill: abColor,
+        core: pal.core,
+        stroke: '#e2b75b',
+        alpha: env * 0.92,
+      });
+    }
+    drawStarFlare(ctx, sp.x, sp.y - 4 * s, 14 * s * (1 - t * 0.3), 0.16, '#e2b75b', '#ffffff', env * 0.9, 0, 4);
+    return;
+  }
+
+  // 5. SWIFT CAVALRY / RIFT STALKER — Twin spiraling pinwheel/rift cyclone ribbons
+  if (abId === 'unit_flank_surge') {
+    for (let hIdx = 0; hIdx < 2; hIdx += 1) {
+      drawAnalyticalRibbon(
+        ctx,
+        (u) => sampleHelixArc(sp.x, gp.y, (38 + ease * 18) * s, (16 - ease * 4) * s, t * 8 + hIdx * Math.PI, 1.8, u),
+        {
+          steps: 20,
+          maxWidth: 4.0 * s * (1 - t * 0.35),
+          color: hIdx === 0 ? abColor : pal.secondary,
+          coreColor: pal.core,
+          alpha: env * 0.92,
+          taperProfile: 'taper_out',
+          coreRatio: 0.45,
+          glowAlpha: 0.2,
+        },
+      );
+    }
+    drawPrecisionChevron(ctx, sp.x, sp.y - (8 + ease * 14) * s, -Math.PI * 0.5, {
+      halfHeight: 12 * s,
+      depth: 8 * s,
+      thickness: 2.6 * s,
+      color: abColor,
+      secondaryColor: pal.secondary,
+      coreColor: pal.core,
+      alpha: env * 0.92,
+    });
+    return;
+  }
+
+  // 6. ARMOR SUNDER (Armor Breaker -> molten anvil wedges; Abyssal Ravager/Executioner -> sawblade vortex)
+  if (abId === 'unit_armor_sunder') {
+    const isSaw = pid === 'enemy_abyssal_ravager' || pid === 'elite_abyssal_executioner';
+    if (isSaw) {
+      for (let k = 0; k < 3; k += 1) {
+        const a = t * 8 + (k * Math.PI * 2) / 3;
+        drawBeveledBladeArc(ctx, sp.x, sp.y - 2 * s, (18 + ease * 14) * s, (13 + ease * 9) * s, a, a + 1.5, {
+          maxWidth: 6.5 * s * (1 - t * 0.35),
+          color: abColor,
+          secondaryColor: pal.secondary,
+          coreColor: pal.core,
+          alpha: env * 0.95,
+          steps: 18,
+          detail: 'serrated',
+          detailCount: 5,
+        });
+      }
+    } else {
+      for (let i = 0; i < 6; i += 1) {
+        const a = (i * Math.PI) / 3;
+        const rOut = (12 + ease * 20) * s;
+        drawFacetedCrystal(ctx, sp.x + Math.cos(a) * rOut, sp.y + Math.sin(a) * rOut * 0.6, 5.2 * s, 2.8 * s, a + Math.PI * 0.5, {
+          primary: abColor,
+          highlight: pal.secondary,
+          dark: '#431407',
+          outline: '#1c0a04',
+          alpha: env * 0.94,
+        });
+      }
+      drawStarFlare(ctx, sp.x, sp.y, 18 * s * (1 - t * 0.3), 0.16, pal.secondary, pal.core, env * 0.96, 0, 4);
+    }
+    return;
+  }
+
+  // 7. AEGIS PULSE (Aegis Sentinel -> geodesic honeycomb barrier; Cryo Warden/Archwarden -> 6-point snowflake crystal burst)
+  if (abId === 'unit_aegis_pulse' || abId === 'boss_aegis_shell' || abId === 'mod_ability_bulwark_aura') {
+    const isCryo = pid === 'enemy_cryo_warden' || pid === 'elite_cryo_archwarden';
+    if (isCryo) {
+      for (let i = 0; i < 6; i += 1) {
+        const a = (i * Math.PI) / 3 + t * 0.8;
+        const d = (12 + ease * 18) * s;
+        drawFacetedIceSpire(ctx, sp.x + Math.cos(a) * d, sp.y - 4 * s + Math.sin(a) * d * 0.65, a, 12 * s, 3.0 * s, {
+          color: abColor,
+          secondaryColor: pal.secondary,
+          coreColor: pal.core,
+          alpha: env * 0.94,
+        });
+      }
+      drawStarFlare(ctx, sp.x, sp.y - 4 * s, 16 * s * (1 - t * 0.3), 0.16, pal.secondary, '#ffffff', env * 0.95, t, 6);
+    } else {
+      const plates = abId === 'boss_aegis_shell' ? 6 : 3;
+      for (let i = 0; i < plates; i += 1) {
+        const a = (i * Math.PI * 2) / plates + t * 0.9;
+        const dist = (14 + ease * 16) * s;
+        drawGeodesicHexPlate(ctx, sp.x + Math.cos(a) * dist, sp.y - 4 * s + Math.sin(a) * dist * 0.6, 10 * s, 10 * s, {
+          rotation: a,
+          color: abColor,
+          secondaryColor: pal.secondary,
+          coreColor: pal.core,
+          fillAlpha: env * 0.2,
+          strokeAlpha: env * 0.94,
+          lineWidth: 1.8 * s,
+        });
+      }
+    }
+    return;
+  }
+
+  // 8. ASTRAL AUTOMATON — Twin tilted golden gyroscope astrolabe rings
+  if (abId === 'unit_construct_overdrive') {
+    for (const tiltSign of [-1, 1]) {
+      ctx.save();
+      ctx.translate(sp.x, sp.y - 4 * s);
+      ctx.rotate(tiltSign * 0.52 + t * 2.2 * tiltSign);
+      drawEllipticalHalo(ctx, 0, 0, (20 + ease * 12) * s, (8 + ease * 5) * s, {
+        lineWidth: 2.2 * s,
+        color: tiltSign > 0 ? '#e2b75b' : '#38bdf8',
+        coreColor: '#fffbeb',
+        alpha: env * 0.94,
+      });
+      ctx.restore();
+    }
+    drawStarFlare(ctx, sp.x, sp.y - 4 * s, 16 * s * (1 - t * 0.3), 0.16, '#e2b75b', '#ffffff', env * 0.94, 0, 4);
+    return;
+  }
+
+  // 9. ENEMY VOID BASH & TREMOR SLAM
+  if (abId === 'enemy_shield_bash' || abId === 'enemy_tremor_slam') {
+    const isTremor = abId === 'enemy_tremor_slam';
+    drawTaperedBeamSpire(ctx, sp.x, gp.y, gp.y - (isTremor ? 56 : 36) * s * ease, {
+      baseWidth: (isTremor ? 22 : 15) * s * (1 - t * 0.4),
+      topWidth: 4 * s,
+      tipHeight: 14 * s,
+      color: abColor,
+      secondaryColor: pal.secondary,
+      coreColor: pal.core,
+      alpha: env * 0.85,
+      mode: 'lance',
+    });
+    for (let i = 0; i < 6; i += 1) {
+      const a = (i * Math.PI) / 3 + 0.2;
+      const d = (10 + ease * 18) * s;
+      drawDiamondPrism(ctx, sp.x + Math.cos(a) * d, gp.y - 8 * s + Math.sin(a) * d * 0.45, 5.2 * s, 2.4 * s, a, {
+        color: abColor,
+        secondaryColor: pal.secondary,
+        coreColor: pal.core,
+        alpha: env * 0.92,
+      });
+    }
+    return;
+  }
+
+  // 10. ENEMY STASIS FIELD — Refracted Crystal Beams + Multi-Shard Faceted Crystal Prison
+  if (abId === 'enemy_stasis_field') {
+    const cageR = (23 - ease * 4) * s;
+    const cy = sp.y - 8 * s;
+    // Refracted prismatic beams connecting perimeter shards to central crystal core
+    for (let i = 0; i < 6; i += 1) {
+      const a = (i * Math.PI) / 3 + t * 0.7;
+      const sx = sp.x + Math.cos(a) * cageR * 1.25;
+      const sy = cy + Math.sin(a) * cageR * 0.72;
+      drawTaperedNeedle(ctx, sx, sy, sp.x, cy, {
+        width: 2.4 * s,
+        color: i % 2 === 0 ? abColor : pal.secondary,
+        coreColor: '#ffffff',
+        alpha: env * 0.85,
+        peakRatio: 0.5,
+      });
+      drawFacetedCrystal(ctx, sx, sy, 4.2 * s, 7.2 * s, a + Math.PI * 0.5, {
+        primary: abColor,
+        highlight: pal.secondary,
+        dark: '#17193b',
+        outline: pal.core,
+        alpha: env * 0.94,
+      });
+    }
+    drawFacetedCrystal(ctx, sp.x, cy, cageR * 0.75, cageR * 1.1, 0, {
+      primary: withAlpha(abColor, 0.35),
+      highlight: withAlpha(pal.secondary, 0.58),
+      dark: withAlpha(pal.glow, 0.42),
+      outline: pal.core,
+      alpha: env * 0.92,
+    });
+    drawStarFlare(ctx, sp.x, cy, 15 * s * (1 - t * 0.3), 0.16, pal.secondary, pal.core, env * 0.96, t, 4);
+    return;
+  }
+
+  // 11. DREAD BANNER & WARLORD RALLY SURGES
+  if (abId === 'enemy_dread_rally' || abId === 'boss_war_banner' || abId === 'mod_ability_warlord_aura') {
+    // Rising banner-crest chevrons + harmonic rally waves
+    for (let i = 0; i < 3; i += 1) {
+      const oy = -10 * s - i * 11 * s - ease * 12 * s;
+      drawPrecisionChevron(ctx, sp.x, sp.y + oy, -Math.PI * 0.5, {
+        halfHeight: (14 - i * 2) * s,
+        depth: 8 * s,
+        thickness: 2.5 * s,
+        color: i % 2 === 0 ? abColor : pal.secondary,
+        secondaryColor: pal.secondary,
+        coreColor: pal.core,
+        alpha: env * (0.95 - i * 0.15),
+      });
+    }
+    drawStarFlare(ctx, sp.x, sp.y - 16 * s, 15 * s * (1 - t * 0.3), 0.16, pal.secondary, pal.core, env * 0.92, 0, 4);
+    return;
+  }
+
+  // 12. BOSS BASTION SHOCKWAVE (Vex -> golden octagonal citadel pillars; Malakor -> eclipsed obsidian spires)
+  if (abId === 'boss_shockwave') {
+    const count = 6;
+    const ringR = (16 + ease * 26) * s;
+    for (let i = 0; i < count; i += 1) {
+      const a = (i * Math.PI * 2) / count + 0.3;
+      const bx = sp.x + Math.cos(a) * ringR;
+      const by = gp.y + Math.sin(a) * ringR * 0.48;
+      drawTaperedBeamSpire(ctx, bx, by, by - (28 + ease * 18) * s, {
+        baseWidth: 9 * s * (1 - t * 0.4),
+        topWidth: 2 * s,
+        tipHeight: 10 * s,
+        color: abColor,
+        secondaryColor: pal.secondary,
+        coreColor: pal.core,
+        alpha: env * 0.88,
+        mode: 'spire',
+      });
+    }
+    drawStarFlare(ctx, sp.x, sp.y - 6 * s, 22 * s * (1 - t * 0.28), 0.16, pal.secondary, pal.core, env * 0.96, t, 8);
+    return;
+  }
+
+  // 13. BOSS ARCANE BARRAGE (Kaelis prism mandala / Astral Sextant grid / Inferno Organ salvo)
+  if (abId === 'boss_arcane_barrage') {
+    for (let i = 0; i < 5; i += 1) {
+      const a = (i * Math.PI * 2) / 5 + t * 1.8;
+      const dist = (10 + ease * 24) * s;
+      drawFacetedCrystal(ctx, sp.x + Math.cos(a) * dist, sp.y - 8 * s + Math.sin(a) * dist * 0.65, 4.5 * s, 9.0 * s, a + Math.PI * 0.5, {
+        primary: abColor,
+        highlight: pal.secondary,
+        dark: pal.glow,
+        outline: pal.core,
+        alpha: env * 0.94,
+      });
+    }
+    drawStarFlare(ctx, sp.x, sp.y - 8 * s, 20 * s * (1 - t * 0.3), 0.16, pal.secondary, '#ffffff', env * 0.96, t * 1.5, 8);
+    return;
+  }
+
+  // 14. BOSS SUMMON PORTALS (Guard / Stasis / Ravagers)
+  if (abId.startsWith('boss_summon_')) {
+    drawTaperedBeamSpire(ctx, sp.x, gp.y, gp.y - (68 + ease * 20) * s, {
+      baseWidth: 24 * s * (1 - t * 0.45),
+      topWidth: 8 * s,
+      tipHeight: 16 * s,
+      color: abColor,
+      secondaryColor: pal.secondary,
+      coreColor: pal.core,
+      alpha: env * 0.8,
+      mode: 'spire',
+    });
+    drawGeodesicHexPlate(ctx, sp.x, gp.y - 18 * s, (16 + ease * 10) * s, (9 + ease * 5) * s, {
+      rotation: t * 1.5,
+      color: abColor,
+      secondaryColor: pal.secondary,
+      coreColor: pal.core,
+      fillAlpha: env * 0.2,
+      strokeAlpha: env * 0.92,
+      lineWidth: 2.0 * s,
+    });
+    return;
+  }
+
+  // 15. BOSS HYPERION — Orbital Cataclysm (Descending blazing orbital star-core!)
+  if (abId === 'boss_orbital_cataclysm') {
+    const dropY = gp.y - (1 - easeOutCubic(t)) * 85 * s - 14 * s;
+    drawSoftBloom(ctx, sp.x, dropY, 28 * s, '#ffffff', abColor, env * 0.82);
+    drawTaperedBeamSpire(ctx, sp.x, gp.y, dropY - 40 * s, {
+      baseWidth: 28 * s * (1 - t * 0.4),
+      topWidth: 10 * s,
+      tipHeight: 18 * s,
+      color: abColor,
+      secondaryColor: pal.secondary,
+      coreColor: '#ffffff',
+      alpha: env * 0.88,
+      mode: 'lance',
+    });
+    drawStarFlare(ctx, sp.x, dropY, 24 * s * (1 - t * 0.25), 0.2, pal.secondary, '#ffffff', env * 0.98, t * 2.5, 8);
+    return;
+  }
+
+  // 16. BOSS HYPERION — Void Siphon (Inward-draining gravity siphon filaments)
+  if (abId === 'boss_void_siphon') {
+    for (let i = 0; i < 6; i += 1) {
+      const a = (i * Math.PI) / 3 + t * 2.2;
+      const rOuter = (36 - ease * 26) * s;
+      const sx = sp.x + Math.cos(a) * rOuter;
+      const sy = sp.y - 6 * s + Math.sin(a) * rOuter * 0.55;
+      drawTaperedNeedle(ctx, sx, sy, sp.x, sp.y - 6 * s, {
+        width: 3.4 * s,
+        color: i % 2 === 0 ? abColor : pal.secondary,
+        coreColor: pal.core,
+        alpha: env * 0.92,
+        peakRatio: 0.78,
+      });
+    }
+    drawStarFlare(ctx, sp.x, sp.y - 6 * s, 18 * s, 0.2, abColor, '#ffffff', env * 0.96, -t * 2, 6);
+    return;
+  }
+
+  // Fallback for any future/custom ability
   if (kind === 'aoe_damage' || kind === 'drain_aoe') {
     drawTaperedBeamSpire(ctx, sp.x, gp.y, gp.y - (52 + ease * 32), {
       baseWidth: Math.min(26, rx * 0.28) * (1 - t * 0.45),

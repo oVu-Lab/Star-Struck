@@ -613,11 +613,17 @@ export class BattleManager {
           radius: ability.radius || 16,
           color: abColor,
           secondaryColor: profile?.palette?.secondary || '#fffdf4',
-          duration: 0.65,
+          duration: unit?.isBoss ? 0.95 : unit?.isElite ? 0.8 : 0.72,
           profileId: profile?.id || null,
           side: unit?.side || 'enemy',
           scale: unit?.visualScale || profile?.scale || 1,
-          meta: { abilityKind: ability.kind, abilityId: ability.id },
+          meta: {
+            abilityKind: ability.kind,
+            abilityId: ability.id,
+            sourceUid: unit?.uid || null,
+            casterX: unit?.x,
+            casterY: unit?.y,
+          },
         });
         this._spawnWorldParticles(x ?? unit?.x ?? 50, y ?? unit?.y ?? 50, abColor, 12, 'burst');
         if ((unit?.isBoss || unit?.isElite) && this._isCombatVisualActive()) {
@@ -2161,7 +2167,7 @@ export class BattleManager {
   beginAstraAwakening() {
     const reducedMotion = this._isReducedMotionActive();
     this._cinematicHold = true;
-    this._starfallVictoryHoldTimer = reducedMotion ? 2.0 : 3.25;
+    this._starfallVictoryHoldTimer = reducedMotion ? 2.6 : 4.65;
   }
 
   completeAstraAwakening() {
@@ -2411,7 +2417,7 @@ export class BattleManager {
           }
         }
 
-        this._audio?.playHit?.(st.index >= 3, 'magical');
+        this._audio?.playHit?.(isFinalStage, 'magical');
         this._syncCountersToState();
         this._eventBus?.emit('commander:ultimateStageResolved', {
           commanderId: 'astra',

@@ -1,5 +1,32 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
-  <polygon points="36,30 74,24 82,96 32,96" fill="#13294b" stroke="#22d3ee" stroke-width="4"/>
-  <rect x="64" y="46" width="44" height="12" rx="4" fill="#0ea5e9" stroke="#e0f2fe" stroke-width="2.5"/>
-  <line x1="70" y1="68" x2="104" y2="68" stroke="#38bdf8" stroke-width="3"/>
+  <defs>
+    <radialGradient id="tealPod" cx="38%" cy="32%" r="68%">
+      <stop offset="0%" stop-color="#a5f3fc"/><stop offset="50%" stop-color="#169bb5"/><stop offset="100%" stop-color="#0c283d"/>
+    </radialGradient>
+    <linearGradient id="copp" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffedd5"/><stop offset="50%" stop-color="#d97736"/><stop offset="100%" stop-color="#52200a"/>
+    </linearGradient>
+  </defs>
+  <!-- Tail stabilizer fin -->
+  <polygon points="36,64 10,36 22,64 10,92" fill="url(#copp)" stroke="#06121b" stroke-width="2"/>
+  <!-- Top & bottom wound copper turbine coils -->
+  <rect x="44" y="16" width="32" height="22" rx="6" fill="url(#copp)" stroke="#06121b" stroke-width="2"/>
+  <line x1="51" y1="16" x2="51" y2="38" stroke="#52200a" stroke-width="2"/>
+  <line x1="59" y1="16" x2="59" y2="38" stroke="#52200a" stroke-width="2"/>
+  <line x1="67" y1="16" x2="67" y2="38" stroke="#52200a" stroke-width="2"/>
+  <rect x="44" y="90" width="32" height="22" rx="6" fill="url(#copp)" stroke="#06121b" stroke-width="2"/>
+  <line x1="51" y1="90" x2="51" y2="112" stroke="#52200a" stroke-width="2"/>
+  <line x1="59" y1="90" x2="59" y2="112" stroke="#52200a" stroke-width="2"/>
+  <line x1="67" y1="90" x2="67" y2="112" stroke="#52200a" stroke-width="2"/>
+  <!-- Twin pulse emitter barrels -->
+  <rect x="84" y="45" width="30" height="9" rx="3" fill="url(#copp)" stroke="#06121b" stroke-width="1.8"/>
+  <rect x="84" y="74" width="30" height="9" rx="3" fill="url(#copp)" stroke="#06121b" stroke-width="1.8"/>
+  <circle cx="115" cy="49.5" r="4.5" fill="#e0f2fe" stroke="#0284c7" stroke-width="1.4"/>
+  <circle cx="115" cy="78.5" r="4.5" fill="#e0f2fe" stroke="#0284c7" stroke-width="1.4"/>
+  <!-- Sleek pearl-teal armored pod -->
+  <ellipse cx="62" cy="64" rx="35" ry="28" fill="url(#tealPod)" stroke="#06121b" stroke-width="2.4"/>
+  <!-- Central faceted cyan capacitor aperture (no cartoon eyes!) -->
+  <polygon points="72,46 88,64 72,82 56,64" fill="#082f49" stroke="url(#copp)" stroke-width="2.5"/>
+  <polygon points="72,51 83,64 72,77 61,64" fill="#67e8f9" stroke="#e0f2fe" stroke-width="1"/>
+  <polygon points="72,51 83,64 72,64" fill="#ffffff" opacity="0.5"/>
 </svg>

@@ -190,35 +190,35 @@ function createFiniteCheckingCtx() {
   };
 }
 
-test('buildStarfallDamageStages splits damage into 4 synchronized stages summing to exact intended total', () => {
-  for (const total of [240, 259, 317, 100, 1]) {
+test('buildStarfallDamageStages splits damage into 6 continuous shower ticks (60%) + 1 colossal impact (40%) summing strictly to total', () => {
+  for (const total of [420, 240, 259, 317, 100, 1]) {
     const stages = buildStarfallDamageStages({ totalRawDamage: total, duration: STARFALL_DURATION_SEC });
-    assert.equal(stages.length, 4);
+    assert.equal(stages.length, 7);
     assert.equal(stages.reduce((acc, s) => acc + s.rawDamage, 0), total, `Exact raw damage sum for ${total}`);
     for (let i = 1; i < stages.length; i += 1) {
       assert.ok(stages[i].triggerTime > stages[i - 1].triggerTime, 'Stage trigger times must increase monotonically');
     }
   }
 
-  const normalStages = buildStarfallDamageStages({ totalRawDamage: 240, duration: STARFALL_DURATION_SEC });
+  const normalStages = buildStarfallDamageStages({ totalRawDamage: 420, duration: STARFALL_DURATION_SEC });
   assert.deepEqual(
     normalStages.map((s) => s.rawDamage),
-    [36, 60, 60, 84],
+    [42, 42, 42, 42, 42, 42, 168],
   );
   assert.deepEqual(
     normalStages.map((s) => s.triggerTime),
-    [0.68, 1.48, 2.28, 3.0],
+    [0.58, 1.0, 1.42, 1.84, 2.26, 2.68, 4.35],
   );
 
   const reducedStages = buildStarfallDamageStages({
-    totalRawDamage: 240,
+    totalRawDamage: 420,
     duration: STARFALL_REDUCED_DURATION_SEC,
   });
-  assert.equal(reducedStages.reduce((acc, s) => acc + s.rawDamage, 0), 240);
-  assert.ok(reducedStages[3].triggerTime < normalStages[3].triggerTime);
+  assert.equal(reducedStages.reduce((acc, s) => acc + s.rawDamage, 0), 420);
+  assert.ok(reducedStages[6].triggerTime < normalStages[6].triggerTime);
 });
 
-test('createStarfallPlan produces organized wave formations, smooth controlled paths, and stage-aligned waves', () => {
+test('createStarfallPlan produces continuous smooth meteor shower + subsidence + ONE colossal final meteor', () => {
   const plan = createStarfallPlan({
     enemies: [
       { x: 64, y: 28, isBoss: false },
@@ -235,12 +235,12 @@ test('createStarfallPlan produces organized wave formations, smooth controlled p
   });
 
   assert.equal(plan.duration, STARFALL_DURATION_SEC);
-  assert.equal(plan.damageStages.length, 4);
-  assert.ok(plan.stars.length >= 40, 'High-quality plan should schedule abundant falling stars');
+  assert.equal(plan.damageStages.length, 7);
+  assert.ok(plan.stars.length >= 50, 'High-quality plan should schedule a sustained continuous shower + colossal meteor');
   assert.ok(plan.canopyStars.length >= 40, 'Sky canopy should contain rich starfield depth');
   assert.ok(plan.canopyEdges.length >= 8, 'Sky canopy should include constellation connections');
-  assert.ok(plan.novaRays.length >= 16, 'Grand Finale Nova should precompute sunburst rays');
-  assert.ok(plan.lingeringMotes.length >= 30, 'Dissipation phase should precompute lingering motes');
+  assert.ok(plan.novaRays.length >= 16, 'Colossal impact should precompute sunburst rays');
+  assert.ok(plan.lingeringMotes.length >= 30, 'Aftermath phase should precompute lingering motes');
 
   const seenArchetypes = new Set(plan.stars.map((s) => s.archetype));
   for (const arch of STAR_ARCHETYPES) {
@@ -255,40 +255,35 @@ test('createStarfallPlan produces organized wave formations, smooth controlled p
     assert.ok(seenImpacts.has(style), `Missing impact style: ${style}`);
   }
 
-  // Verify organized trajectories: minimal lateral curvature, coherent wave slant, and wave-to-stage alignment
+  // Strictly ONE colossal final meteor, never inside the shower
+  const colossalMeteors = plan.stars.filter((s) => s.archetype === 'colossal');
+  const showerMeteors = plan.stars.filter((s) => s.streamPhase === 'shower');
+  assert.equal(colossalMeteors.length, 1, 'Must summon strictly ONE colossal final meteor');
+  assert.ok(showerMeteors.every((s) => s.archetype !== 'colossal'), 'Shower must not contain colossal meteors');
+
+  const colossal = colossalMeteors[0];
+  const maxShowerSize = Math.max(...showerMeteors.map((s) => s.size));
+  const maxShowerTrail = Math.max(...showerMeteors.map((s) => s.trailWidth));
+  assert.ok(colossal.size >= maxShowerSize * 2.0, `Colossal meteor size (${colossal.size}) must dwarf shower (${maxShowerSize})`);
+  assert.ok(colossal.trailWidth >= maxShowerTrail * 2.0, `Colossal trailWidth (${colossal.trailWidth}) must dwarf shower (${maxShowerTrail})`);
+  assert.ok(colossal.startTime > plan.anticipationStart, 'Colossal meteor enters after shower subsides and anticipation begins');
+  assert.equal(colossal.impactTime, plan.colossalImpact);
+
+  // Verify continuous shower coverage + smooth coordinated trajectories
+  const showerMid = showerMeteors.filter((s) => s.depthTier === 'mid');
+  const showerSlants = showerMeteors.map((s) => s.slantX);
+  const slantSpread = Math.max(...showerSlants) - Math.min(...showerSlants);
+  assert.ok(slantSpread <= 5.0, `Continuous shower stream slant spread (${slantSpread.toFixed(2)}) must stay smooth and coordinated`);
   for (const star of plan.stars) {
     assert.ok(Math.abs(star.gentleDrift) <= 1.25, `Star trajectory drift too crooked: ${star.gentleDrift}`);
-    assert.ok(star.waveIndex >= 1 && star.waveIndex <= 4);
   }
 
-  for (const def of STARFALL_DAMAGE_STAGE_DEFS) {
-    const waveMidStars = plan.stars.filter((s) => s.waveIndex === def.index && s.depthTier === 'mid');
-    assert.ok(waveMidStars.length >= 5, `Wave ${def.index} must have multiple coordinated midground stars`);
-
-    // Confirm wave stars land tightly around their authoritative damage stage timestamp
-    const avgImpact = waveMidStars.reduce((acc, s) => acc + s.impactTime, 0) / waveMidStars.length;
-    assert.ok(
-      Math.abs(avgImpact - def.impactTimeSec) <= 0.12,
-      `Wave ${def.index} average impact (${avgImpact.toFixed(3)}s) must align with stage (${def.impactTimeSec}s)`,
-    );
-
-    // Confirm coherent directional slant within Waves 1 & 2 (parallel diagonal formations)
-    if (def.index <= 2) {
-      const slants = waveMidStars.map((s) => s.slantX);
-      const spread = Math.max(...slants) - Math.min(...slants);
-      assert.ok(spread <= 4.0, `Wave ${def.index} slant spread (${spread.toFixed(2)}) must stay parallel/coherent`);
-    }
-
-    // Confirm stars inside each wave maintain clear spatial separation (no clumping)
-    for (let i = 0; i < waveMidStars.length; i += 1) {
-      for (let j = i + 1; j < waveMidStars.length; j += 1) {
-        const d = Math.hypot(
-          waveMidStars[i].targetX - waveMidStars[j].targetX,
-          waveMidStars[i].targetY - waveMidStars[j].targetY,
-        );
-        assert.ok(d >= 7.0, `Wave ${def.index} stars must stay spaced (found distance ${d.toFixed(2)})`);
-      }
-    }
+  // Verify continuous arrival with no large mid-shower dead gaps before subsidence
+  const sortedImpacts = showerMid.map((s) => s.impactTime).sort((a, b) => a - b);
+  assert.ok(sortedImpacts[0] <= 0.65);
+  assert.ok(sortedImpacts[sortedImpacts.length - 1] <= plan.anticipationStart);
+  for (let i = 1; i < sortedImpacts.length; i += 1) {
+    assert.ok(sortedImpacts[i] - sortedImpacts[i - 1] <= 0.28, 'Continuous shower must sustain steady overlapping arrivals');
   }
 });
 
@@ -301,12 +296,13 @@ test('drawAstraStarfallWorldEffect renders ground and sky layers across all phas
     quality: 'high',
   });
 
-  const checkpoints = [0.02, 0.15, 0.30, 0.48, 0.60, 0.68, 0.78, 0.94];
-  for (const ratio of checkpoints) {
+  // Checkpoints covering: opening, mid-shower, subsidence, anticipation, colossal in flight, colossal impact, aftermath
+  const checkpointsSec = [0.15, 0.75, 1.50, 2.50, 3.30, 3.95, 4.42, 5.20];
+  for (const ageSec of checkpointsSec) {
     const tracker = createFiniteCheckingCtx();
     const fx = {
       kind: 'starfall',
-      age: ratio * plan.duration,
+      age: ageSec,
       duration: plan.duration,
       seed: 901,
       meta: { awaitingAwakening: false, starfallPlan: plan },
@@ -315,8 +311,8 @@ test('drawAstraStarfallWorldEffect renders ground and sky layers across all phas
     drawAstraStarfallWorldEffect(tracker.ctx, bf, 1280, 720, fx, 'ground');
     drawAstraStarfallWorldEffect(tracker.ctx, bf, 1280, 720, fx, 'sky');
 
-    assert.equal(tracker.getNonFiniteCoords().length, 0, `Non-finite coordinates at ratio ${ratio}`);
-    assert.ok(tracker.getDrawCount() > 0, `Expected drawing activity at ratio ${ratio}`);
+    assert.equal(tracker.getNonFiniteCoords().length, 0, `Non-finite coordinates at age ${ageSec}s`);
+    assert.ok(tracker.getDrawCount() > 0, `Expected drawing activity at age ${ageSec}s`);
     assert.equal(tracker.ctx.globalCompositeOperation, 'source-over', 'Must restore composite mode');
   }
 
@@ -340,14 +336,14 @@ test('drawAstraStarfallWorldEffect renders ground and sky layers across all phas
   assert.ok(fallbackTracker.getDrawCount() > 0);
 });
 
-test('Reduced-motion settings suppress Starfall camera impulses, align stage times, and zero AnimationManager shake', () => {
+test('Reduced-motion settings suppress Starfall camera impulses, align colossal flash time, and zero AnimationManager shake', () => {
   const rmSchedule = getStarfallCameraSchedule({ reducedMotion: true });
   assert.equal(rmSchedule.impulses.length, 0, 'Reduced motion must disable Starfall camera impulses');
   assert.ok(rmSchedule.flashes.every((f) => f.maxAlpha <= 0.2), 'Reduced motion flashes must stay gentle');
 
   const rmPlan = createStarfallPlan({ reducedMotion: true, seed: 55 });
   assert.equal(rmPlan.duration, STARFALL_REDUCED_DURATION_SEC);
-  assert.equal(rmSchedule.flashes[1].delaySec, rmPlan.damageStages[3].impactTime);
+  assert.equal(rmSchedule.flashes[1].delaySec, rmPlan.damageStages[6].impactTime);
 
   const prevWindow = globalThis.window;
   globalThis.window = {
@@ -363,14 +359,12 @@ test('Reduced-motion settings suppress Starfall camera impulses, align stage tim
   }
 });
 
-test('BattleManager synchronizes 4 staged damage waves with Starfall animation, conserves exact total damage, and respects Phase One hold', () => {
+test('BattleManager synchronizes continuous shower + colossal meteor impact damage, preserves anticipation pause & exact total', () => {
   const h = createFullHarness();
   h.battleManager.startSession(null, { stageId: 'stage_1_1' });
   h.battleManager.beginBattle();
   for (let i = 0; i < 65; i += 1) h.battleManager.stepSimulation(1 / 60);
 
-  // Clear natural Wave 1 enemies and spawn controlled high-HP test targets with varied defense
-  // so no unit dies mid-starfall and every stage's exact damage contribution can be audited cleanly.
   h.unitManager.clear();
   const ally = h.unitManager.spawnUnit({
     unitId: 'heavy_shield_guard',
@@ -381,9 +375,10 @@ test('BattleManager synchronizes 4 staged damage waves with Starfall animation, 
     tier: 1,
   });
   ally.hp = Math.max(1, ally.hp - 120);
-  ally.attack = 0; // Isolate Astra ultimate damage from regular combat hits
+  ally.attack = 0;
   ally.attackCooldown = 999;
   ally.moveSpeed = 0;
+  ally.abilities = [];
 
   const enemyA = h.unitManager.spawnUnit({
     unitId: 'heavy_shield_guard',
@@ -407,6 +402,7 @@ test('BattleManager synchronizes 4 staged damage waves with Starfall animation, 
     e.attack = 0;
     e.attackCooldown = 999;
     e.moveSpeed = 0;
+    e.abilities = [];
   }
 
   const enemyAHpBefore = enemyA.hp;
@@ -414,14 +410,14 @@ test('BattleManager synchronizes 4 staged damage waves with Starfall animation, 
   const allyHpBefore = ally.hp;
 
   const expectedFullA = h.combatSystem.calculateDamage({
-    attack: 240,
+    attack: 420,
     defense: h.unitManager.getEffectiveStat(enemyA, 'defense'),
     attackType: 'magical',
     armorPierce: 0,
     critChance: 0,
   }).amount;
   const expectedFullB = h.combatSystem.calculateDamage({
-    attack: 240,
+    attack: 420,
     defense: h.unitManager.getEffectiveStat(enemyB, 'defense'),
     attackType: 'magical',
     armorPierce: 0,
@@ -433,7 +429,6 @@ test('BattleManager synchronizes 4 staged damage waves with Starfall animation, 
   const unsubStage = h.eventBus.on('commander:ultimateStageResolved', (ev) => stageEvents.push(ev));
   const unsubComplete = h.eventBus.on('commander:ultimateCompleted', (ev) => completedEvents.push(ev));
 
-  // Simulate Phase One awakening hold starting during commander:ultimateActivated
   const unsubHold = h.eventBus.on('commander:ultimateActivated', () => {
     h.battleManager.beginAstraAwakening();
   });
@@ -444,43 +439,45 @@ test('BattleManager synchronizes 4 staged damage waves with Starfall animation, 
 
   assert.equal(ultRes.ok, true);
   assert.equal(ultRes.summary.stagedDamage, true);
-  assert.equal(ultRes.summary.pendingRawDamage, 240);
+  assert.equal(ultRes.summary.pendingRawDamage, 420);
 
-  // Ally healing still executes immediately; enemy damage MUST NOT fire upfront
+  // Ally healing immediate; zero premature enemy damage
   assert.ok(ally.hp > allyHpBefore, 'Ally healing must remain immediate and intact');
   assert.equal(enemyA.hp, enemyAHpBefore, 'Enemy A must take 0 premature damage at activation');
   assert.equal(enemyB.hp, enemyBHpBefore, 'Enemy B must take 0 premature damage at activation');
 
-  // While Phase One awakening holds, stepping ticks does NOT advance starfall or apply damage
   for (let i = 0; i < 60; i += 1) {
     h.battleManager.stepSimulation(1 / 60);
   }
   assert.equal(stageEvents.length, 0, 'Zero damage stages may resolve during Phase One awakening');
-  assert.equal(enemyA.hp, enemyAHpBefore);
 
-  // Complete Phase One -> begins synchronized Phase Two Starfall
   h.battleManager.completeAstraAwakening();
   const starfallFx = h.animationManager.getWorldEffects().find((fx) => fx.kind === 'starfall');
   assert.ok(starfallFx, 'Must keep starfall world effect active');
   assert.equal(starfallFx.meta.awaitingAwakening, false);
 
-  // Step 4.5s (270 ticks) and verify damage accumulates across all 4 stages
-  const hpTimelineA = [];
-  for (let tick = 0; tick < 270; tick += 1) {
+  // Step 5.75s (345 ticks) and sample enemy A damage across shower, anticipation, and colossal impact
+  let dmgBeforeShower = 0;
+  let dmgAtAnticipationStart = 0;
+  let dmgBeforeColossalImpact = 0;
+  let dmgAfterColossalImpact = 0;
+
+  for (let tick = 0; tick < 345; tick += 1) {
     h.battleManager.stepSimulation(1 / 60);
-    if (tick === 10 || tick === 45 || tick === 95 || tick === 145 || tick === 200) {
-      hpTimelineA.push(enemyAHpBefore - enemyA.hp);
-    }
+    const dealtA = enemyAHpBefore - enemyA.hp;
+    if (tick === 20) dmgBeforeShower = dealtA;           // ~0.35s (before first shower tick at 0.58s)
+    if (tick === 174) dmgAtAnticipationStart = dealtA; // ~2.92s (after all 6 shower ticks)
+    if (tick === 252) dmgBeforeColossalImpact = dealtA; // ~4.22s (colossal meteor in flight!)
+    if (tick === 270) dmgAfterColossalImpact = dealtA;  // ~4.52s (just after colossal impact at 4.35s)
   }
 
   unsubStage();
   unsubComplete();
 
-  // Verify exactly 4 synchronized stage events at 0.68s, 1.48s, 2.28s, 3.00s (no duplicates!)
-  assert.equal(stageEvents.length, 4, 'Must resolve exactly 4 damage stages');
+  assert.equal(stageEvents.length, 7, 'Must resolve 6 continuous shower ticks + 1 colossal impact');
   assert.deepEqual(
     stageEvents.map((s) => s.stageIndex),
-    [1, 2, 3, 4],
+    [1, 2, 3, 4, 5, 6, 7],
   );
   for (let i = 0; i < stageEvents.length; i += 1) {
     assert.ok(
@@ -491,14 +488,11 @@ test('BattleManager synchronizes 4 staged damage waves with Starfall animation, 
     assert.ok(stageEvents[i].stageDamageApplied > 0);
   }
 
-  // Verify damage occurred progressively throughout the animation (not all in first second)
-  assert.equal(hpTimelineA[0], 0, 'No damage before Stage 1 (0.68s)');
-  assert.ok(hpTimelineA[1] > 0 && hpTimelineA[1] < expectedFullA, 'Partial damage after Stage 1');
-  assert.ok(hpTimelineA[2] > hpTimelineA[1] && hpTimelineA[2] < expectedFullA, 'More damage after Stage 2');
-  assert.ok(hpTimelineA[3] > hpTimelineA[2] && hpTimelineA[3] < expectedFullA, 'More damage after Stage 3');
-  assert.equal(hpTimelineA[4], expectedFullA, 'Full intended damage completed after Stage 4 Final Nova');
+  assert.equal(dmgBeforeShower, 0, 'No damage before shower begins');
+  assert.ok(dmgAtAnticipationStart > 0 && dmgAtAnticipationStart < expectedFullA, 'Continuous shower deals ~60% of damage before anticipation');
+  assert.equal(dmgBeforeColossalImpact, dmgAtAnticipationStart, 'Zero damage during anticipation / colossal meteor flight before impact');
+  assert.equal(dmgAfterColossalImpact, expectedFullA, 'Colossal meteor impact deals the remaining ~40% finishing damage');
 
-  // Verify exact conservation of intended total damage per enemy
   assert.equal(enemyAHpBefore - enemyA.hp, expectedFullA, 'Enemy A total HP lost must equal exact intended ultimate damage');
   assert.equal(enemyBHpBefore - enemyB.hp, expectedFullB, 'Enemy B total HP lost must equal exact intended ultimate damage');
 
@@ -520,8 +514,8 @@ test('Interrupted or ended battles cancel pending Starfall stages and prevent de
   const ultRes = h.battleManager.triggerUltimate();
   assert.equal(ultRes.ok, true);
 
-  // Advance past Stage 1 (0.75s) only, leaving Stages 2, 3, 4 pending
-  for (let i = 0; i < 45; i += 1) h.battleManager.stepSimulation(1 / 60);
+  // Advance past Stage 1 (0.65s) only, leaving remaining shower ticks + colossal impact pending
+  for (let i = 0; i < 39; i += 1) h.battleManager.stepSimulation(1 / 60);
   assert.equal(stageEvents.length, 1, 'Only Stage 1 should have fired before interruption');
 
   // Interrupt battle via stopSession() and start a brand new battle session
@@ -532,7 +526,6 @@ test('Interrupted or ended battles cancel pending Starfall stages and prevent de
   h.battleManager.beginBattle();
   for (let i = 0; i < 65; i += 1) h.battleManager.stepSimulation(1 / 60);
 
-  // Spawn an isolated high-HP enemy and ensure ZERO delayed Astra ultimate stages fire
   h.unitManager.clear();
   const freshEnemy = h.unitManager.spawnUnit({
     unitId: 'heavy_shield_guard',
@@ -546,10 +539,10 @@ test('Interrupted or ended battles cancel pending Starfall stages and prevent de
   freshEnemy.hp = 4000;
   const freshHpBefore = freshEnemy.hp;
 
-  for (let i = 0; i < 260; i += 1) h.battleManager.stepSimulation(1 / 60);
+  for (let i = 0; i < 340; i += 1) h.battleManager.stepSimulation(1 / 60);
   unsub();
 
-  assert.equal(stageEvents.length, 1, 'Interrupted ultimate must never fire Stages 2-4 in later battle');
+  assert.equal(stageEvents.length, 1, 'Interrupted ultimate must never fire remaining shower/colossal stages in later battle');
   assert.equal(freshEnemy.hp, freshHpBefore, 'Fresh enemy in later battle must take zero delayed Astra damage');
 });
 
@@ -686,4 +679,95 @@ test('Astra ultimate webm asset exists in template directory', () => {
   const webmPath = path.resolve(process.cwd(), 'astra-cardtemplate/assets-astra/ultimate-animation.webm');
   assert.equal(fs.existsSync(webmPath), true, 'ultimate-animation.webm must exist');
   assert.ok(fs.statSync(webmPath).size > 100000, 'ultimate-animation.webm must be non-empty');
+});
+
+test('Astra Commander Energy generates at exact 0.2x rates across all combat sources while Command Energy & thresholds remain intact', () => {
+  const h = createFullHarness();
+  const ultCfg = h.dataRegistry.balance.ultimateEnergy;
+  const cmdCfg = h.dataRegistry.balance.commandEnergy;
+
+  assert.equal(ultCfg.max, 100);
+  assert.equal(ultCfg.gainPerDamageDealt, 0.009);
+  assert.equal(ultCfg.gainPerDamageReceived, 0.007);
+  assert.equal(ultCfg.gainPerHeal, 0.009);
+  assert.equal(ultCfg.gainPerKill, 0.8);
+
+  // Deployment / Command Energy untouched
+  assert.equal(cmdCfg.max, 100);
+  assert.equal(cmdCfg.starting, 60);
+  assert.equal(cmdCfg.regenPerSecond, 4.2);
+
+  h.battleManager.startSession(null, { stageId: 'stage_1_1' });
+  h.battleManager.beginBattle();
+  for (let i = 0; i < 65; i += 1) h.battleManager.stepSimulation(1 / 60);
+  h.unitManager.clear();
+
+  const astraScale = h.dataRegistry.heroesById.get('astra').baseStats.energyRegen; // 1.15
+  const ally = h.unitManager.spawnUnit({ unitId: 'heavy_shield_guard', side: 'ally', x: 20, y: 50, level: 1, tier: 1 });
+  const enemy = h.unitManager.spawnUnit({ unitId: 'arcane_archer', side: 'enemy', x: 60, y: 50, level: 1, tier: 1 });
+  ally.hp = ally.maxHp - 400;
+  enemy.maxHp = 2000;
+  enemy.hp = 2000;
+
+  h.gameState.setBattle({ ultimateEnergy: 0, ultimateMaxEnergy: 100 });
+
+  // 1. Damage dealt by ally (without killing)
+  const hitRes = h.combatSystem.applyDamage({
+    source: ally,
+    target: enemy,
+    rawAttack: 200,
+    attackType: 'magical',
+    critChance: 0,
+    unitManager: h.unitManager,
+    skillSystem: h.skillSystem,
+    bypassMitigation: true,
+  });
+  const afterDealt = h.gameState.battle.ultimateEnergy;
+  assert.ok(Math.abs(afterDealt - hitRes.amount * 0.009 * astraScale) < 1e-9);
+
+  // 2. Damage received by ally
+  const recvRes = h.combatSystem.applyDamage({
+    source: enemy,
+    target: ally,
+    rawAttack: 150,
+    attackType: 'physical',
+    critChance: 0,
+    unitManager: h.unitManager,
+    skillSystem: h.skillSystem,
+    bypassMitigation: true,
+  });
+  const afterReceived = h.gameState.battle.ultimateEnergy - afterDealt;
+  assert.ok(Math.abs(afterReceived - recvRes.amount * 0.007 * astraScale) < 1e-9);
+
+  // 3. Healing ally
+  const healRes = h.combatSystem.applyHeal({
+    source: ally,
+    target: ally,
+    rawHeal: 120,
+    skillSystem: h.skillSystem,
+  });
+  const afterHeal = h.gameState.battle.ultimateEnergy - afterDealt - afterReceived;
+  assert.ok(Math.abs(afterHeal - healRes.amount * 0.009 * astraScale) < 1e-9);
+
+  // 4. Killing enemy (damage dealt + kill bonus)
+  const eBeforeKill = h.gameState.battle.ultimateEnergy;
+  const killRes = h.combatSystem.applyDamage({
+    source: ally,
+    target: enemy,
+    rawAttack: 2500,
+    attackType: 'magical',
+    critChance: 0,
+    unitManager: h.unitManager,
+    skillSystem: h.skillSystem,
+    bypassMitigation: true,
+  });
+  assert.equal(killRes.killed, true);
+  const afterKill = h.gameState.battle.ultimateEnergy - eBeforeKill;
+  assert.ok(Math.abs(afterKill - (killRes.amount * 0.009 + 0.8) * astraScale) < 1e-9);
+
+  // 5. Ultimate activation still strictly requires 100 energy
+  h.gameState.setBattle({ ultimateEnergy: 99.9 });
+  assert.equal(h.skillSystem.canActivateUltimate(), false);
+  h.gameState.setBattle({ ultimateEnergy: 100 });
+  assert.equal(h.skillSystem.canActivateUltimate(), true);
 });

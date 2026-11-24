@@ -1,5 +1,38 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
-  <rect x="28" y="24" width="44" height="80" rx="8" fill="#1b3054" stroke="#38bdf8" stroke-width="4"/>
-  <path d="M72 20 L102 32 L102 92 L72 108 Z" fill="#0f2340" stroke="#e2b75b" stroke-width="4"/>
-  <line x1="87" y1="36" x2="87" y2="90" stroke="#38bdf8" stroke-width="3"/>
+  <defs>
+    <linearGradient id="cbLit" x1="0.1" y1="0" x2="0.9" y2="1">
+      <stop offset="0%" stop-color="#60a5fa"/><stop offset="45%" stop-color="#2563eb"/><stop offset="100%" stop-color="#102247"/>
+    </linearGradient>
+    <linearGradient id="cbShd" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1d4ed8"/><stop offset="100%" stop-color="#09132e"/>
+    </linearGradient>
+    <linearGradient id="gTrim" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fff4cc"/><stop offset="45%" stop-color="#e2b75b"/><stop offset="100%" stop-color="#6b4218"/>
+    </linearGradient>
+    <radialGradient id="sapphire" cx="35%" cy="30%" r="70%">
+      <stop offset="0%" stop-color="#e0f2fe"/><stop offset="45%" stop-color="#38bdf8"/><stop offset="100%" stop-color="#0c2461"/>
+    </radialGradient>
+  </defs>
+  <!-- Floating articulated wing-bucklers -->
+  <path d="M29 37 L10 49 L14 85 L31 94 Z" fill="url(#cbLit)" stroke="#09132e" stroke-width="2.2"/>
+  <path d="M27 42 L15 51 L18 81 L29 88 Z" fill="none" stroke="url(#gTrim)" stroke-width="2.2"/>
+  <path d="M99 37 L118 49 L114 85 L97 94 Z" fill="url(#cbShd)" stroke="#09132e" stroke-width="2.2"/>
+  <path d="M101 42 L113 51 L110 81 L99 88 Z" fill="none" stroke="url(#gTrim)" stroke-width="2.2"/>
+  <!-- Top crest finial -->
+  <polygon points="64,7 75,21 64,25 53,21" fill="url(#gTrim)" stroke="#09132e" stroke-width="2"/>
+  <!-- Shield shadow & layered plate -->
+  <path d="M64 18 L100 32 L95 82 Q80 109 64 120 Q48 109 33 82 L28 32 Z" fill="url(#gTrim)" stroke="#09132e" stroke-width="2.6"/>
+  <path d="M64 25 L92 37 L88 80 Q76 102 64 111 Q52 102 40 80 L36 37 Z" fill="url(#cbLit)" stroke="#0d1b3e" stroke-width="1.8"/>
+  <path d="M64 25 L92 37 L88 80 Q76 102 64 111 Z" fill="url(#cbShd)" opacity="0.55"/>
+  <!-- Embossed gold cross truss & corner rivets -->
+  <rect x="61" y="26" width="6" height="83" fill="url(#gTrim)" stroke="#1e140a" stroke-width="1"/>
+  <rect x="37" y="61" width="54" height="6" fill="url(#gTrim)" stroke="#1e140a" stroke-width="1"/>
+  <circle cx="42" cy="40" r="2.2" fill="#fff4cc" stroke="#3b220d" stroke-width="0.9"/>
+  <circle cx="86" cy="40" r="2.2" fill="#fff4cc" stroke="#3b220d" stroke-width="0.9"/>
+  <circle cx="43" cy="80" r="2.2" fill="#fff4cc" stroke="#3b220d" stroke-width="0.9"/>
+  <circle cx="85" cy="80" r="2.2" fill="#fff4cc" stroke="#3b220d" stroke-width="0.9"/>
+  <!-- Central beveled octagonal sapphire boss -->
+  <polygon points="64,46 77,58 77,70 64,82 51,70 51,58" fill="url(#gTrim)" stroke="#09132e" stroke-width="1.8"/>
+  <polygon points="64,51 73,60 73,68 64,77 55,68 55,60" fill="url(#sapphire)" stroke="#0c2461" stroke-width="1.2"/>
+  <polygon points="64,51 73,60 64,64 55,60" fill="#e0f2fe" opacity="0.55"/>
 </svg>

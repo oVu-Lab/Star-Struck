@@ -1,5 +1,35 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
-  <polygon points="34,26 78,26 88,98 28,98" fill="#231c3c" stroke="#f97316" stroke-width="4"/>
-  <path d="M74 16 L108 42 L84 62 L74 44 Z" fill="#e2b75b" stroke="#fb923c" stroke-width="3"/>
-  <line x1="78" y1="20" x2="54" y2="108" stroke="#cbd5e1" stroke-width="5"/>
+  <defs>
+    <linearGradient id="ironAnv" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#5e5a6b"/><stop offset="50%" stop-color="#2b2633"/><stop offset="100%" stop-color="#110e16"/>
+    </linearGradient>
+    <linearGradient id="hornHot" x1="0" y1="0" x2="1" y2="0.4">
+      <stop offset="0%" stop-color="#ea580c"/><stop offset="50%" stop-color="#fbbf24"/><stop offset="100%" stop-color="#fffbeb"/>
+    </linearGradient>
+    <linearGradient id="brBand" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fde68a"/><stop offset="50%" stop-color="#cfa144"/><stop offset="100%" stop-color="#543416"/>
+    </linearGradient>
+  </defs>
+  <!-- Twin brass exhaust chimneys -->
+  <polygon points="36,16 48,16 50,36 34,36" fill="url(#brBand)" stroke="#140a0c" stroke-width="1.8"/>
+  <rect x="34" y="13" width="16" height="4.5" rx="1.5" fill="url(#brBand)" stroke="#140a0c" stroke-width="1.4"/>
+  <polygon points="56,20 68,20 70,36 54,36" fill="url(#brBand)" stroke="#140a0c" stroke-width="1.8"/>
+  <rect x="54" y="17" width="16" height="4.5" rx="1.5" fill="url(#brBand)" stroke="#140a0c" stroke-width="1.4"/>
+  <!-- Maul haft -->
+  <rect x="54" y="84" width="13" height="29" rx="2" fill="url(#ironAnv)" stroke="#140a0c" stroke-width="2"/>
+  <polygon points="48,111 73,111 69,120 52,120" fill="url(#brBand)" stroke="#140a0c" stroke-width="1.6"/>
+  <!-- Incandescent molten wedge horn -->
+  <polygon points="84,42 121,49 84,65" fill="url(#hornHot)" stroke="#4a1707" stroke-width="2"/>
+  <!-- Hammered dark-iron anvil body -->
+  <polygon points="14,36 86,36 86,78 76,88 34,88 26,74 26,52 10,44" fill="url(#ironAnv)" stroke="#0d090c" stroke-width="2.4"/>
+  <!-- Riveted bronze reinforcement bands -->
+  <rect x="33" y="34" width="8" height="54" rx="2" fill="url(#brBand)" stroke="#140a0c" stroke-width="1.6"/>
+  <rect x="77" y="34" width="8" height="52" rx="2" fill="url(#brBand)" stroke="#140a0c" stroke-width="1.6"/>
+  <!-- Recessed furnace grate with intense glowing spirit eyes -->
+  <rect x="44" y="51" width="30" height="19" rx="3" fill="#180806" stroke="url(#brBand)" stroke-width="2.4"/>
+  <ellipse cx="52.5" cy="60.5" rx="4.2" ry="4.5" fill="#fb923c"/>
+  <ellipse cx="65.5" cy="60.5" rx="4.2" ry="4.5" fill="#fb923c"/>
+  <circle cx="52.5" cy="60.5" r="2.2" fill="#fffbeb"/>
+  <circle cx="65.5" cy="60.5" r="2.2" fill="#fffbeb"/>
+  <line x1="59" y1="51" x2="59" y2="70" stroke="#2b2633" stroke-width="2.6"/>
 </svg>

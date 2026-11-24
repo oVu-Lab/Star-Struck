@@ -1,4 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <path d="M32 6 L54 14 V34 C54 46 44 54 32 58 C20 54 10 46 10 34 V14 Z" fill="#14233f" stroke="#38bdf8" stroke-width="3"/>
-  <line x1="32" y1="14" x2="32" y2="48" stroke="#e2b75b" stroke-width="3"/>
+  <defs><linearGradient id="gS" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#60a5fa"/><stop offset="100%" stop-color="#1e3a8a"/></linearGradient></defs>
+  <polygon points="10,24 4,32 8,46 15,49" fill="#3b82f6" stroke="#09132e" stroke-width="1.5"/>
+  <polygon points="54,24 60,32 56,46 49,49" fill="#1d4ed8" stroke="#09132e" stroke-width="1.5"/>
+  <path d="M32 8 L50 16 L47 42 Q39 54 32 58 Q25 54 17 42 L14 16 Z" fill="url(#gS)" stroke="#e2b75b" stroke-width="2.8"/>
+  <rect x="30.5" y="13" width="3" height="40" fill="#e2b75b"/><rect x="18" y="29" width="28" height="3" fill="#e2b75b"/>
+  <polygon points="32,23 39,30.5 32,38 25,30.5" fill="#e0f2fe" stroke="#0c2461" stroke-width="1.4"/>
 </svg>

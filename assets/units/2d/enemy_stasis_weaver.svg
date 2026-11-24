@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="cryLit" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#e0f2fe"/>
+      <stop offset="45%" stop-color="#818cf8"/>
+      <stop offset="100%" stop-color="#4338ca"/>
+    </linearGradient>
+    <linearGradient id="cryShd" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#4f46e5"/>
+      <stop offset="100%" stop-color="#1e1b4b"/>
+    </linearGradient>
+    <linearGradient id="rockBase" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#3b4266"/>
+      <stop offset="100%" stop-color="#0d0e1a"/>
+    </linearGradient>
+    <linearGradient id="silverBand" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#e2e8f0"/>
+      <stop offset="50%" stop-color="#94a3b8"/>
+      <stop offset="100%" stop-color="#334155"/>
+    </linearGradient>
+  </defs>
+  <polygon points="34,92 48,88 37,54 25,60" fill="url(#cryLit)" stroke="#0d0a29" stroke-width="1.4"/>
+  <polygon points="48,88 57,86 46,52 37,54" fill="url(#cryShd)" stroke="#0d0a29" stroke-width="1.4"/>
+  <polygon points="25,60 37,54 22,40" fill="#e0f2fe" stroke="#0d0a29" stroke-width="1.4"/>
+  <polygon points="37,54 46,52 22,40" fill="#6366f1" stroke="#0d0a29" stroke-width="1.4"/>
+  <polygon points="75,88 86,90 95,52 84,50" fill="url(#cryLit)" stroke="#0d0a29" stroke-width="1.4"/>
+  <polygon points="86,90 97,94 106,57 95,52" fill="url(#cryShd)" stroke="#0d0a29" stroke-width="1.4"/>
+  <polygon points="84,50 95,52 103,35" fill="#c7d2fe" stroke="#0d0a29" stroke-width="1.4"/>
+  <polygon points="95,52 106,57 103,35" fill="#312e81" stroke="#0d0a29" stroke-width="1.4"/>
+  <polygon points="49,95 62,95 62,36 49,40" fill="url(#cryLit)" stroke="#0d0a29" stroke-width="1.6"/>
+  <polygon points="62,95 79,95 78,40 62,36" fill="url(#cryShd)" stroke="#0d0a29" stroke-width="1.6"/>
+  <polygon points="49,40 62,36 66,12" fill="#f0f9ff" stroke="#0d0a29" stroke-width="1.6"/>
+  <polygon points="62,36 78,40 66,12" fill="#4f46e5" stroke="#0d0a29" stroke-width="1.6"/>
+  <line x1="62" y1="36" x2="66" y2="12" stroke="#ffffff" stroke-width="1.4" opacity="0.9"/>
+  <polygon points="16,32 20,20 25,32 20,42" fill="url(#cryLit)" stroke="#0d0a29" stroke-width="1.2"/>
+  <polygon points="105,31 109,20 114,31 109,40" fill="url(#cryShd)" stroke="#0d0a29" stroke-width="1.2"/>
+  <polygon points="34,92 94,92 100,104 82,114 46,114 28,104" fill="url(#rockBase)" stroke="#070812" stroke-width="2"/>
+  <rect x="31" y="90" width="66" height="6" rx="2.5" fill="url(#silverBand)" stroke="#0b0d1f" stroke-width="1.4"/>
+  <rect x="44" y="81" width="5" height="12" rx="1" fill="url(#silverBand)" stroke="#0b0d1f" stroke-width="1.1"/>
+  <rect x="61.5" y="79" width="5" height="14" rx="1" fill="url(#silverBand)" stroke="#0b0d1f" stroke-width="1.1"/>
+  <rect x="79" y="81" width="5" height="12" rx="1" fill="url(#silverBand)" stroke="#0b0d1f" stroke-width="1.1"/>
+</svg>

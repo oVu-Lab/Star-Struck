@@ -1,7 +1,31 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
-  <rect x="22" y="24" width="84" height="80" rx="12" fill="#182742" stroke="#e2b75b" stroke-width="5"/>
-  <rect x="38" y="40" width="52" height="22" rx="6" fill="#0c192d" stroke="#38bdf8" stroke-width="3"/>
-  <circle cx="52" cy="51" r="5" fill="#38bdf8"/>
-  <circle cx="76" cy="51" r="5" fill="#38bdf8"/>
-  <line x1="36" y1="84" x2="92" y2="84" stroke="#e2b75b" stroke-width="4"/>
+  <defs>
+    <linearGradient id="obsM" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#334155"/><stop offset="55%" stop-color="#141d33"/><stop offset="100%" stop-color="#070a14"/>
+    </linearGradient>
+    <linearGradient id="gOrr" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fff3cf"/><stop offset="50%" stop-color="#cfa144"/><stop offset="100%" stop-color="#543012"/>
+    </linearGradient>
+    <radialGradient id="cyFurn" cx="45%" cy="42%" r="60%">
+      <stop offset="0%" stop-color="#f0f9ff"/><stop offset="50%" stop-color="#38bdf8"/><stop offset="100%" stop-color="#0284c7"/>
+    </radialGradient>
+  </defs>
+  <!-- Rear tilted brass astrolabe rings -->
+  <ellipse cx="64" cy="64" rx="54" ry="20" transform="rotate(-26 64 64)" fill="none" stroke="#080c17" stroke-width="6"/>
+  <ellipse cx="64" cy="64" rx="54" ry="20" transform="rotate(-26 64 64)" fill="none" stroke="url(#gOrr)" stroke-width="3.6"/>
+  <ellipse cx="64" cy="64" rx="48" ry="18" transform="rotate(28 64 64)" fill="none" stroke="#080c17" stroke-width="5"/>
+  <ellipse cx="64" cy="64" rx="48" ry="18" transform="rotate(28 64 64)" fill="none" stroke="url(#gOrr)" stroke-width="2.8"/>
+  <!-- Chamfered obsidian monolith-cube -->
+  <polygon points="44,31 84,31 97,44 97,84 84,97 44,97 31,84 31,44" fill="url(#obsM)" stroke="#070a14" stroke-width="2.4"/>
+  <rect x="40" y="40" width="48" height="48" rx="3" fill="none" stroke="url(#gOrr)" stroke-width="2.4"/>
+  <!-- Cyan star-furnace diamond core & rune grills (no smiley face!) -->
+  <polygon points="64,47 79,64 64,81 49,64" fill="#070a14" stroke="url(#gOrr)" stroke-width="1.8"/>
+  <polygon points="64,51 75,64 64,77 53,64" fill="url(#cyFurn)"/>
+  <rect x="46" y="45" width="7" height="3" fill="#38bdf8"/>
+  <rect x="75" y="45" width="7" height="3" fill="#38bdf8"/>
+  <rect x="46" y="80" width="7" height="3" fill="#38bdf8"/>
+  <rect x="75" y="80" width="7" height="3" fill="#38bdf8"/>
+  <!-- Orbiting brass counterweight satellites -->
+  <circle cx="17" cy="43" r="7" fill="url(#gOrr)" stroke="#080c17" stroke-width="1.8"/>
+  <circle cx="111" cy="85" r="7" fill="url(#gOrr)" stroke="#080c17" stroke-width="1.8"/>
 </svg>

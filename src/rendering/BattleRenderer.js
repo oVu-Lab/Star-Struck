@@ -19,6 +19,7 @@ import {
   drawUnitAttackWorldEffect,
   drawUnitHitReactionOverlay,
 } from './UnitAttackVfxRenderer.js';
+import { drawChibiObjectUnit } from './UnitObjectModelRenderer.js';
 
 export const TERRAIN_THEMES = Object.freeze({
   orbital_bastion: {
@@ -1298,6 +1299,64 @@ export class BattleRenderer {
       ctx.ellipse(p.x, p.y, rx * progress, ry * progress, 0, 0, Math.PI * 2);
       ctx.stroke();
 
+      // Ability-themed internal telegraph motif (solar rays, clock dial, hex grid, etc.)
+      const abId = tg.abilityId || '';
+      ctx.globalAlpha = 0.45 + progress * 0.35;
+      ctx.lineWidth = 1.1;
+      if (abId === 'unit_solar_flare' || abId === 'boss_orbital_cataclysm') {
+        for (let k = 0; k < 8; k += 1) {
+          const a = (k * Math.PI) / 4 + progress * 0.6;
+          ctx.beginPath();
+          ctx.moveTo(p.x + Math.cos(a) * rx * 0.25, p.y + Math.sin(a) * ry * 0.25);
+          ctx.lineTo(p.x + Math.cos(a) * rx * 0.92, p.y + Math.sin(a) * ry * 0.92);
+          ctx.stroke();
+        }
+      } else if (
+        abId === 'unit_chrono_snare' ||
+        abId === 'enemy_stasis_field' ||
+        abId === 'boss_temporal_collapse'
+      ) {
+        for (let k = 0; k < 12; k += 1) {
+          const a = (k * Math.PI) / 6;
+          ctx.beginPath();
+          ctx.moveTo(p.x + Math.cos(a) * rx * 0.8, p.y + Math.sin(a) * ry * 0.8);
+          ctx.lineTo(p.x + Math.cos(a) * rx * 0.98, p.y + Math.sin(a) * ry * 0.98);
+          ctx.stroke();
+        }
+        const hA = -Math.PI * 0.5 + progress * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(p.x + Math.cos(hA) * rx * 0.68, p.y + Math.sin(hA) * ry * 0.68);
+        ctx.stroke();
+      } else if (
+        abId === 'unit_aegis_pulse' ||
+        abId === 'boss_aegis_shell' ||
+        abId === 'mod_ability_bulwark_aura'
+      ) {
+        ctx.beginPath();
+        for (let k = 0; k < 6; k += 1) {
+          const a = (k * Math.PI) / 3 + progress * 0.3;
+          const hx = p.x + Math.cos(a) * rx * 0.72;
+          const hy = p.y + Math.sin(a) * ry * 0.72;
+          if (k === 0) ctx.moveTo(hx, hy);
+          else ctx.lineTo(hx, hy);
+        }
+        ctx.closePath();
+        ctx.stroke();
+      } else if (abId === 'boss_arcane_barrage' || abId.startsWith('boss_summon_')) {
+        for (let k = 0; k < 4; k += 1) {
+          const a = (k * Math.PI) / 2 + Math.PI / 4;
+          ctx.beginPath();
+          ctx.moveTo(p.x + Math.cos(a) * rx * 0.3, p.y + Math.sin(a) * ry * 0.3);
+          ctx.lineTo(p.x + Math.cos(a) * rx * 0.9, p.y + Math.sin(a) * ry * 0.9);
+          ctx.stroke();
+        }
+      } else if (abId) {
+        ctx.beginPath();
+        ctx.ellipse(p.x, p.y, rx * 0.45, ry * 0.45, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
       if (tg.label) {
         ctx.globalAlpha = 0.95;
         ctx.font = '700 9.5px "JetBrains Mono", monospace';
@@ -1315,32 +1374,24 @@ export class BattleRenderer {
     const p = bf.worldToScreen(unit.x, unit.y, w, h);
     const isAlly = unit.side === 'ally';
     const isDead = unit.state === UNIT_STATES.DEAD;
-    const isMoving = unit.state === UNIT_STATES.MOVING;
     const isCasting = unit.state === UNIT_STATES.CASTING;
     const scale = (unit.visualScale || 1) * Math.max(0.76, Math.min(1.26, p.scale / 8.0));
-    const spriteSize = 44 * scale;
 
-    const phase = unit.phase || 0;
-    const walkBob = isMoving
-      ? Math.abs(Math.sin(elapsed * 9.5 + phase)) * 4.0
-      : Math.sin(elapsed * 3.4 + phase) * 1.1;
-    const strideTilt = isMoving
-      ? Math.sin(elapsed * 9.5 + phase) * 0.065 * unit.facing
-      : 0;
-
-    const lungeRatio = unit.attackAnim > 0 ? Math.sin((unit.attackAnim / 0.24) * Math.PI) : 0;
-    const lunge = lungeRatio * 8 * unit.facing;
-    const attackTilt = lungeRatio * 0.14 * unit.facing;
+    // Unit Chibi Object Model (100% object-based, zero humanoid bodies)
     const deathProgress = isDead ? Math.min(1, unit.deathTimer / 0.45) : 0;
     const deathAlpha = isDead ? Math.max(0, 1 - deathProgress) : 1;
 
     ctx.save();
     ctx.globalAlpha = deathAlpha;
 
-    // Ground shadow
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.48)';
+    // Ground contact shadow + soft ambient occlusion
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
     ctx.beginPath();
-    ctx.ellipse(p.x, p.y + 2, 13.5 * scale, 6.2 * scale, 0, 0, Math.PI * 2);
+    ctx.ellipse(p.x, p.y + 2, 18.5 * scale, 8.2 * scale, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.46)';
+    ctx.beginPath();
+    ctx.ellipse(p.x, p.y + 2, 12.5 * scale, 5.4 * scale, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // Team / Role Ground Ring
@@ -1407,30 +1458,14 @@ export class BattleRenderer {
       ctx.stroke();
     }
 
-    // Unit Sprite
-    const drawX = p.x + lunge - (isDead ? deathProgress * 7 * unit.facing : 0);
-    const drawY = p.y - spriteSize * 0.78 - walkBob + (isDead ? deathProgress * 10 : 0);
-    const sprite = this._assets.getImageElement(unit.spriteAssetId);
-
-    ctx.save();
-    ctx.translate(drawX, drawY + spriteSize * 0.5);
-    if (isDead) {
-      ctx.rotate((isAlly ? -1 : 1) * Math.min(1.15, deathProgress * 1.25));
-      ctx.scale(1 - deathProgress * 0.18, 1 - deathProgress * 0.18);
-    } else {
-      ctx.rotate(strideTilt + attackTilt);
-    }
-    if (unit.facing < 0) ctx.scale(-1, 1);
-
-    if (sprite && sprite.complete && sprite.naturalWidth > 0) {
-      ctx.drawImage(sprite, -spriteSize * 0.5, -spriteSize * 0.5, spriteSize, spriteSize);
-    } else {
-      ctx.fillStyle = isAlly ? '#38bdf8' : unit.tintColor || '#f87171';
-      ctx.beginPath();
-      ctx.roundRect(-11 * scale, -14 * scale, 22 * scale, 28 * scale, 5);
-      ctx.fill();
-    }
-    ctx.restore();
+    const { drawX, drawY, spriteSize } = drawChibiObjectUnit(ctx, unit, {
+      x: p.x,
+      y: p.y,
+      scale,
+      elapsed,
+      deathProgress,
+      assetManager: this._assets,
+    });
 
     // Directional elemental/physical hit reaction overlay
     if (unit.hitFlash > 0 && !isDead) {
@@ -1443,7 +1478,7 @@ export class BattleRenderer {
       ctx.fillStyle = 'rgba(56, 189, 248, 0.08)';
       ctx.lineWidth = 1.6;
       ctx.beginPath();
-      ctx.arc(drawX, drawY + spriteSize * 0.48, 17 * scale, 0, Math.PI * 2);
+      ctx.arc(drawX, drawY + spriteSize * 0.48, spriteSize * 0.42, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
     }
@@ -1453,7 +1488,7 @@ export class BattleRenderer {
       ctx.strokeStyle = 'rgba(52, 211, 153, 0.88)';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(drawX, drawY + spriteSize * 0.48, 16 * scale, 0, Math.PI * 2);
+      ctx.arc(drawX, drawY + spriteSize * 0.48, spriteSize * 0.4, 0, Math.PI * 2);
       ctx.stroke();
     }
 
@@ -1480,7 +1515,7 @@ export class BattleRenderer {
       const barW = unit.isBoss ? 62 : unit.isElite ? 46 : 34;
       const barH = unit.isBoss ? 6 : 4.5;
       const barX = drawX - barW * 0.5;
-      const barY = drawY - 7;
+      const barY = drawY - (unit.isBoss ? 13 : 7);
       const hpPct = Math.max(0, Math.min(1, unit.hp / Math.max(1, unit.maxHp)));
 
       ctx.fillStyle = 'rgba(5, 9, 18, 0.9)';

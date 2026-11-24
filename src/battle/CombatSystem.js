@@ -162,10 +162,10 @@ export class CombatSystem {
     if (skillSystem) {
       const ultCfg = this._getBalance().ultimateEnergy || {};
       if (source && source.side === 'ally' && source.state !== UNIT_STATES.DEAD && source.hp > 0) {
-        skillSystem.addUltimateEnergy(amount * (ultCfg.gainPerDamageDealt ?? 0.045));
+        skillSystem.addUltimateEnergy(amount * (ultCfg.gainPerDamageDealt ?? 0.009));
       }
       if (target.side === 'ally' && target.hp > 0 && target.state !== UNIT_STATES.DEAD) {
-        skillSystem.addUltimateEnergy(amount * (ultCfg.gainPerDamageReceived ?? 0.035));
+        skillSystem.addUltimateEnergy(amount * (ultCfg.gainPerDamageReceived ?? 0.007));
       }
     }
 
@@ -219,7 +219,7 @@ export class CombatSystem {
         const canGen = !source || (source.side === 'ally' && source.state !== UNIT_STATES.DEAD && source.hp > 0);
         if (canGen) {
           const ultCfg = this._getBalance().ultimateEnergy || {};
-          skillSystem.addUltimateEnergy(actualHeal * (ultCfg.gainPerHeal ?? 0.045));
+          skillSystem.addUltimateEnergy(actualHeal * (ultCfg.gainPerHeal ?? 0.009));
         }
       }
     }
@@ -249,7 +249,7 @@ export class CombatSystem {
       this._stats.enemiesDefeated += 1;
       if (skillSystem && killer && killer.side === 'ally' && killer.hp > 0 && killer.state !== UNIT_STATES.DEAD) {
         const ultCfg = this._getBalance().ultimateEnergy || {};
-        skillSystem.addUltimateEnergy(ultCfg.gainPerKill ?? 4);
+        skillSystem.addUltimateEnergy(ultCfg.gainPerKill ?? 0.8);
       }
     } else {
       this._stats.alliesDefeated += 1;
@@ -520,6 +520,7 @@ export class CombatSystem {
         x: tx,
         y: ty,
         remaining: telegraphDuration,
+        duration: telegraphDuration,
       };
       unitManager.setUnitState(unit, UNIT_STATES.CASTING);
 
@@ -531,6 +532,8 @@ export class CombatSystem {
           radius: abDef.radius || 12,
           color: abDef.color || '#f87171',
           label: unit.isBoss || unit.isElite ? abDef.name : '',
+          abilityId: abDef.id,
+          casterProfileId: unit.bossId || unit.eliteId || unit.unitId,
           elapsed: 0,
           duration: telegraphDuration,
         });

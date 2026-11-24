@@ -22,10 +22,10 @@
   "ultimateEnergy": {
     "max": 100,
     "starting": 0,
-    "gainPerDamageDealt": 0.045,
-    "gainPerDamageReceived": 0.035,
-    "gainPerHeal": 0.045,
-    "gainPerKill": 4
+    "gainPerDamageDealt": 0.009,
+    "gainPerDamageReceived": 0.007,
+    "gainPerHeal": 0.009,
+    "gainPerKill": 0.8
   },
   "combat": {
     "physicalDefenseScale": 1.0,

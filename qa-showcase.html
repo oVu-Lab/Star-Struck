@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Star Struck — Chibi Object Redesign & VFX QA Showcase</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #070911;
+      color: #eef2ff;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+      padding: 12px 16px;
+      overflow-x: hidden;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      border-bottom: 1px solid rgba(226, 183, 91, 0.35);
+      padding-bottom: 6px;
+      margin-bottom: 10px;
+    }
+    .header h1 {
+      font-size: 16px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #f5dca0;
+    }
+    .header span {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+    .grid-contact {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .grid-contact .card { min-width: 0; }
+    .grid-5 {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .grid-5 .card { min-width: 0; }
+    .card {
+      background: linear-gradient(180deg, #111626 0%, #0b0e18 100%);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      border-radius: 8px;
+      padding: 6px 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .card.ally { border-color: rgba(56, 189, 248, 0.45); }
+    .card.enemy { border-color: rgba(248, 113, 113, 0.45); }
+    .card.elite { border-color: rgba(192, 132, 252, 0.55); }
+    .card.boss { border-color: rgba(226, 183, 91, 0.72); }
+    .card-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: #f8fafc;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      width: 100%;
+    }
+    .card-sub {
+      font-size: 9.5px;
+      color: #94a3b8;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      width: 100%;
+      margin-bottom: 4px;
+    }
+    .badge {
+      font-size: 8.5px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      margin-bottom: 3px;
+    }
+    .badge.ally { background: rgba(56, 189, 248, 0.18); color: #7dd3fc; }
+    .badge.enemy { background: rgba(248, 113, 113, 0.18); color: #fca5a5; }
+    .badge.elite { background: rgba(192, 132, 252, 0.2); color: #e9d5ff; }
+    .badge.boss { background: rgba(226, 183, 91, 0.22); color: #fde68a; }
+    canvas { display: block; border-radius: 5px; }
+    .battle-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    .battle-canvas {
+      border: 1px solid rgba(226, 183, 91, 0.5);
+      border-radius: 8px;
+      width: 1280px;
+      height: 720px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1 id="qa-title">Star Struck QA</h1>
+    <span id="qa-subtitle"></span>
+  </div>
+  <div id="qa-root"></div>
+
+  <script type="module">
+    import { AssetManager } from './src/rendering/AssetManager.js';
+    import { UNIT_OBJECT_DESIGNS, UNIT_OBJECT_ROSTER_IDS } from './src/rendering/UnitObjectDesignCatalog.js';
+    import { drawChibiObjectUnit } from './src/rendering/UnitObjectModelRenderer.js';
+    import { UNIT_ATTACK_FX_KINDS, resolveUnitAttackVfxProfile } from './src/rendering/UnitAttackVfxConfig.js';
+    import { drawUnitAttackWorldEffect, drawUnitProjectile } from './src/rendering/UnitAttackVfxRenderer.js';
+    import { Battlefield } from './src/battle/Battlefield.js';
+    import { BattleRenderer, TERRAIN_THEMES } from './src/rendering/BattleRenderer.js';
+    import { AnimationManager } from './src/rendering/AnimationManager.js';
+    import { ParticleSystem } from './src/rendering/ParticleSystem.js';
+    import { UNIT_STATES } from './src/battle/UnitManager.js';
+
+    const params = new URLSearchParams(window.location.search);
+    const view = params.get('view') || 'contact-sheet';
+    const root = document.getElementById('qa-root');
+    const titleEl = document.getElementById('qa-title');
+    const subEl = document.getElementById('qa-subtitle');
+
+    const assetManager = new AssetManager();
+    await assetManager.preloadGroup();
+
+    const [unitsRes, enemiesRes, bossesRes, terrainRes] = await Promise.all([
+      fetch('./data/units.json').then((r) => r.json()),
+      fetch('./data/enemies.json').then((r) => r.json()),
+      fetch('./data/bosses.json').then((r) => r.json()),
+      fetch('./data/terrain.json').then((r) => r.json()),
+    ]);
+    const abMap = new Map(bossesRes.bossAbilities.map((a) => [a.id, a]));
+    const terrainById = new Map((terrainRes.terrains || []).map((t) => [t.id, t]));
+    const unitDataMap = new Map([
+      ...unitsRes.units.map((u) => [u.id, u]),
+      ...enemiesRes.enemies.map((e) => [e.id, e]),
+      ...bossesRes.elites.map((el) => [el.id, el]),
+      ...bossesRes.bosses.map((b) => [b.id, b]),
+    ]);
+
+    function groupTag(group) {
+      return group === 'playable' ? 'ally' : group;
+    }
+
+    function makeUnit(id, state = UNIT_STATES.IDLE, extra = {}) {
+      const d = UNIT_OBJECT_DESIGNS[id];
+      const side = d.rosterGroup === 'playable' ? 'ally' : 'enemy';
+      return {
+        uid: `qa_${id}`,
+        unitId: id,
+        bossId: d.rosterGroup === 'boss' ? id : null,
+        eliteId: d.rosterGroup === 'elite' ? id : null,
+        name: d.name,
+        side,
+        facing: 1,
+        state,
+        tier: 1,
+        phase: 0.4,
+        attackAnim: state === UNIT_STATES.ATTACKING ? 0.12 : 0,
+        healAnim: 0,
+        hitFlash: 0,
+        castingAbility: state === UNIT_STATES.CASTING ? { remaining: 0.25, duration: 0.6 } : null,
+        ...extra,
+      };
+    }
+
+    if (view === 'art-gate') {
+      titleEl.textContent = 'STARFALL — Representative 3-Unit Art Quality Gate (2D & 2.5D)';
+      subEl.textContent = 'Before (Old Icon / AI WebP) vs Redesigned Pure 2D vs Redesigned 2.5D + Normal Battle Scale';
+
+      async function loadImg(src) {
+        return await new Promise((resolve) => {
+          const im = new Image();
+          im.onload = () => resolve(im);
+          im.onerror = () => resolve(null);
+          im.src = src;
+        });
+      }
+
+      const gateSpecs = [
+        {
+          id: 'solar_pyromancer',
+          label: 'Solar Pyromancer (Solar)',
+          beforeSvg: './qa-before/solar_pyromancer.svg',
+          beforeWebp: './qa-before/solar_pyromancer.webp',
+          new2d: './assets/units/2d/solar_pyromancer.webp',
+          new2dSvg: './assets/units/solar_pyromancer.svg',
+          new25d: './assets/units/models/solar_pyromancer.webp',
+        },
+        {
+          id: 'chrono_weaver',
+          label: 'Chrono Weaver (Chronometer)',
+          beforeSvg: './qa-before/chrono_weaver.svg',
+          beforeWebp: './qa-before/chrono_weaver.webp',
+          new2d: './assets/units/2d/chrono_weaver.webp',
+          new2dSvg: './assets/units/chrono_weaver.svg',
+          new25d: './assets/units/models/chrono_weaver.webp',
+        },
+        {
+          id: 'enemy_stasis_weaver',
+          label: 'Stasis Weaver (Crystal)',
+          beforeSvg: './qa-before/aegis_sentinel.svg',
+          beforeWebp: './qa-before/enemy_stasis_weaver.webp',
+          new2d: './assets/units/2d/enemy_stasis_weaver.webp',
+          new2dSvg: './assets/units/2d/enemy_stasis_weaver.svg',
+          new25d: './assets/units/models/enemy_stasis_weaver.webp',
+        },
+      ];
+
+      const loadedGate = await Promise.all(
+        gateSpecs.map(async (g) => ({
+          ...g,
+          imBeforeSvg: await loadImg(g.beforeSvg),
+          imBeforeWebp: await loadImg(g.beforeWebp),
+          imNew2d: await loadImg(g.new2d),
+          imNew2dSvg: await loadImg(g.new2dSvg),
+          imNew25d: await loadImg(g.new25d),
+        })),
+      );
+
+      const topRow = document.createElement('div');
+      topRow.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px;';
+      root.appendChild(topRow);
+
+      for (const g of loadedGate) {
+        const d = UNIT_OBJECT_DESIGNS[g.id];
+        const cls = groupTag(d.rosterGroup);
+        const card = document.createElement('div');
+        card.className = `card ${cls}`;
+        card.innerHTML = `<div class="card-title">${g.label}</div>`;
+        const c = document.createElement('canvas');
+        c.width = 500;
+        c.height = 225;
+        c.style.width = '100%';
+        c.style.height = 'auto';
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#0c1020';
+        ctx.fillRect(0, 0, 500, 225);
+        const cols = [
+          { im: g.imBeforeSvg, tag: 'BEFORE 2D' },
+          { im: g.imBeforeWebp, tag: 'BEFORE AI' },
+          { im: g.imNew2d, tag: 'NEW PURE 2D' },
+          { im: g.imNew25d, tag: 'NEW 2.5D' },
+        ];
+        cols.forEach((col, i) => {
+          const cx = 64 + i * 124;
+          ctx.fillStyle = i >= 2 ? '#121933' : '#11131e';
+          ctx.fillRect(cx - 56, 22, 112, 178);
+          ctx.strokeStyle = i >= 2 ? 'rgba(226,183,91,0.55)' : 'rgba(148,163,184,0.22)';
+          ctx.strokeRect(cx - 56, 22, 112, 178);
+          if (col.im) {
+            ctx.drawImage(col.im, cx - 50, 40, 100, 100);
+            ctx.drawImage(col.im, cx - 22, 148, 44, 44); // normal gameplay size ~44-68px preview
+          }
+          ctx.fillStyle = i >= 2 ? '#fde68a' : '#94a3b8';
+          ctx.font = '700 10px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(col.tag, cx, 16);
+          ctx.fillStyle = '#94a3b8';
+          ctx.font = '600 9px monospace';
+          ctx.fillText('100px / 44px', cx, 214);
+        });
+        card.appendChild(c);
+        topRow.appendChild(card);
+      }
+
+      // Normal Battlefield Camera comparing NEW 2D (top lane) and NEW 2.5D (bottom lane)
+      const battleWrap = document.createElement('div');
+      battleWrap.className = 'battle-wrap';
+      const bCanvas = document.createElement('canvas');
+      bCanvas.width = 1280;
+      bCanvas.height = 460;
+      bCanvas.style.cssText = 'width:1280px;height:460px;border:1px solid rgba(226,183,91,0.5);border-radius:8px;';
+      battleWrap.appendChild(bCanvas);
+      root.appendChild(battleWrap);
+
+      const bf = new Battlefield({ terrainConfig: null });
+      const anim = new AnimationManager();
+      const particles = new ParticleSystem();
+      const customAssets = {
+        getImageElement: (id) => {
+          if (id === 'gate_2d_solar') return loadedGate[0].imNew2d;
+          if (id === 'gate_2d_chrono') return loadedGate[1].imNew2d;
+          if (id === 'gate_2d_crystal') return loadedGate[2].imNew2d;
+          return assetManager.getImageElement(id);
+        },
+        getAssetUrl: (id) => assetManager.getAssetUrl(id),
+      };
+      const renderer = new BattleRenderer({
+        assetManager: customAssets,
+        animationManager: anim,
+        particleSystem: particles,
+        gameState: { settings: { graphicsQuality: 'high' }, battle: { status: 'running', selectedCardSlot: -1 } },
+      });
+      renderer.attach(bCanvas);
+      renderer.setBattlefield(bf);
+      const units = [
+        // Bottom row: 2.5D versions + active skill VFX
+        { ...makeUnit('solar_pyromancer', UNIT_STATES.CASTING), x: 25, y: 68, hp: 300, maxHp: 300, shield: 0, facing: 1, tier: 2 },
+        { ...makeUnit('chrono_weaver', UNIT_STATES.ATTACKING), x: 40, y: 68, hp: 340, maxHp: 340, shield: 0, facing: 1, tier: 1 },
+        { ...makeUnit('enemy_stasis_weaver', UNIT_STATES.CASTING), x: 74, y: 68, hp: 330, maxHp: 330, shield: 0, facing: -1, tier: 1 },
+      ];
+      anim.spawnWorldEffect({
+        kind: UNIT_ATTACK_FX_KINDS.ABILITY,
+        x: 68, y: 46, radius: 12, color: '#fb923c', secondaryColor: '#fde047',
+        duration: 0.9, profileId: 'solar_pyromancer', side: 'ally', scale: 1.1,
+        meta: { abilityKind: 'aoe_damage', abilityId: 'unit_solar_flare' },
+      }).age = 0.34;
+      anim.spawnWorldEffect({
+        kind: UNIT_ATTACK_FX_KINDS.ABILITY,
+        x: 56, y: 68, radius: 12, color: '#a78bfa', secondaryColor: '#e9d5ff',
+        duration: 0.9, profileId: 'chrono_weaver', side: 'ally', scale: 1.1,
+        meta: { abilityKind: 'aoe_damage', abilityId: 'unit_chrono_snare' },
+      }).age = 0.34;
+      anim._elapsed = 1.2;
+      renderer.render({
+        stage: { id: 'stage_gate', backgroundAssetId: 'bg_battle_orbital_ridge' },
+        battlefield: bf,
+        phase: 'active_combat',
+        units,
+        projectiles: [],
+        telegraphs: [],
+      });
+      const bctx = bCanvas.getContext('2d');
+      const dpr = bCanvas.width / 1280;
+      bctx.save();
+      bctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      bctx.font = '700 12px monospace';
+      bctx.fillStyle = '#7dd3fc';
+      bctx.fillText('PURE 2D @ NORMAL BATTLE ZOOM (Top Row):', 16, 46);
+      bctx.fillStyle = '#fde68a';
+      bctx.fillText('2.5D + VFX @ NORMAL BATTLE ZOOM (Bottom Row):', 16, 444);
+      const pTop = [
+        { im: loadedGate[0].imNew2d, wx: 25, wy: 28, sz: 70, ring: '#38bdf8' },
+        { im: loadedGate[1].imNew2d, wx: 40, wy: 28, sz: 70, ring: '#38bdf8' },
+        { im: loadedGate[2].imNew2d, wx: 74, wy: 28, sz: 68, ring: '#f87171' },
+      ];
+      for (const item of pTop) {
+        const sp = bf.worldToScreen(item.wx, item.wy, 1280, 460);
+        const unitScale = 0.85;
+        const rSz = item.sz * unitScale;
+        bctx.fillStyle = 'rgba(0,0,0,0.42)';
+        bctx.beginPath();
+        bctx.ellipse(sp.x, sp.y + 2, 16 * unitScale, 7 * unitScale, 0, 0, Math.PI * 2);
+        bctx.fill();
+        bctx.strokeStyle = item.ring;
+        bctx.lineWidth = 1.6;
+        bctx.beginPath();
+        bctx.ellipse(sp.x, sp.y + 1, 14.5 * unitScale, 7.2 * unitScale, 0, 0, Math.PI * 2);
+        bctx.stroke();
+        if (item.im) bctx.drawImage(item.im, sp.x - rSz * 0.5, sp.y - rSz * 0.72, rSz, rSz);
+      }
+      bctx.restore();
+    } else if (view === 'pilot-review') {
+      titleEl.textContent = 'Star Struck — Art Quality Pilot Gate (3 Flagship Units)';
+      subEl.textContent = 'Close-Ups · Multi-Lighting Arenas · Normal Camera + Signature Skill VFX';
+      const pilotIds = ['solar_pyromancer', 'chrono_weaver', 'enemy_stasis_weaver'];
+      const topRow = document.createElement('div');
+      topRow.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px;';
+      root.appendChild(topRow);
+
+      for (const id of pilotIds) {
+        const d = UNIT_OBJECT_DESIGNS[id];
+        const cls = groupTag(d.rosterGroup);
+        const card = document.createElement('div');
+        card.className = `card ${cls}`;
+        card.innerHTML = `
+          <span class="badge ${cls}">${cls} · ${String(d.renderStyle || '2.5d').toUpperCase()} · ${d.role}</span>
+          <div class="card-title">${d.name}</div>
+          <div class="card-sub">${d.objectConcept}</div>
+        `;
+        const c = document.createElement('canvas');
+        c.width = 440;
+        c.height = 240;
+        c.style.width = '100%';
+        c.style.height = 'auto';
+        const ctx = c.getContext('2d');
+
+        // Split 3 lighting conditions in backdrop strips (Celestial / Obsidian / Ironforge)
+        const themes = ['orbital_bastion', 'obsidian_spire', 'hyperion_throne'];
+        for (let i = 0; i < 3; i += 1) {
+          const th = TERRAIN_THEMES[themes[i]];
+          const x0 = Math.round((440 / 3) * i);
+          const x1 = Math.round((440 / 3) * (i + 1));
+          const g = ctx.createLinearGradient(x0, 0, x0, 240);
+          g.addColorStop(0, th.backdropMid);
+          g.addColorStop(1, th.floorStops[1]);
+          ctx.fillStyle = g;
+          ctx.fillRect(x0, 0, x1 - x0, 240);
+          ctx.fillStyle = '#cbd5e1';
+          ctx.font = '600 10px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(th.label.toUpperCase(), (x0 + x1) * 0.5, 16);
+        }
+
+        // Large close-up left (Idle) & right (Casting)
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        ctx.beginPath();
+        ctx.ellipse(125, 198, 48, 16, 0, 0, Math.PI * 2);
+        ctx.ellipse(315, 198, 48, 16, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        drawChibiObjectUnit(ctx, makeUnit(id, UNIT_STATES.IDLE), {
+          x: 125, y: 192, scale: 2.35, elapsed: 1.1, assetManager,
+        });
+        drawChibiObjectUnit(ctx, makeUnit(id, UNIT_STATES.CASTING), {
+          x: 315, y: 192, scale: 2.35, elapsed: 1.4, assetManager,
+        });
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = '700 10px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('IDLE CLOSE-UP', 125, 228);
+        ctx.fillText('CASTING + 2.5D DEPTH', 315, 228);
+        card.appendChild(c);
+        topRow.appendChild(card);
+      }
+
+      // Normal Battlefield Camera Strip (1280x480) showing all 3 with active signature VFX
+      const battleWrap = document.createElement('div');
+      battleWrap.className = 'battle-wrap';
+      const bCanvas = document.createElement('canvas');
+      bCanvas.width = 1280;
+      bCanvas.height = 480;
+      bCanvas.style.cssText = 'width:1280px;height:480px;border:1px solid rgba(226,183,91,0.5);border-radius:8px;';
+      battleWrap.appendChild(bCanvas);
+      root.appendChild(battleWrap);
+
+      const bf = new Battlefield({ terrainConfig: null });
+      const anim = new AnimationManager();
+      const particles = new ParticleSystem();
+      const renderer = new BattleRenderer({
+        assetManager,
+        animationManager: anim,
+        particleSystem: particles,
+        gameState: { settings: { graphicsQuality: 'high' }, battle: { status: 'running', selectedCardSlot: -1 } },
+      });
+      renderer.attach(bCanvas);
+      renderer.setBattlefield(bf);
+      const units = [
+        { ...makeUnit('solar_pyromancer', UNIT_STATES.CASTING), x: 24, y: 46, hp: 300, maxHp: 300, shield: 0, facing: 1, tier: 2 },
+        { ...makeUnit('chrono_weaver', UNIT_STATES.ATTACKING), x: 34, y: 68, hp: 340, maxHp: 340, shield: 0, facing: 1, tier: 1 },
+        { ...makeUnit('enemy_stasis_weaver', UNIT_STATES.CASTING), x: 74, y: 56, hp: 330, maxHp: 330, shield: 0, facing: -1, tier: 1 },
+      ];
+      anim.spawnWorldEffect({
+        kind: UNIT_ATTACK_FX_KINDS.ABILITY,
+        x: 68, y: 40, radius: 13, color: '#fb923c', secondaryColor: '#fde047',
+        duration: 0.9, profileId: 'solar_pyromancer', side: 'ally', scale: 1.2,
+        meta: { abilityKind: 'aoe_damage', abilityId: 'unit_solar_flare' },
+      }).age = 0.34;
+      anim.spawnWorldEffect({
+        kind: UNIT_ATTACK_FX_KINDS.ABILITY,
+        x: 64, y: 72, radius: 13, color: '#a78bfa', secondaryColor: '#e9d5ff',
+        duration: 0.9, profileId: 'chrono_weaver', side: 'ally', scale: 1.2,
+        meta: { abilityKind: 'aoe_damage', abilityId: 'unit_chrono_snare' },
+      }).age = 0.34;
+      anim.spawnWorldEffect({
+        kind: UNIT_ATTACK_FX_KINDS.ABILITY,
+        x: 42, y: 54, radius: 12, color: '#a855f7', secondaryColor: '#c4b5fd',
+        duration: 0.9, profileId: 'enemy_stasis_weaver', side: 'enemy', scale: 1.2,
+        meta: { abilityKind: 'aoe_damage', abilityId: 'enemy_stasis_field' },
+      }).age = 0.34;
+      const projs = [
+        {
+          id: 'pp1', kind: 'magical', sourceSide: 'ally', vfxProfileId: 'solar_pyromancer',
+          trajectory: 'target_lock', startX: 24, startY: 46, x: 52, y: 44, z: 3,
+          targetX: 68, targetY: 40, totalDist: 44, traveled: 28, age: 0.32, seed: 12,
+        },
+      ];
+      anim._elapsed = 1.4;
+      renderer.render({
+        stage: { id: 'stage_pilot', backgroundAssetId: 'bg_battle_orbital_ridge' },
+        battlefield: bf,
+        phase: 'active_combat',
+        units,
+        projectiles: projs,
+        telegraphs: [],
+      });
+    } else if (view === 'contact-sheet') {
+      titleEl.textContent = 'Star Struck — Complete 33-Unit Chibi Object Contact Sheet';
+      subEl.textContent = '10 Playable Allies · 10 Enemies · 8 Elites · 5 Bosses (Zero Humanoid Bodies)';
+      const grid = document.createElement('div');
+      grid.className = 'grid-contact';
+      root.appendChild(grid);
+
+      for (const id of UNIT_OBJECT_ROSTER_IDS) {
+        const d = UNIT_OBJECT_DESIGNS[id];
+        const cls = groupTag(d.rosterGroup);
+        const card = document.createElement('div');
+        card.className = `card ${cls}`;
+        card.innerHTML = `
+          <span class="badge ${cls}">${cls} · ${String(d.renderStyle || '2.5d').toUpperCase()}</span>
+          <div class="card-title">${d.name}</div>
+          <div class="card-sub">${d.objectConcept}</div>
+        `;
+        const c = document.createElement('canvas');
+        c.width = 160;
+        c.height = 112;
+        c.style.width = '150px';
+        c.style.height = '105px';
+        const ctx = c.getContext('2d');
+        const bg = ctx.createRadialGradient(80, 56, 8, 80, 56, 80);
+        bg.addColorStop(0, '#1c243a');
+        bg.addColorStop(1, '#090c14');
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, 160, 112);
+
+        ctx.fillStyle = 'rgba(0,0,0,0.45)';
+        ctx.beginPath();
+        ctx.ellipse(80, 88, 28, 10, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        drawChibiObjectUnit(ctx, makeUnit(id, UNIT_STATES.IDLE), {
+          x: 80,
+          y: 86,
+          scale: d.rosterGroup === 'boss' ? 0.95 : 1.15,
+          elapsed: 1.1,
+          assetManager,
+        });
+        card.appendChild(c);
+        grid.appendChild(card);
+      }
+    } else if (view.startsWith('previews-')) {
+      const targetGroup =
+        view === 'previews-playable'
+          ? ['playable']
+          : view === 'previews-enemy'
+            ? ['enemy']
+            : ['elite', 'boss'];
+      const ids = UNIT_OBJECT_ROSTER_IDS.filter((id) => targetGroup.includes(UNIT_OBJECT_DESIGNS[id].rosterGroup));
+      titleEl.textContent = `Star Struck — Model Previews (${view.replace('previews-', '').toUpperCase()})`;
+      subEl.textContent = 'Each unit shown in Idle, Casting/Charging, and Attacking poses';
+      const grid = document.createElement('div');
+      grid.className = 'grid-5';
+      root.appendChild(grid);
+
+      for (const id of ids) {
+        const d = UNIT_OBJECT_DESIGNS[id];
+        const cls = groupTag(d.rosterGroup);
+        const card = document.createElement('div');
+        card.className = `card ${cls}`;
+        card.innerHTML = `
+          <span class="badge ${cls}">${cls} · ${String(d.renderStyle || '2.5d').toUpperCase()} · ${d.role}</span>
+          <div class="card-title">${d.name}</div>
+          <div class="card-sub">${d.objectConcept}</div>
+        `;
+        const c = document.createElement('canvas');
+        c.width = 252;
+        c.height = 148;
+        c.style.width = '248px';
+        c.style.height = '145px';
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#0c101b';
+        ctx.fillRect(0, 0, 252, 148);
+
+        const poses = [
+          { label: 'IDLE', state: UNIT_STATES.IDLE, x: 44 },
+          { label: 'CAST', state: UNIT_STATES.CASTING, x: 126 },
+          { label: 'ATTACK', state: UNIT_STATES.ATTACKING, x: 208 },
+        ];
+        for (const pose of poses) {
+          ctx.fillStyle = 'rgba(0,0,0,0.45)';
+          ctx.beginPath();
+          ctx.ellipse(pose.x, 108, 18, 7, 0, 0, Math.PI * 2);
+          ctx.fill();
+          drawChibiObjectUnit(ctx, makeUnit(id, pose.state), {
+            x: pose.x,
+            y: 106,
+            scale: d.rosterGroup === 'boss' ? 0.78 : 0.95,
+            elapsed: 1.25,
+            assetManager,
+          });
+          ctx.fillStyle = '#94a3b8';
+          ctx.font = '600 9px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(pose.label, pose.x, 134);
+        }
+        card.appendChild(c);
+        grid.appendChild(card);
+      }
+    } else if (view.startsWith('vfx-')) {
+      const targetGroup =
+        view === 'vfx-playable'
+          ? ['playable']
+          : view === 'vfx-enemy'
+            ? ['enemy']
+            : ['elite', 'boss'];
+      const ids = UNIT_OBJECT_ROSTER_IDS.filter((id) => targetGroup.includes(UNIT_OBJECT_DESIGNS[id].rosterGroup));
+      titleEl.textContent = `Star Struck — Signature Attack & Skill VFX Showcase (${view.replace('vfx-', '').toUpperCase()})`;
+      subEl.textContent = 'Showing Cast Prep -> Projectile/Melee Release -> Impact & Signature Skill VFX';
+      const grid = document.createElement('div');
+      grid.className = 'grid-5';
+      root.appendChild(grid);
+
+      const bf = new Battlefield();
+      for (const id of ids) {
+        const d = UNIT_OBJECT_DESIGNS[id];
+        const cls = groupTag(d.rosterGroup);
+        const rawDef = unitDataMap.get(id);
+        const abId = rawDef?.abilities?.[0] || null;
+        const abDef = abId ? abMap.get(abId) : null;
+        const card = document.createElement('div');
+        card.className = `card ${cls}`;
+        card.innerHTML = `
+          <span class="badge ${cls}">${abDef ? `Skill: ${abDef.name}` : 'Signature Attack'}</span>
+          <div class="card-title">${d.name}</div>
+          <div class="card-sub">${d.objectConcept}</div>
+        `;
+        const c = document.createElement('canvas');
+        c.width = 420;
+        c.height = 240;
+        c.style.width = '252px';
+        c.style.height = '144px';
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#0a0e18';
+        ctx.fillRect(0, 0, 420, 240);
+        // Subtle arena grid floor
+        ctx.strokeStyle = 'rgba(226, 183, 91, 0.14)';
+        ctx.strokeRect(10, 20, 400, 206);
+
+        const side = d.rosterGroup === 'playable' ? 'ally' : 'enemy';
+        const profile = resolveUnitAttackVfxProfile(id, { mode: 'attack', side });
+        const atkY = 62;
+        const attacker = makeUnit(id, UNIT_STATES.ATTACKING, { x: 18, y: atkY, facing: 1 });
+        const targetPos = { x: 76, y: atkY };
+
+        const ap = bf.worldToScreen(attacker.x, attacker.y, 420, 240);
+        const tp = bf.worldToScreen(targetPos.x, targetPos.y, 420, 240);
+        const uScale = Math.max(0.85, Math.min(1.4, ap.scale / 3.8));
+
+        // Cast sigil + unit + attack/projectile + impact/skill
+        const castFx = {
+          kind: UNIT_ATTACK_FX_KINDS.CAST,
+          x: attacker.x,
+          y: attacker.y,
+          angle: 0,
+          radius: 7,
+          color: profile.palette.primary,
+          secondaryColor: profile.palette.secondary,
+          age: (profile.castDuration || 0.18) * 0.45,
+          duration: profile.castDuration || 0.18,
+          profileId: id,
+          style: profile.castStyle,
+          side,
+          scale: 1.4,
+          seed: 12,
+          meta: { mode: 'attack', sourceFacing: 1 },
+        };
+        drawUnitAttackWorldEffect(ctx, bf, 420, 240, castFx, 'ground', null, 1.0);
+        drawChibiObjectUnit(ctx, attacker, { x: ap.x, y: ap.y, scale: uScale * 1.15, elapsed: 1.0, assetManager });
+        drawUnitAttackWorldEffect(ctx, bf, 420, 240, castFx, 'sky', null, 1.0);
+
+        if (profile.attackKind === 'melee') {
+          const meleeFx = {
+            kind: UNIT_ATTACK_FX_KINDS.MELEE,
+            x: 56,
+            y: atkY,
+            x2: attacker.x,
+            y2: attacker.y,
+            angle: 0,
+            radius: 12,
+            color: profile.palette.primary,
+            secondaryColor: profile.palette.secondary,
+            age: (profile.duration || 0.3) * 0.42,
+            duration: profile.duration || 0.3,
+            profileId: id,
+            style: profile.meleeStyle,
+            side,
+            scale: 1.85,
+            seed: 44,
+            meta: { mode: 'attack' },
+          };
+          drawUnitAttackWorldEffect(ctx, bf, 420, 240, meleeFx, 'ground', null, 1.0);
+          drawUnitAttackWorldEffect(ctx, bf, 420, 240, meleeFx, 'sky', null, 1.0);
+        } else {
+          drawUnitProjectile(ctx, bf, 420, 240, {
+            id: `qa_p_${id}`,
+            kind: 'magical',
+            sourceSide: side,
+            vfxProfileId: id,
+            trajectory: profile.trajectory,
+            startX: attacker.x,
+            startY: atkY,
+            x: 47,
+            y: atkY,
+            z: 4,
+            prevX: 43,
+            prevY: atkY,
+            prevZ: 3.8,
+            targetX: targetPos.x,
+            targetY: atkY,
+            totalDist: 58,
+            traveled: 29,
+            age: 0.25,
+            seed: 91,
+          }, 1.0);
+          const impFx = {
+            kind: UNIT_ATTACK_FX_KINDS.IMPACT,
+            x: targetPos.x,
+            y: targetPos.y,
+            angle: 0,
+            radius: 13,
+            color: profile.palette.primary,
+            secondaryColor: profile.palette.secondary,
+            age: (profile.duration || 0.34) * 0.35,
+            duration: profile.duration || 0.34,
+            profileId: id,
+            style: profile.impactStyle,
+            side,
+            scale: 1.75,
+            seed: 55,
+            meta: { mode: 'attack', startX: attacker.x, startY: atkY, sourceFacing: 1 },
+          };
+          drawUnitAttackWorldEffect(ctx, bf, 420, 240, impFx, 'ground', null, 1.0);
+          drawUnitAttackWorldEffect(ctx, bf, 420, 240, impFx, 'sky', null, 1.0);
+        }
+
+        if (abDef) {
+          const abFx = {
+            kind: UNIT_ATTACK_FX_KINDS.ABILITY,
+            x: 74,
+            y: atkY,
+            radius: Math.min(20, abDef.radius || 15),
+            color: abDef.color || profile.palette.primary,
+            secondaryColor: profile.palette.secondary,
+            age: 0.32,
+            duration: 0.8,
+            profileId: id,
+            side,
+            scale: 1.75,
+            seed: 88,
+            meta: { abilityKind: abDef.kind, abilityId: abDef.id },
+          };
+          drawUnitAttackWorldEffect(ctx, bf, 420, 240, abFx, 'ground', null, 1.0);
+          drawUnitAttackWorldEffect(ctx, bf, 420, 240, abFx, 'sky', null, 1.0);
+        } else {
+          // Show target marker for passive-attack specialists
+          ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+          ctx.beginPath();
+          ctx.ellipse(tp.x, tp.y, 18, 9, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        card.appendChild(c);
+        grid.appendChild(card);
+      }
+    } else if (view === 'battle-scene') {
+      titleEl.textContent = 'Star Struck — Normal Gameplay Camera Battle Scene (1280×720)';
+      subEl.textContent = 'Redesigned Chibi Object Units, Boss Hyperion, Solar Flare, Chrono Clockrings, Geodesic Laser & Wind Cyclones';
+      const wrap = document.createElement('div');
+      wrap.className = 'battle-wrap';
+      const canvas = document.createElement('canvas');
+      canvas.className = 'battle-canvas';
+      canvas.width = 1280;
+      canvas.height = 720;
+      wrap.appendChild(canvas);
+      root.appendChild(wrap);
+
+      const bf = new Battlefield();
+      const anim = new AnimationManager();
+      const particles = new ParticleSystem();
+      const mockState = { settings: { graphicsQuality: 'high' }, battle: { status: 'running', selectedCardSlot: -1 } };
+      const renderer = new BattleRenderer({
+        assetManager,
+        animationManager: anim,
+        particleSystem: particles,
+        gameState: mockState,
+      });
+      renderer.attach(canvas);
+      renderer.setBattlefield(bf);
+
+      const units = [
+        { ...makeUnit('heavy_shield_guard', UNIT_STATES.ATTACKING), x: 38, y: 36, hp: 690, maxHp: 760, shield: 110, facing: 1, tier: 2 },
+        { ...makeUnit('vanguard_breaker', UNIT_STATES.ATTACKING), x: 42, y: 58, hp: 560, maxHp: 610, shield: 0, facing: 1, tier: 1 },
+        { ...makeUnit('wind_cavalry', UNIT_STATES.MOVING), x: 32, y: 74, hp: 430, maxHp: 450, shield: 0, facing: 1, tier: 2 },
+        { ...makeUnit('solar_pyromancer', UNIT_STATES.CASTING), x: 16, y: 32, hp: 300, maxHp: 300, shield: 0, facing: 1, tier: 3 },
+        { ...makeUnit('chrono_weaver', UNIT_STATES.CASTING), x: 18, y: 56, hp: 340, maxHp: 340, shield: 0, facing: 1, tier: 2 },
+        { ...makeUnit('aegis_sentinel', UNIT_STATES.ATTACKING), x: 22, y: 72, hp: 480, maxHp: 490, shield: 80, facing: 1, tier: 1 },
+        { ...makeUnit('field_cleric', UNIT_STATES.HEALING), x: 12, y: 46, hp: 350, maxHp: 350, shield: 0, facing: 1, tier: 1, healAnim: 0.2 },
+        { ...makeUnit('arcane_archer', UNIT_STATES.ATTACKING), x: 14, y: 66, hp: 310, maxHp: 310, shield: 0, facing: 1, tier: 1 },
+        { ...makeUnit('astral_construct', UNIT_STATES.ATTACKING), x: 44, y: 46, hp: 980, maxHp: 1050, shield: 150, facing: 1, tier: 3 },
+        { ...makeUnit('enemy_void_vanguard', UNIT_STATES.ATTACKING), x: 56, y: 36, hp: 540, maxHp: 720, shield: 0, facing: -1 },
+        { ...makeUnit('enemy_abyssal_ravager', UNIT_STATES.ATTACKING), x: 58, y: 58, hp: 420, maxHp: 580, shield: 0, facing: -1 },
+        { ...makeUnit('enemy_rift_stalker', UNIT_STATES.MOVING), x: 52, y: 74, hp: 330, maxHp: 410, shield: 0, facing: -1 },
+        { ...makeUnit('enemy_cryo_warden', UNIT_STATES.CASTING), x: 74, y: 30, hp: 510, maxHp: 540, shield: 70, facing: -1 },
+        { ...makeUnit('enemy_obsidian_marksman', UNIT_STATES.ATTACKING), x: 80, y: 64, hp: 280, maxHp: 295, shield: 0, facing: -1 },
+        { ...makeUnit('elite_storm_lancer', UNIT_STATES.ATTACKING), x: 64, y: 72, hp: 610, maxHp: 700, shield: 0, facing: -1, isElite: true, visualScale: 1.22, modifierNames: ['Frenzied'] },
+        { ...makeUnit('boss_astral_leviathan', UNIT_STATES.CASTING), x: 76, y: 48, hp: 3650, maxHp: 4300, shield: 280, facing: -1, isBoss: true, visualScale: 1.72, auraColor: '#f97316', name: 'Astral Dreadnought Hyperion' },
+      ];
+
+      // Spawn active signature skills + projectiles + telegraphs at normal battle camera
+      anim.spawnWorldEffect({
+        kind: UNIT_ATTACK_FX_KINDS.ABILITY,
+        x: 60, y: 36, radius: 13, color: '#fb923c', secondaryColor: '#fde047',
+        duration: 0.9, profileId: 'solar_pyromancer', side: 'ally', scale: 1.15,
+        meta: { abilityKind: 'aoe_damage', abilityId: 'unit_solar_flare' },
+      }).age = 0.34;
+
+      anim.spawnWorldEffect({
+        kind: UNIT_ATTACK_FX_KINDS.ABILITY,
+        x: 62, y: 62, radius: 13, color: '#a78bfa', secondaryColor: '#e9d5ff',
+        duration: 0.9, profileId: 'chrono_weaver', side: 'ally', scale: 1.15,
+        meta: { abilityKind: 'aoe_damage', abilityId: 'unit_chrono_snare' },
+      }).age = 0.36;
+
+      anim.spawnWorldEffect({
+        kind: UNIT_ATTACK_FX_KINDS.ABILITY,
+        x: 38, y: 36, radius: 11, color: '#38bdf8', secondaryColor: '#f5d37a',
+        duration: 0.9, profileId: 'heavy_shield_guard', side: 'ally', scale: 1.1,
+        meta: { abilityKind: 'self_defense', abilityId: 'unit_bulwark_guard' },
+      }).age = 0.35;
+
+      anim.spawnWorldEffect({
+        kind: UNIT_ATTACK_FX_KINDS.MELEE,
+        x: 56, y: 48, x2: 44, y2: 46, angle: 0, radius: 7,
+        color: '#e2b75b', secondaryColor: '#38bdf8', duration: 0.36,
+        profileId: 'astral_construct', style: 'automaton_rail_cleave', side: 'ally', scale: 1.2,
+      }).age = 0.14;
+
+      const projectiles = [
+        {
+          id: 'p1', kind: 'magical', sourceUid: units[5].uid, targetUid: units[14].uid,
+          sourceSide: 'ally', vfxProfileId: 'aegis_sentinel', trajectory: 'laser_straight',
+          startX: 22, startY: 72, x: 54, y: 72, z: 3, targetX: 64, targetY: 72,
+          totalDist: 42, traveled: 32, age: 0.25, seed: 12,
+        },
+        {
+          id: 'p2', kind: 'magical', sourceUid: units[13].uid, targetUid: units[8].uid,
+          sourceSide: 'enemy', vfxProfileId: 'enemy_obsidian_marksman', trajectory: 'laser_straight',
+          startX: 80, startY: 64, x: 52, y: 50, z: 3, targetX: 44, targetY: 46,
+          totalDist: 40, traveled: 28, age: 0.22, seed: 19,
+        },
+        {
+          id: 'p3', kind: 'magical', sourceSide: 'ally', vfxProfileId: 'arcane_archer', trajectory: 'flat_dart',
+          startX: 14, startY: 66, x: 46, y: 61, z: 3.5, prevX: 40, prevY: 62, prevZ: 3.4,
+          targetX: 64, targetY: 58, totalDist: 50, traveled: 32, age: 0.3, seed: 4,
+        },
+      ];
+
+      const telegraphs = [
+        {
+          x: 42, y: 46, radius: 17, color: '#f97316',
+          label: 'Orbital Cataclysm', abilityId: 'boss_orbital_cataclysm',
+          elapsed: 0.72, duration: 1.25,
+        },
+      ];
+
+      anim.spawnFloatingText({ x: 56, y: 34, text: '-184!', color: '#fbbf24', isCrit: true, kind: 'crit' });
+      anim.spawnFloatingText({ x: 38, y: 34, text: '+95 SHD', color: '#38bdf8', kind: 'shield' });
+      anim._elapsed = 1.4;
+
+      renderer.render({
+        stage: { id: 'stage_3_5', backgroundAssetId: 'bg_battle_orbital_ridge' },
+        battlefield: bf,
+        phase: 'active_combat',
+        units,
+        projectiles,
+        telegraphs,
+      });
+    }
+    window.__QA_READY = true;
+  </script>
+</body>
+</html>

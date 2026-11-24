@@ -21,7 +21,7 @@
       "energyCost": 100,
       "target": "all_battlefield",
       "effect": {
-        "damage": 240,
+        "damage": 420,
         "attackType": "magical",
         "healAmount": 180,
         "screenShake": true,

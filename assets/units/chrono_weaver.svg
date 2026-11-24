@@ -1,6 +1,64 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
-  <circle cx="64" cy="64" r="38" fill="#1b1840" stroke="#a78bfa" stroke-width="4"/>
-  <polygon points="64,28 92,64 64,100 36,64" fill="none" stroke="#38bdf8" stroke-width="3"/>
-  <line x1="64" y1="64" x2="64" y2="38" stroke="#e2b75b" stroke-width="4"/>
-  <line x1="64" y1="64" x2="84" y2="64" stroke="#e2b75b" stroke-width="3"/>
+  <defs>
+    <radialGradient id="dialBg" cx="44%" cy="40%" r="64%">
+      <stop offset="0%" stop-color="#2c2263"/>
+      <stop offset="68%" stop-color="#17123b"/>
+      <stop offset="100%" stop-color="#0d0924"/>
+    </radialGradient>
+    <linearGradient id="brassCase" x1="0.15" y1="0.1" x2="0.85" y2="0.9">
+      <stop offset="0%" stop-color="#fff4cc"/>
+      <stop offset="42%" stop-color="#d4a448"/>
+      <stop offset="100%" stop-color="#523215"/>
+    </linearGradient>
+    <linearGradient id="brassGear" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fef08a"/>
+      <stop offset="100%" stop-color="#855218"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="64" cy="67" rx="54" ry="20" transform="rotate(-24 64 67)" fill="none" stroke="#18102b" stroke-width="5.5"/>
+  <ellipse cx="64" cy="67" rx="54" ry="20" transform="rotate(-24 64 67)" fill="none" stroke="url(#brassCase)" stroke-width="3"/>
+  <ellipse cx="64" cy="17" rx="11" ry="7.5" fill="none" stroke="#18102b" stroke-width="5.5"/>
+  <ellipse cx="64" cy="17" rx="11" ry="7.5" fill="none" stroke="url(#brassCase)" stroke-width="3.2"/>
+  <rect x="57" y="21" width="14" height="7" rx="2.5" fill="url(#brassCase)" stroke="#18102b" stroke-width="1.8"/>
+  <rect x="60" y="28" width="8" height="6" fill="url(#brassCase)" stroke="#18102b" stroke-width="1.6"/>
+  <polygon points="59,102 69,102 64,114" fill="url(#brassCase)" stroke="#18102b" stroke-width="1.6"/>
+  <circle cx="64" cy="117" r="4.5" fill="url(#brassCase)" stroke="#18102b" stroke-width="1.6"/>
+  <circle cx="64" cy="67" r="37" fill="url(#brassCase)" stroke="#18102b" stroke-width="2.4"/>
+  <circle cx="64" cy="67" r="31.5" fill="url(#dialBg)" stroke="#472b14" stroke-width="2"/>
+  <circle cx="64" cy="67" r="28" fill="none" stroke="#cfa144" stroke-width="0.9" opacity="0.7"/>
+  <circle cx="64" cy="67" r="21" fill="none" stroke="#cfa144" stroke-width="0.8" opacity="0.55"/>
+  <circle cx="64.0" cy="32.8" r="1.3" fill="#fff5d6" stroke="#3f2618" stroke-width="0.6"/>
+  <line x1="64.0" y1="42.5" x2="64.0" y2="37.2" stroke="#f5dca0" stroke-width="1.8"/>
+  <circle cx="81.1" cy="37.4" r="1.3" fill="#fff5d6" stroke="#3f2618" stroke-width="0.6"/>
+  <line x1="76.2" y1="45.8" x2="78.9" y2="41.2" stroke="#f5dca0" stroke-width="1.8"/>
+  <circle cx="93.6" cy="49.9" r="1.3" fill="#fff5d6" stroke="#3f2618" stroke-width="0.6"/>
+  <line x1="85.2" y1="54.8" x2="89.8" y2="52.1" stroke="#f5dca0" stroke-width="1.8"/>
+  <circle cx="98.2" cy="67.0" r="1.3" fill="#fff5d6" stroke="#3f2618" stroke-width="0.6"/>
+  <line x1="88.5" y1="67.0" x2="93.8" y2="67.0" stroke="#f5dca0" stroke-width="1.8"/>
+  <circle cx="93.6" cy="84.1" r="1.3" fill="#fff5d6" stroke="#3f2618" stroke-width="0.6"/>
+  <line x1="85.2" y1="79.2" x2="89.8" y2="81.9" stroke="#f5dca0" stroke-width="1.8"/>
+  <circle cx="81.1" cy="96.6" r="1.3" fill="#fff5d6" stroke="#3f2618" stroke-width="0.6"/>
+  <line x1="76.2" y1="88.2" x2="78.9" y2="92.8" stroke="#f5dca0" stroke-width="1.8"/>
+  <circle cx="64.0" cy="101.2" r="1.3" fill="#fff5d6" stroke="#3f2618" stroke-width="0.6"/>
+  <line x1="64.0" y1="91.5" x2="64.0" y2="96.8" stroke="#f5dca0" stroke-width="1.8"/>
+  <circle cx="46.9" cy="96.6" r="1.3" fill="#fff5d6" stroke="#3f2618" stroke-width="0.6"/>
+  <line x1="51.8" y1="88.2" x2="49.1" y2="92.8" stroke="#f5dca0" stroke-width="1.8"/>
+  <circle cx="34.4" cy="84.1" r="1.3" fill="#fff5d6" stroke="#3f2618" stroke-width="0.6"/>
+  <line x1="42.8" y1="79.3" x2="38.2" y2="81.9" stroke="#f5dca0" stroke-width="1.8"/>
+  <circle cx="29.8" cy="67.0" r="1.3" fill="#fff5d6" stroke="#3f2618" stroke-width="0.6"/>
+  <line x1="39.5" y1="67.0" x2="34.2" y2="67.0" stroke="#f5dca0" stroke-width="1.8"/>
+  <circle cx="34.4" cy="49.9" r="1.3" fill="#fff5d6" stroke="#3f2618" stroke-width="0.6"/>
+  <line x1="42.8" y1="54.8" x2="38.2" y2="52.1" stroke="#f5dca0" stroke-width="1.8"/>
+  <circle cx="46.9" cy="37.4" r="1.3" fill="#fff5d6" stroke="#3f2618" stroke-width="0.6"/>
+  <line x1="51.7" y1="45.8" x2="49.1" y2="41.2" stroke="#f5dca0" stroke-width="1.8"/>
+  <circle cx="64" cy="68" r="14.5" fill="#0b0820" stroke="#e2b75b" stroke-width="1.4"/>
+  <polygon points="67.9,70.5 65.4,72.4 66.3,75.4 63.1,75.5 62.1,78.5 59.5,76.7 56.9,78.5 55.9,75.5 52.7,75.4 53.6,72.4 51.1,70.5 53.6,68.6 52.7,65.6 55.9,65.5 56.9,62.5 59.5,64.3 62.1,62.5 63.1,65.5 66.3,65.6 65.4,68.6" fill="url(#brassGear)" stroke="#18102b" stroke-width="0.9"/>
+  <circle cx="59.5" cy="70.5" r="2.4" fill="#0b0820"/>
+  <polygon points="76.5,66.5 73.9,68.3 74.4,71.4 71.3,70.9 69.5,73.5 67.7,70.9 64.6,71.4 65.1,68.3 62.5,66.5 65.1,64.7 64.6,61.6 67.7,62.1 69.5,59.5 71.3,62.1 74.4,61.6 73.9,64.7" fill="url(#brassGear)" stroke="#18102b" stroke-width="0.9"/>
+  <circle cx="69.5" cy="66.5" r="1.9" fill="#0b0820"/>
+  <polygon points="64,67 51,51 47,48 53,55" fill="#09061a" opacity="0.55" transform="translate(2 2)"/>
+  <polygon points="63,68 51,52 46,47 54,53" fill="#fff4cc" stroke="#18102b" stroke-width="1.1"/>
+  <polygon points="63,68 83,56 87,52 80,59" fill="#f2bd49" stroke="#18102b" stroke-width="1.1"/>
+  <circle cx="64" cy="67" r="3" fill="#e11d48" stroke="#fff1f2" stroke-width="0.8"/>
+  <path d="M41 59 L55 43 L62 45 L45 66 Z" fill="#e0f2fe" opacity="0.18"/>
 </svg>
