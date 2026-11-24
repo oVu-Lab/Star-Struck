@@ -228,6 +228,10 @@ export class ProjectileSystem {
           value: proj.shieldAmount || 80,
           durationSec: 5.5,
           sourceUid: source?.uid || null,
+          sourceUnit: source || null,
+          sourceUnitId: proj.sourceUnitId || source?.unitId || '',
+          sourceEliteId: proj.sourceEliteId || source?.eliteId || '',
+          sourceBossId: proj.sourceBossId || source?.bossId || '',
         });
         unitManager.applyStatusEffect(targetUnit, {
           id: `proj_def_${source?.uid || 'sup'}`,
@@ -263,6 +267,7 @@ export class ProjectileSystem {
             critMultiplier: proj.critMultiplier,
             unitManager,
             skillSystem,
+            impactOrigin: { x: proj.x, y: proj.y },
           });
           if (proj.onHitEffect && foe.hp > 0 && foe.state !== UNIT_STATES.DEAD) {
             unitManager.applyStatusEffect(foe, {
@@ -305,6 +310,10 @@ export class ProjectileSystem {
         critMultiplier: proj.critMultiplier,
         unitManager,
         skillSystem,
+        impactOrigin: {
+          x: typeof proj.prevX === 'number' ? proj.prevX : proj.startX,
+          y: typeof proj.prevY === 'number' ? proj.prevY : proj.startY,
+        },
       });
       if (proj.onHitEffect && victim.hp > 0 && victim.state !== UNIT_STATES.DEAD) {
         unitManager.applyStatusEffect(victim, {

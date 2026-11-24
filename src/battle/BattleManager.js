@@ -23,6 +23,8 @@ import {
   UNIT_ATTACK_FX_KINDS,
   resolveUnitAttackVfxProfile,
 } from '../rendering/UnitAttackVfxConfig.js';
+import { ShieldVfxSystem } from '../rendering/ShieldVfxSystem.js';
+import { getShieldTheme } from '../rendering/ShieldVfxConfig.js';
 
 export const BATTLE_PHASES = Object.freeze({
   PREPARATION: 'preparation',
@@ -75,6 +77,7 @@ export class BattleManager {
     animationManager,
     particleSystem,
     audioManager,
+    shieldVfxSystem = null,
   }) {
     this._data = dataRegistry;
     this._state = gameState;
@@ -94,6 +97,10 @@ export class BattleManager {
     this._anim = animationManager;
     this._particles = particleSystem;
     this._audio = audioManager;
+    this._shieldVfx =
+      shieldVfxSystem ||
+      new ShieldVfxSystem({ quality: gameState?.settings?.graphicsQuality || 'high' });
+    this._renderer?.setShieldVfxSystem?.(this._shieldVfx);
 
     this.battlefield = new Battlefield({ balance: dataRegistry?.balance });
     this.pathfinder = new Pathfinder(this.battlefield);
@@ -126,6 +133,10 @@ export class BattleManager {
     this._unsubs = [];
 
     this._bindCombatFeedback();
+  }
+
+  getShieldVfxSystem() {
+    return this._shieldVfx;
   }
 
   isTutorialSession() {
@@ -431,6 +442,14 @@ export class BattleManager {
         }
       }),
       this._eventBus.on('battle:unitSpawned', ({ unit }) => {
+        if (unit && unit.shield > 0) {
+          this._shieldVfx?.onShieldApplied({
+            unit,
+            totalShield: unit.shield,
+            shieldMax: unit.shieldMax || unit.shield,
+            themeId: unit.shieldThemeId,
+          });
+        }
         if (!this._isTutorial || !unit || unit.side !== 'enemy') return;
         const scaling = this._activeStage?.tutorialScaling;
         if (!scaling) return;
@@ -440,6 +459,69 @@ export class BattleManager {
         unit.hp = unit.maxHp;
         unit.attack = Math.max(5, Math.round(unit.attack * atkScale));
         unit.defense = Math.max(2, Math.round(unit.defense * 0.5));
+      }),
+      this._eventBus.on(
+        'combat:shieldApplied',
+        ({ unit, amount, totalShield, shieldMax, themeId, isRefresh }) => {
+          if (!unit) return;
+          this._shieldVfx?.onShieldApplied({
+            unit,
+            amount,
+            totalShield,
+            shieldMax,
+            themeId,
+            isRefresh,
+          });
+        },
+      ),
+      this._eventBus.on(
+        'combat:shieldHit',
+        ({ source, target, absorbed, remainingShield, shieldMax, impactAngle, severity, isCrit, attackType }) => {
+          if (!target || absorbed <= 0) return;
+          let resolvedAngle = impactAngle;
+          if (source && this._renderer && this.battlefield) {
+            const { width, height } = this._renderer.getDimensions();
+            const tp = this.battlefield.worldToScreen(target.x, target.y, width, height, 3);
+            const sp = this.battlefield.worldToScreen(source.x, source.y, width, height, 3);
+            if (Math.hypot(sp.x - tp.x, sp.y - tp.y) > 1.5) {
+              resolvedAngle = Math.atan2(sp.y - tp.y, sp.x - tp.x);
+            }
+          }
+          this._shieldVfx?.onShieldHit({
+            unit: target,
+            absorbed,
+            remainingShield,
+            shieldMax,
+            impactAngle: resolvedAngle,
+            severity,
+            isCrit,
+            attackType,
+          });
+        },
+      ),
+      this._eventBus.on('combat:shieldBroken', ({ source, target, themeId, impactAngle, severity }) => {
+        if (!target) return;
+        let resolvedAngle = impactAngle;
+        if (source && this._renderer && this.battlefield) {
+          const { width, height } = this._renderer.getDimensions();
+          const tp = this.battlefield.worldToScreen(target.x, target.y, width, height, 3);
+          const sp = this.battlefield.worldToScreen(source.x, source.y, width, height, 3);
+          if (Math.hypot(sp.x - tp.x, sp.y - tp.y) > 1.5) {
+            resolvedAngle = Math.atan2(sp.y - tp.y, sp.x - tp.x);
+          }
+        }
+        this._shieldVfx?.onShieldBroken({
+          unit: target,
+          themeId,
+          impactAngle: resolvedAngle,
+          severity,
+        });
+        const pal = getShieldTheme(themeId).palette;
+        this._spawnWorldParticles(target.x, target.y, pal.primary, 6, 'burst');
+      }),
+      this._eventBus.on('combat:shieldExpired', ({ unit, themeId }) => {
+        if (!unit) return;
+        this._shieldVfx?.onShieldExpired({ unit, themeId });
       }),
       this._eventBus.on('combat:damage', ({ source, target, amount, absorbed, isCrit, attackType }) => {
         if (!target) return;
@@ -458,7 +540,7 @@ export class BattleManager {
           isCrit,
           kind: isCrit ? 'crit' : 'damage',
         });
-        if (isCrit || (absorbed && absorbed > 0)) {
+        if (isCrit) {
           const profile = source ? resolveUnitAttackVfxProfile(source, { side: source.side }) : null;
           const hitAngle =
             typeof target.lastHitAngle === 'number'
@@ -472,20 +554,18 @@ export class BattleManager {
             y: target.y,
             angle: hitAngle,
             radius: 4,
-            color: absorbed > 0 && !isCrit ? '#38bdf8' : '#fbbf24',
+            color: '#fbbf24',
             secondaryColor: '#fffdf4',
             duration: 0.22,
             profileId: profile?.id || null,
             side: source?.side || 'ally',
             scale: target.visualScale || 1,
-            isCrit: Boolean(isCrit),
+            isCrit: true,
             meta: { absorbed: absorbed || 0, mode: 'attack' },
           });
-          if (isCrit) {
-            this._spawnWorldParticles(target.x, target.y, '#fbbf24', 6, 'burst');
-            if (profile) {
-              this._triggerAttackCameraImpulse(profile, hitAngle, { isCrit: true });
-            }
+          this._spawnWorldParticles(target.x, target.y, '#fbbf24', 6, 'burst');
+          if (profile) {
+            this._triggerAttackCameraImpulse(profile, hitAngle, { isCrit: true });
           }
         }
         this._audio?.playHit(isCrit, attackType);
@@ -586,6 +666,7 @@ export class BattleManager {
       this._eventBus.on('battle:unitDefeated', ({ unit }) => {
         if (!unit) return;
         this._anim?.removeEffectsBySourceUid?.(unit.uid, [UNIT_ATTACK_FX_KINDS.CAST]);
+        this._shieldVfx?.onUnitRemoved?.(unit.uid);
         const fxColor = unit.isBoss ? (unit.auraColor || '#e2b75b') : unit.side === 'ally' ? '#38bdf8' : '#f87171';
         this._anim?.spawnWorldEffect({
           kind: 'death',
@@ -815,6 +896,9 @@ export class BattleManager {
     this._combat.setDataRegistry(this._data);
     this._combat.resetStats();
     this._anim?.reset();
+    this._shieldVfx?.setQuality?.(this._state?.settings?.graphicsQuality || 'high');
+    this._shieldVfx?.reset?.();
+    this._renderer?.setShieldVfxSystem?.(this._shieldVfx);
     this._waves.configure(stage, this._data?.balance);
 
     const resolvedDeckIds =
@@ -1166,6 +1250,7 @@ export class BattleManager {
     }
     this._projectiles?.clear?.();
     this._anim?.reset?.();
+    this._shieldVfx?.reset?.();
     this._particles?.clear?.();
     this._renderer?.detach();
     this._state.setBattle({
@@ -1457,6 +1542,7 @@ export class BattleManager {
               critChance: 0.1,
               unitManager: this._units,
               skillSystem: this._skills,
+              impactOrigin: center,
             });
             if (res.applied) hitCount += 1;
             if (eff.burnDamagePerSec && enemy.hp > 0 && enemy.state !== UNIT_STATES.DEAD) {
@@ -1587,6 +1673,7 @@ export class BattleManager {
               critChance: 0.05,
               unitManager: this._units,
               skillSystem: this._skills,
+              impactOrigin: center,
             });
             if (res.applied) hitCount += 1;
             if (enemy.hp > 0 && enemy.state !== UNIT_STATES.DEAD) {
@@ -1694,6 +1781,7 @@ export class BattleManager {
               type: 'shield',
               value: shieldAmt,
               durationSec: eff.durationSec || 6,
+              cardId: card.cardId,
             });
           }
         }
@@ -1790,6 +1878,7 @@ export class BattleManager {
             type: 'shield',
             value: shieldAmt,
             durationSec,
+            cardId: card.cardId,
           });
         }
       } else if (eff.tacticMode === 'flank_maneuver') {
@@ -1912,6 +2001,7 @@ export class BattleManager {
             type: 'shield',
             value: shieldAmt,
             durationSec,
+            cardId: card.cardId,
           });
         }
         const vfxAnchor = this._spawnNonUnitCardVfx(card, {
@@ -2052,6 +2142,7 @@ export class BattleManager {
             type: 'shield',
             value: shieldAmt,
             durationSec,
+            cardId: card.cardId,
           });
         }
         const vfxAnchor = this._spawnNonUnitCardVfx(card, {
@@ -2458,6 +2549,7 @@ export class BattleManager {
       this._phase === BATTLE_PHASES.RESULTS
     ) {
       this._anim?.update(dt);
+      this._shieldVfx?.update(dt, this._units.getAll(), this._projectiles.getAll());
       return;
     }
 
@@ -2590,6 +2682,9 @@ export class BattleManager {
       combatSystem: this._combat,
       skillSystem: this._skills,
     });
+
+    // 8b. Update shield VFX states, localized hit ripples & break/expiration fragments
+    this._shieldVfx?.update(dt, this._units.getAll(), this._projectiles.getAll());
 
     // 9. Sync live HUD telemetry
     this._syncCountersToState({
@@ -2783,6 +2878,7 @@ export class BattleManager {
         this._anim?.clearScreenShake?.();
       }
       this._anim?.update(rawDt);
+      this._shieldVfx?.update(rawDt, this._units.getAll(), this._projectiles.getAll());
       this._particles?.update(rawDt, dims.width, dims.height);
     }
 
@@ -2800,6 +2896,7 @@ export class BattleManager {
       pointerWorld: this._pointerWorld,
       hoverDais: this._hoverDais,
       selectedCard: this.getSelectedCardSnapshot(),
+      shieldVfxSystem: this._shieldVfx,
     });
   }
 }

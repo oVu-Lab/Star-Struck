@@ -201,6 +201,7 @@ export class SkillSystem {
             type: 'shield',
             value: Math.round(eff.shieldAmount * cmdScale),
             durationSec,
+            ultimateId: ultimate.id,
           });
           buffed = true;
         }

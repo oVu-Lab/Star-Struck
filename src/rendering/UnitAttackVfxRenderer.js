@@ -2681,16 +2681,7 @@ function _drawHitEffect(ctx, bf, w, h, fx, layer, t, profile, pal) {
   const isCrit = Boolean(fx.isCrit);
   const isShielded = Boolean(fx.meta?.absorbed > 0);
 
-  if (isShielded) {
-    drawGeodesicHexPlate(ctx, p.x - ux * 5 * s, p.y - uy * 5 * s, (13 + t * 10) * s, (13 + t * 10) * s, {
-      rotation: angle,
-      color: '#38bdf8',
-      secondaryColor: '#bae6fd',
-      coreColor: '#f0f9ff',
-      fillAlpha: env * 0.18,
-      strokeAlpha: env * 0.94,
-      lineWidth: 2.1 * s,
-    });
+  if (isShielded && !isCrit) {
     return;
   }
 

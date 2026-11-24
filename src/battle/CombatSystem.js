@@ -105,6 +105,7 @@ export class CombatSystem {
     unitManager,
     skillSystem = null,
     bypassMitigation = false,
+    impactOrigin = null,
   }) {
     if (!target || target.state === UNIT_STATES.DEAD || target.hp <= 0 || target.deadProcessed) {
       return { applied: false, amount: 0, killed: false, isCrit: false };
@@ -131,12 +132,35 @@ export class CombatSystem {
       isCrit = calc.isCrit;
     }
 
+    // Compute localized shield impact surface angle pointing FROM target TOWARD incoming attack origin
+    const originX = impactOrigin?.x ?? source?.x ?? null;
+    const originY = impactOrigin?.y ?? source?.y ?? null;
+    let shieldImpactAngle = (target.facing ?? (target.side === 'enemy' ? -1 : 1)) >= 0 ? 0 : Math.PI;
+    if (
+      typeof originX === 'number' &&
+      typeof originY === 'number' &&
+      Math.hypot(originX - target.x, originY - target.y) > 0.05
+    ) {
+      // Scale Y by ~0.55 to approximate 2.5D perspective angle on screen
+      shieldImpactAngle = Math.atan2((originY - target.y) * 0.55, originX - target.x);
+    }
+
     let remaining = amount;
     let absorbed = 0;
-    if (target.shield > 0) {
-      absorbed = Math.min(target.shield, remaining);
-      target.shield = Math.max(0, target.shield - absorbed);
+    const prevShield = Math.max(0, target.shield || 0);
+    const prevShieldMax = Math.max(prevShield, target.shieldMax || prevShield);
+    const prevShieldThemeId = target.shieldThemeId || null;
+    let shieldBroken = false;
+
+    if (prevShield > 0) {
+      absorbed = Math.min(prevShield, remaining);
+      target.shield = Math.max(0, prevShield - absorbed);
       remaining -= absorbed;
+      if (target.shield <= 0) {
+        shieldBroken = true;
+        target.shieldMax = 0;
+        target.shieldThemeId = null;
+      }
     }
 
     const hpLost = Math.min(target.hp, remaining);
@@ -169,6 +193,40 @@ export class CombatSystem {
       }
     }
 
+    if (absorbed > 0) {
+      const severity = Math.min(
+        1,
+        Math.max(0.22, (absorbed / Math.max(45, prevShieldMax * 0.42)) * 0.72 + (isCrit ? 0.34 : 0.08)),
+      );
+      this._eventBus?.emit('combat:shieldHit', {
+        source,
+        target,
+        absorbed,
+        remainingShield: target.shield,
+        shieldMax: shieldBroken ? prevShieldMax : target.shieldMax || prevShieldMax,
+        impactAngle: shieldImpactAngle,
+        severity,
+        isCrit,
+        attackType,
+        broken: shieldBroken,
+        themeId: prevShieldThemeId,
+      });
+      if (shieldBroken) {
+        this._eventBus?.emit('combat:shieldBroken', {
+          source,
+          target,
+          themeId: prevShieldThemeId,
+          absorbed,
+          overflow: hpLost,
+          shieldMax: prevShieldMax,
+          impactAngle: shieldImpactAngle,
+          severity: Math.max(0.75, severity),
+          isCrit,
+          attackType,
+        });
+      }
+    }
+
     this._eventBus?.emit('combat:damage', {
       source,
       target,
@@ -183,7 +241,7 @@ export class CombatSystem {
       killed = this._processDeath(target, source, unitManager, skillSystem);
     }
 
-    return { applied: true, amount, absorbed, hpLost, isCrit, killed };
+    return { applied: true, amount, absorbed, hpLost, isCrit, killed, shieldBroken };
   }
 
   /**
@@ -348,6 +406,7 @@ export class CombatSystem {
               value: unit.shieldPower,
               durationSec: 5.5,
               sourceUid: unit.uid,
+              sourceUnit: unit,
             });
           }
           this._eventBus?.emit('combat:attack', { source: unit, target, kind: 'shield' });
@@ -631,6 +690,8 @@ export class CombatSystem {
           type: 'shield',
           value: Math.min(900, hits * ability.shieldPerHit),
           durationSec: ability.durationSec || 6.0,
+          abilityId: ability.id,
+          sourceUnit: caster,
         });
       }
     } else if (ability.kind === 'self_heal_shield') {
@@ -648,6 +709,8 @@ export class CombatSystem {
           type: 'shield',
           value: ability.shieldAmount,
           durationSec: ability.durationSec || 6.0,
+          abilityId: ability.id,
+          sourceUnit: caster,
         });
       }
     } else if (ability.kind === 'self_buff') {
@@ -686,6 +749,8 @@ export class CombatSystem {
               type: 'shield',
               value: ability.shieldAmount,
               durationSec: ability.durationSec || 5.0,
+              abilityId: ability.id,
+              sourceUnit: caster,
             });
           }
         }
@@ -742,6 +807,8 @@ export class CombatSystem {
           type: 'shield',
           value: ability.shieldAmount,
           durationSec: ability.durationSec || 5,
+          abilityId: ability.id,
+          sourceUnit: caster,
         });
       }
     }

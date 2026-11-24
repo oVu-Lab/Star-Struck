@@ -4,6 +4,8 @@
  * Pure runtime container; never persisted to localStorage.
  */
 
+import { resolveShieldTheme } from '../rendering/ShieldVfxConfig.js';
+
 export const UNIT_STATES = Object.freeze({
   IDLE: 'Idle',
   SEEKING_TARGET: 'SeekingTarget',
@@ -314,6 +316,8 @@ export class UnitManager {
       maxHp,
       hp: maxHp,
       shield: initialShield,
+      shieldMax: initialShield,
+      shieldThemeId: initialShield > 0 ? 'fortress_hull' : null,
       attack,
       defense,
       moveSpeed,
@@ -405,10 +409,46 @@ export class UnitManager {
       duration: effect.durationSec ?? 5,
       tickTimer: effect.tickInterval ?? 1.0,
       sourceUid: effect.sourceUid || null,
+      shieldThemeId: effect.shieldThemeId || null,
     };
 
+    let shieldAppliedEvent = null;
     if (entry.type === 'shield') {
-      unit.shield = Math.max(unit.shield, 0) + Math.max(0, entry.value);
+      const prevShield = Math.max(0, unit.shield || 0);
+      const addVal = Math.max(0, entry.value);
+      const resolvedTheme = resolveShieldTheme({
+        themeId: effect.shieldThemeId,
+        effectId: entry.id,
+        cardId: effect.cardId,
+        abilityId: effect.abilityId,
+        ultimateId: effect.ultimateId,
+        modifierId: effect.modifierId,
+        sourceUnit: effect.sourceUnit,
+        sourceUnitId: effect.sourceUnitId,
+        sourceEliteId: effect.sourceEliteId,
+        sourceBossId: effect.sourceBossId,
+        targetUnit: unit,
+      });
+      entry.shieldThemeId = resolvedTheme.id;
+      unit.shield = prevShield + addVal;
+      unit.shieldMax =
+        prevShield > 0
+          ? Math.max(unit.shieldMax || prevShield, unit.shield)
+          : Math.max(1, unit.shield);
+      unit.shieldThemeId = resolvedTheme.id;
+      if (addVal > 0) {
+        shieldAppliedEvent = {
+          unit,
+          amount: addVal,
+          totalShield: unit.shield,
+          shieldMax: unit.shieldMax,
+          themeId: resolvedTheme.id,
+          isRefresh: prevShield > 0,
+          effectId: entry.id,
+          sourceUid: entry.sourceUid,
+          durationSec: entry.duration,
+        };
+      }
     }
 
     const existingIdx = unit.statusEffects.findIndex(
@@ -418,8 +458,13 @@ export class UnitManager {
       const existing = unit.statusEffects[existingIdx];
       existing.remaining = Math.max(existing.remaining, entry.remaining);
       existing.value = Math.max(existing.value, entry.value);
+      if (entry.shieldThemeId) existing.shieldThemeId = entry.shieldThemeId;
     } else {
       unit.statusEffects.push(entry);
+    }
+
+    if (shieldAppliedEvent) {
+      this._eventBus?.emit('combat:shieldApplied', shieldAppliedEvent);
     }
 
     if (entry.type === 'stun') {
@@ -549,10 +594,30 @@ export class UnitManager {
         }
 
         if (eff.remaining <= 0) {
+          let expiredShieldEvent = null;
           if (eff.type === 'shield') {
-            unit.shield = Math.max(0, unit.shield - eff.value);
+            const prevShield = unit.shield || 0;
+            const expiredThemeId = eff.shieldThemeId || unit.shieldThemeId;
+            unit.shield = Math.max(0, prevShield - eff.value);
+            if (prevShield > 0 && unit.shield <= 0) {
+              unit.shieldMax = 0;
+              unit.shieldThemeId = null;
+              expiredShieldEvent = {
+                unit,
+                themeId: expiredThemeId,
+                previousShield: prevShield,
+              };
+            }
           }
           unit.statusEffects.splice(i, 1);
+          if (expiredShieldEvent) {
+            this._eventBus?.emit('combat:shieldExpired', expiredShieldEvent);
+          } else if (eff.type === 'shield' && unit.shield > 0) {
+            const remainingShieldEff = unit.statusEffects.find((s) => s.type === 'shield' && s.shieldThemeId);
+            if (remainingShieldEff) {
+              unit.shieldThemeId = remainingShieldEff.shieldThemeId;
+            }
+          }
         }
       }
 

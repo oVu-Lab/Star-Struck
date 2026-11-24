@@ -121,6 +121,13 @@
     import { AnimationManager } from './src/rendering/AnimationManager.js';
     import { ParticleSystem } from './src/rendering/ParticleSystem.js';
     import { UNIT_STATES } from './src/battle/UnitManager.js';
+    import { ALL_SHIELD_THEMES, SHIELD_THEME_IDS, getShieldTheme } from './src/rendering/ShieldVfxConfig.js';
+    import { ShieldVfxSystem } from './src/rendering/ShieldVfxSystem.js';
+    import {
+      drawUnitShieldBack,
+      drawUnitShieldFront,
+      drawShieldTransientEffects,
+    } from './src/rendering/ShieldVfxRenderer.js';
 
     const params = new URLSearchParams(window.location.search);
     const view = params.get('view') || 'contact-sheet';
@@ -1517,6 +1524,516 @@
         }
         table.appendChild(row);
       }
+    } else if (view === 'shield-themes') {
+      // Close-up grid showcasing all 14 source-differentiated shield themes on authentic units
+      titleEl.textContent = 'Star Struck — All 14 Source-Differentiated Shield VFX Designs (Close-Up)';
+      subEl.textContent = 'Two-pass 3D wrap-around protective energy shells with distinct silhouettes, internal structures, and boundary particles';
+
+      const themeUnits = [
+        { themeId: SHIELD_THEME_IDS.HERALDIC_BULWARK, unitId: 'heavy_shield_guard', facing: 1 },
+        { themeId: SHIELD_THEME_IDS.AEGIS_PRISM, unitId: 'aegis_sentinel', facing: 1 },
+        { themeId: SHIELD_THEME_IDS.SOLAR_FORGE, unitId: 'astral_construct', facing: 1 },
+        { themeId: SHIELD_THEME_IDS.CRYO_CRYSTAL, unitId: 'enemy_cryo_warden', facing: -1 },
+        { themeId: SHIELD_THEME_IDS.FORTRESS_HULL, unitId: 'elite_iron_bulwark', facing: -1 },
+        { themeId: SHIELD_THEME_IDS.OBSIDIAN_AEGIS, unitId: 'boss_bastion_warden', facing: -1 },
+        { themeId: SHIELD_THEME_IDS.CHRONO_TEMPORAL, unitId: 'boss_chrono_arbiter', facing: -1 },
+        { themeId: SHIELD_THEME_IDS.VOID_SIPHON, unitId: 'boss_astral_leviathan', facing: -1 },
+        { themeId: SHIELD_THEME_IDS.SANCTUARY_VERDANT, unitId: 'field_cleric', facing: 1 },
+        { themeId: SHIELD_THEME_IDS.TACTICAL_PHALANX, unitId: 'wind_cavalry', facing: 1 },
+        { themeId: SHIELD_THEME_IDS.ASTRAL_BLESSING, unitId: 'arcane_archer', facing: 1 },
+        { themeId: SHIELD_THEME_IDS.PURIFY_SANCTITY, unitId: 'chrono_weaver', facing: 1 },
+        { themeId: SHIELD_THEME_IDS.RADIANT_HYMN, unitId: 'solar_pyromancer', facing: 1 },
+        { themeId: SHIELD_THEME_IDS.IRONFORGE_BASTION, unitId: 'vanguard_breaker', facing: 1 },
+      ];
+
+      const grid = document.createElement('div');
+      grid.className = 'grid-contact';
+      root.appendChild(grid);
+
+      const shieldSys = new ShieldVfxSystem({ quality: 'high' });
+      const cards = [];
+
+      for (const spec of themeUnits) {
+        const theme = getShieldTheme(spec.themeId);
+        const d = UNIT_OBJECT_DESIGNS[spec.unitId] || UNIT_OBJECT_DESIGNS.heavy_shield_guard;
+        const card = document.createElement('div');
+        card.className = `card ${groupTag(d.rosterGroup)}`;
+        card.innerHTML = `<div class="badge ${groupTag(d.rosterGroup)}">${theme.shellShape.replace(/_/g, ' ')}</div><div class="card-title">${theme.label}</div><div class="card-sub">${theme.sourceSummary}</div>`;
+        const c = document.createElement('canvas');
+        c.width = 176;
+        c.height = 172;
+        card.appendChild(c);
+        grid.appendChild(card);
+
+        const u = makeUnit(spec.unitId, UNIT_STATES.IDLE, {
+          uid: `theme_${spec.themeId}`,
+          facing: spec.facing,
+          shield: 200,
+          shieldMax: 200,
+          shieldThemeId: spec.themeId,
+          visualScale: d.rosterGroup === 'boss' ? 1.15 : 1.0,
+        });
+        const st = shieldSys.onShieldApplied({ unit: u, totalShield: 200, shieldMax: 200, themeId: spec.themeId, instant: true });
+        cards.push({ canvas: c, unit: u, state: st, isBoss: d.rosterGroup === 'boss', isElite: d.rosterGroup === 'elite' });
+      }
+
+      window.__renderShieldThemesFrame = (t = 1.2) => {
+        for (const item of cards) {
+          const ctx = item.canvas.getContext('2d');
+          const cw = item.canvas.width;
+          const ch = item.canvas.height;
+          ctx.fillStyle = '#090d1a';
+          ctx.fillRect(0, 0, cw, ch);
+          const bg = ctx.createRadialGradient(cw * 0.5, ch * 0.55, 8, cw * 0.5, ch * 0.55, 86);
+          bg.addColorStop(0, 'rgba(30, 41, 68, 0.55)');
+          bg.addColorStop(1, 'rgba(7, 10, 20, 0.96)');
+          ctx.fillStyle = bg;
+          ctx.fillRect(0, 0, cw, ch);
+
+          const scale = item.isBoss ? 1.65 : item.isElite ? 1.95 : 2.15;
+          const layout = getUnitModelLayout(item.unit, { x: cw * 0.5, y: ch * 0.78, scale, elapsed: t });
+          drawUnitShieldBack(ctx, item.unit, layout, scale, t, item.state, false);
+          drawChibiObjectUnit(ctx, item.unit, { x: cw * 0.5, y: ch * 0.78, scale, elapsed: t, assetManager });
+          drawUnitShieldFront(ctx, item.unit, layout, scale, t, item.state, false);
+        }
+      };
+      window.__renderShieldThemesFrame(1.4);
+    } else if (view === 'shield-lifecycle') {
+      // Close-up Matrix of every required Shield state across 4 distinct signature themes
+      titleEl.textContent = 'Star Struck — Shield Lifecycle, Hit Reactions, Strength & Break/Expire Inspection (Close-Up)';
+      subEl.textContent = 'Formation (Gather -> Assemble -> Flash) | Idle | Small Hit | Heavy Hit | Multi-Hit | Low Strength Cracks | Expire | Break Shatter';
+
+      const rows = [
+        { themeId: SHIELD_THEME_IDS.AEGIS_PRISM, unitId: 'aegis_sentinel', label: 'Aegis Prism' },
+        { themeId: SHIELD_THEME_IDS.CRYO_CRYSTAL, unitId: 'enemy_cryo_warden', label: 'Cryo Crystal' },
+        { themeId: SHIELD_THEME_IDS.SOLAR_FORGE, unitId: 'astral_construct', label: 'Solar Overdrive' },
+        { themeId: SHIELD_THEME_IDS.CHRONO_TEMPORAL, unitId: 'boss_chrono_arbiter', label: 'Chrono Temporal' },
+      ];
+
+      const cols = [
+        { key: 'form1', label: '1. Form Gather' },
+        { key: 'form2', label: '2. Form Assemble' },
+        { key: 'form3', label: '3. Form Flash' },
+        { key: 'idle', label: '4. Idle (100%)' },
+        { key: 'small_hit', label: '5. Small Hit (R)' },
+        { key: 'heavy_hit', label: '6. Heavy Hit (UL)' },
+        { key: 'multi_hit', label: '7. Multi-Hit (3x)' },
+        { key: 'low', label: '8. Low (16%)' },
+        { key: 'expire', label: '9. Expire' },
+        { key: 'break', label: '10. Break Shatter' },
+      ];
+
+      const table = document.createElement('div');
+      table.style.display = 'flex';
+      table.style.flexDirection = 'column';
+      table.style.gap = '7px';
+      root.appendChild(table);
+
+      const bf = new Battlefield();
+
+      for (const rSpec of rows) {
+        const d = UNIT_OBJECT_DESIGNS[rSpec.unitId];
+        const row = document.createElement('div');
+        row.style.display = 'grid';
+        row.style.gridTemplateColumns = '126px repeat(10, 128px)';
+        row.style.gap = '5px';
+        row.style.alignItems = 'center';
+        row.style.background = '#0d1222';
+        row.style.border = '1px solid rgba(148,163,184,0.22)';
+        row.style.borderRadius = '6px';
+        row.style.padding = '5px 6px';
+
+        const nameBox = document.createElement('div');
+        nameBox.innerHTML = `<div style="font-size:11px;font-weight:700;color:#f8fafc">${rSpec.label}</div><div style="font-size:9px;color:#94a3b8">${rSpec.unitId}</div>`;
+        row.appendChild(nameBox);
+
+        for (const col of cols) {
+          const cell = document.createElement('div');
+          cell.style.display = 'flex';
+          cell.style.flexDirection = 'column';
+          cell.style.alignItems = 'center';
+          const lbl = document.createElement('div');
+          lbl.style.fontSize = '8.5px';
+          lbl.style.color = '#cbd5e1';
+          lbl.style.marginBottom = '2px';
+          lbl.textContent = col.label;
+          cell.appendChild(lbl);
+
+          const c = document.createElement('canvas');
+          c.width = 126;
+          c.height = 128;
+          const ctx = c.getContext('2d');
+          ctx.fillStyle = '#080c17';
+          ctx.fillRect(0, 0, c.width, c.height);
+
+          const scale = d.rosterGroup === 'boss' ? 1.32 : 1.72;
+          const u = makeUnit(rSpec.unitId, UNIT_STATES.IDLE, {
+            uid: `lc_${rSpec.themeId}_${col.key}`,
+            facing: 1,
+            x: 50,
+            y: 50,
+            shield: col.key === 'expire' || col.key === 'break' ? 0 : col.key === 'low' ? 32 : 200,
+            shieldMax: 200,
+            shieldThemeId: rSpec.themeId,
+            visualScale: d.rosterGroup === 'boss' ? 1.05 : 1.0,
+          });
+          const sys = new ShieldVfxSystem({ quality: 'high' });
+          let st = null;
+          let elapsed = 1.6;
+
+          if (col.key === 'form1') {
+            st = sys.onShieldApplied({ unit: u, totalShield: 200, shieldMax: 200, themeId: rSpec.themeId });
+            sys.update(0.11, [u], []);
+          } else if (col.key === 'form2') {
+            st = sys.onShieldApplied({ unit: u, totalShield: 200, shieldMax: 200, themeId: rSpec.themeId });
+            sys.update(0.24, [u], []);
+          } else if (col.key === 'form3') {
+            st = sys.onShieldApplied({ unit: u, totalShield: 200, shieldMax: 200, themeId: rSpec.themeId });
+            sys.update(0.35, [u], []);
+          } else if (col.key === 'idle') {
+            st = sys.onShieldApplied({ unit: u, totalShield: 200, shieldMax: 200, themeId: rSpec.themeId, instant: true });
+          } else if (col.key === 'small_hit') {
+            st = sys.onShieldApplied({ unit: u, totalShield: 200, shieldMax: 200, themeId: rSpec.themeId, instant: true });
+            sys.onShieldHit({ unit: u, absorbed: 24, remainingShield: 176, shieldMax: 200, impactAngle: 0.05, severity: 0.30, isCrit: false });
+            sys.update(0.08, [u], []);
+          } else if (col.key === 'heavy_hit') {
+            st = sys.onShieldApplied({ unit: u, totalShield: 200, shieldMax: 200, themeId: rSpec.themeId, instant: true });
+            sys.onShieldHit({ unit: u, absorbed: 115, remainingShield: 85, shieldMax: 200, impactAngle: -2.45, severity: 0.96, isCrit: true });
+            sys.update(0.09, [u], []);
+          } else if (col.key === 'multi_hit') {
+            st = sys.onShieldApplied({ unit: u, totalShield: 200, shieldMax: 200, themeId: rSpec.themeId, instant: true });
+            sys.onShieldHit({ unit: u, absorbed: 40, remainingShield: 160, shieldMax: 200, impactAngle: -0.3, severity: 0.55 });
+            sys.update(0.09, [u], []);
+            sys.onShieldHit({ unit: u, absorbed: 65, remainingShield: 95, shieldMax: 200, impactAngle: 2.3, severity: 0.78 });
+            sys.update(0.06, [u], []);
+            sys.onShieldHit({ unit: u, absorbed: 30, remainingShield: 65, shieldMax: 200, impactAngle: -1.7, severity: 0.44 });
+            sys.update(0.05, [u], []);
+          } else if (col.key === 'low') {
+            st = sys.onShieldApplied({ unit: u, totalShield: 32, shieldMax: 200, themeId: rSpec.themeId, instant: true });
+            sys.onShieldHit({ unit: u, absorbed: 40, remainingShield: 32, shieldMax: 200, impactAngle: 0.25, severity: 0.65 });
+            sys.onShieldHit({ unit: u, absorbed: 35, remainingShield: 32, shieldMax: 200, impactAngle: -2.1, severity: 0.6 });
+            sys.update(0.65, [u], []); // let hit ripples clear so low-strength cracks are crystal clear
+          }
+
+          const layout = getUnitModelLayout(u, { x: c.width * 0.5, y: c.height * 0.78, scale, elapsed });
+          if (u.shield > 0) {
+            drawUnitShieldBack(ctx, u, layout, scale, elapsed, st, false);
+          }
+          drawChibiObjectUnit(ctx, u, { x: c.width * 0.5, y: c.height * 0.78, scale, elapsed, assetManager });
+          if (u.shield > 0) {
+            drawUnitShieldFront(ctx, u, layout, scale, elapsed, st, false);
+          } else if (col.key === 'expire' || col.key === 'break') {
+            // Render transient expire or break centered cleanly on this close-up canvas
+            const pseudoBf = {
+              worldToScreen: () => ({ x: c.width * 0.5, y: c.height * 0.78, scale: scale * 8.0, scaleOverride: scale }),
+            };
+            if (col.key === 'expire') {
+              sys.onShieldExpired({ unit: u, themeId: rSpec.themeId });
+              sys.update(0.24, [u], []);
+            } else {
+              sys.onShieldBroken({ unit: u, themeId: rSpec.themeId, impactAngle: -0.25, severity: 0.95 });
+              sys.update(0.26, [u], []);
+            }
+            drawShieldTransientEffects(ctx, pseudoBf, c.width, c.height, sys.getTransientEffects(), elapsed, false);
+          }
+
+          cell.appendChild(c);
+          row.appendChild(cell);
+        }
+        table.appendChild(row);
+      }
+    } else if (view === 'shield-lifecycle-live') {
+      // Animated close-up showcase of 4 units stepping through Formation -> Idle -> Small Hit -> Heavy Hit -> Multi-Hit -> Low Cracks -> Break -> Re-form -> Expire
+      titleEl.textContent = 'Star Struck — Shield Motion & Hit Choreography (Animated Close-Up)';
+      subEl.textContent = 'Formation -> Idle Motion -> Small Hit -> Heavy Hit -> Multi-Hit -> Low Cracks -> Shield Break Shatter -> Expire';
+
+      const wrap = document.createElement('div');
+      wrap.className = 'battle-wrap';
+      const canvas = document.createElement('canvas');
+      canvas.width = 960;
+      canvas.height = 360;
+      canvas.style.width = '960px';
+      canvas.style.height = '360px';
+      canvas.style.border = '1px solid rgba(226,183,91,0.45)';
+      wrap.appendChild(canvas);
+      root.appendChild(wrap);
+
+      const slots = [
+        { themeId: SHIELD_THEME_IDS.HERALDIC_BULWARK, unitId: 'heavy_shield_guard', label: 'Heraldic Bulwark', cx: 120 },
+        { themeId: SHIELD_THEME_IDS.CRYO_CRYSTAL, unitId: 'enemy_cryo_warden', label: 'Cryo Crystal', cx: 360 },
+        { themeId: SHIELD_THEME_IDS.SOLAR_FORGE, unitId: 'astral_construct', label: 'Solar Overdrive', cx: 600 },
+        { themeId: SHIELD_THEME_IDS.CHRONO_TEMPORAL, unitId: 'boss_chrono_arbiter', label: 'Chrono Temporal', cx: 840 },
+      ];
+
+      // Deterministic timeline script (total ~4.2s)
+      const buildStateAt = (targetT) => {
+        const sys = new ShieldVfxSystem({ quality: 'high' });
+        const units = slots.map((s, idx) => {
+          const d = UNIT_OBJECT_DESIGNS[s.unitId];
+          return makeUnit(s.unitId, UNIT_STATES.IDLE, {
+            uid: `live_lc_${idx}`,
+            facing: idx % 2 === 0 ? 1 : -1,
+            x: 20 + idx * 20,
+            y: 50,
+            shield: 0,
+            shieldMax: 200,
+            shieldThemeId: s.themeId,
+            visualScale: d.rosterGroup === 'boss' ? 1.05 : 1.0,
+          });
+        });
+
+        const dt = 1 / 60;
+        let t = 0;
+        const triggered = new Set();
+        const once = (key, time, fn) => {
+          if (!triggered.has(key) && t >= time) {
+            triggered.add(key);
+            fn();
+          }
+        };
+
+        while (t <= targetT + 1e-6) {
+          once('apply', 0.05, () => {
+            units.forEach((u, i) => {
+              u.shield = 200;
+              u.shieldMax = 200;
+              sys.onShieldApplied({ unit: u, totalShield: 200, shieldMax: 200, themeId: slots[i].themeId });
+            });
+          });
+          once('small', 0.95, () => {
+            units.forEach((u) => {
+              u.shield = 172;
+              sys.onShieldHit({ unit: u, absorbed: 28, remainingShield: 172, shieldMax: 200, impactAngle: 0.15, severity: 0.32 });
+            });
+          });
+          once('heavy', 1.45, () => {
+            units.forEach((u) => {
+              u.shield = 82;
+              sys.onShieldHit({ unit: u, absorbed: 90, remainingShield: 82, shieldMax: 200, impactAngle: -2.4, severity: 0.94, isCrit: true });
+            });
+          });
+          once('multi1', 2.0, () => {
+            units.forEach((u) => {
+              u.shield = 44;
+              sys.onShieldHit({ unit: u, absorbed: 38, remainingShield: 44, shieldMax: 200, impactAngle: 0.7, severity: 0.55 });
+            });
+          });
+          once('multi2', 2.12, () => {
+            units.forEach((u) => {
+              u.shield = 26;
+              sys.onShieldHit({ unit: u, absorbed: 18, remainingShield: 26, shieldMax: 200, impactAngle: -1.4, severity: 0.48 });
+            });
+          });
+          once('end_action', 2.95, () => {
+            // Slots 0, 1, 2 break dramatically; Slot 3 expires calmly to show clear contrast!
+            units.forEach((u, i) => {
+              u.shield = 0;
+              if (i === 3) {
+                sys.onShieldExpired({ unit: u, themeId: slots[i].themeId });
+              } else {
+                sys.onShieldBroken({ unit: u, themeId: slots[i].themeId, impactAngle: -0.2, severity: 0.95 });
+              }
+            });
+          });
+
+          sys.update(dt, units, []);
+          t += dt;
+        }
+        return { sys, units };
+      };
+
+      window.__renderShieldLifecycleFrame = (targetT = 0.0) => {
+        const { sys, units } = buildStateAt(targetT);
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#070b16';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Phase banner
+        let phaseLabel = 'FORMATION';
+        if (targetT >= 2.95) phaseLabel = 'SHIELD BREAK (Left 3)  vs  CALM EXPIRATION (Right)';
+        else if (targetT >= 2.35) phaseLabel = 'LOW SHIELD STRENGTH (13% — Hairline Cracks & Instability)';
+        else if (targetT >= 1.98) phaseLabel = 'MULTI-HIT LOCALIZED RIPPLES';
+        else if (targetT >= 1.42) phaseLabel = 'HEAVY CRIT HIT (Compression + Bright Ripples + Sparks)';
+        else if (targetT >= 0.92) phaseLabel = 'SMALL HIT (Restrained Localized Reaction)';
+        else if (targetT >= 0.52) phaseLabel = 'DYNAMIC IDLE MOTION';
+
+        ctx.fillStyle = '#e2b75b';
+        ctx.font = '700 13px "JetBrains Mono", monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText(`t=${targetT.toFixed(2)}s  ·  ${phaseLabel}`, canvas.width * 0.5, 28);
+
+        for (let i = 0; i < slots.length; i += 1) {
+          const s = slots[i];
+          const u = units[i];
+          const d = UNIT_OBJECT_DESIGNS[s.unitId];
+          const scale = d.rosterGroup === 'boss' ? 1.8 : 2.35;
+          const cy = 258;
+          const st = sys.getUnitShieldState(u.uid);
+
+          // Panel backdrop
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.55)';
+          ctx.fillRect(s.cx - 108, 44, 216, 296);
+          ctx.strokeStyle = 'rgba(148, 163, 184, 0.22)';
+          ctx.strokeRect(s.cx - 108, 44, 216, 296);
+
+          const layout = getUnitModelLayout(u, { x: s.cx, y: cy, scale, elapsed: targetT });
+          if (u.shield > 0) {
+            drawUnitShieldBack(ctx, u, layout, scale, targetT, st, false);
+          }
+          drawChibiObjectUnit(ctx, u, { x: s.cx, y: cy, scale, elapsed: targetT, assetManager });
+          if (u.shield > 0) {
+            drawUnitShieldFront(ctx, u, layout, scale, targetT, st, false);
+          } else {
+            const pseudoBf = {
+              worldToScreen: () => ({ x: s.cx, y: cy, scale: scale * 8.0, scaleOverride: scale }),
+            };
+            const matching = sys.getTransientEffects().filter((fx) => fx.uid === u.uid);
+            drawShieldTransientEffects(ctx, pseudoBf, canvas.width, canvas.height, matching, targetT, false);
+          }
+
+          ctx.fillStyle = '#f8fafc';
+          ctx.font = '700 12px Inter, sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(s.label, s.cx, 324);
+        }
+      };
+      window.__renderShieldLifecycleFrame(1.52);
+    } else if (view === 'shield-battle-live') {
+      // Normal Gameplay Camera (1280x720) — Live Multi-Shield Battle Scene
+      titleEl.textContent = 'Star Struck — Shield VFX Overhaul Live Gameplay Battle View (1280×720)';
+      subEl.textContent = 'Normal battle camera distance · Simultaneous distinct shield types · Localized directional hits · Low-HP cracks · Break & Expiration';
+
+      const wrap = document.createElement('div');
+      wrap.className = 'battle-wrap';
+      const canvas = document.createElement('canvas');
+      canvas.className = 'battle-canvas';
+      canvas.width = 1280;
+      canvas.height = 720;
+      wrap.appendChild(canvas);
+      root.appendChild(wrap);
+
+      const bf = new Battlefield({ terrainConfig: terrainById.get('terrain_chrono_nexus') || null });
+      const anim = new AnimationManager();
+      const particles = new ParticleSystem();
+      const renderer = new BattleRenderer({
+        assetManager,
+        animationManager: anim,
+        particleSystem: particles,
+        gameState: { settings: { graphicsQuality: 'high' }, battle: { status: 'running', selectedCardSlot: -1, ultimateMaxEnergy: 100 } },
+      });
+      renderer.attach(canvas);
+      renderer.setBattlefield(bf);
+
+      const buildBattleAt = (targetT) => {
+        const shieldSys = new ShieldVfxSystem({ quality: 'high' });
+        renderer.setShieldVfxSystem(shieldSys);
+
+        const units = [
+          // Allies on left with 7 distinct shield themes
+          makeUnit('heavy_shield_guard', UNIT_STATES.ATTACKING, { uid: 'b_a1', x: 35, y: 45, hp: 520, maxHp: 520, facing: 1, shield: 180, shieldMax: 180, shieldThemeId: SHIELD_THEME_IDS.HERALDIC_BULWARK }),
+          makeUnit('astral_construct', UNIT_STATES.ATTACKING, { uid: 'b_a2', x: 40, y: 66, hp: 480, maxHp: 480, facing: 1, shield: 200, shieldMax: 200, shieldThemeId: SHIELD_THEME_IDS.SOLAR_FORGE }),
+          makeUnit('wind_cavalry', UNIT_STATES.MOVING, { uid: 'b_a3', x: 31, y: 24, hp: 360, maxHp: 360, facing: 1, shield: 160, shieldMax: 160, shieldThemeId: SHIELD_THEME_IDS.TACTICAL_PHALANX }),
+          makeUnit('aegis_sentinel', UNIT_STATES.HEALING, { uid: 'b_a4', x: 23, y: 48, hp: 400, maxHp: 400, facing: 1, shield: 140, shieldMax: 140, shieldThemeId: SHIELD_THEME_IDS.AEGIS_PRISM }),
+          makeUnit('arcane_archer', UNIT_STATES.ATTACKING, { uid: 'b_a5', x: 18, y: 28, hp: 310, maxHp: 310, facing: 1, shield: 130, shieldMax: 130, shieldThemeId: SHIELD_THEME_IDS.ASTRAL_BLESSING }),
+          makeUnit('field_cleric', UNIT_STATES.HEALING, { uid: 'b_a6', x: 17, y: 68, hp: 340, maxHp: 340, facing: 1, shield: 120, shieldMax: 120, shieldThemeId: SHIELD_THEME_IDS.SANCTUARY_VERDANT }),
+          makeUnit('solar_pyromancer', UNIT_STATES.CASTING, { uid: 'b_a7', x: 27, y: 76, hp: 330, maxHp: 330, facing: 1, shield: 160, shieldMax: 160, shieldThemeId: SHIELD_THEME_IDS.RADIANT_HYMN }),
+
+          // Enemies & Bosses on right with 5 distinct shield themes
+          makeUnit('enemy_cryo_warden', UNIT_STATES.ATTACKING, { uid: 'b_e1', x: 58, y: 34, hp: 420, maxHp: 420, facing: -1, shield: 150, shieldMax: 150, shieldThemeId: SHIELD_THEME_IDS.CRYO_CRYSTAL }),
+          makeUnit('elite_iron_bulwark', UNIT_STATES.ATTACKING, { uid: 'b_e2', x: 54, y: 54, hp: 780, maxHp: 780, facing: -1, shield: 180, shieldMax: 180, shieldThemeId: SHIELD_THEME_IDS.FORTRESS_HULL }),
+          makeUnit('boss_chrono_arbiter', UNIT_STATES.CASTING, { uid: 'b_e3', x: 75, y: 44, hp: 2400, maxHp: 2400, facing: -1, shield: 320, shieldMax: 320, shieldThemeId: SHIELD_THEME_IDS.CHRONO_TEMPORAL, visualScale: 1.48 }),
+          makeUnit('boss_bastion_warden', UNIT_STATES.ATTACKING, { uid: 'b_e4', x: 69, y: 74, hp: 2200, maxHp: 2200, facing: -1, shield: 280, shieldMax: 280, shieldThemeId: SHIELD_THEME_IDS.OBSIDIAN_AEGIS, visualScale: 1.38 }),
+          makeUnit('enemy_corrupted_acolyte', UNIT_STATES.ATTACKING, { uid: 'b_e5', x: 64, y: 20, hp: 360, maxHp: 360, facing: -1, shield: 140, shieldMax: 140, shieldThemeId: SHIELD_THEME_IDS.VOID_SIPHON }),
+        ];
+
+        // Most shields start active; a2 & e5 form live during the recording!
+        units.forEach((u) => {
+          const formLive = u.uid === 'b_a2' || u.uid === 'b_e5';
+          if (!formLive) {
+            shieldSys.onShieldApplied({ unit: u, totalShield: u.shield, shieldMax: u.shieldMax, themeId: u.shieldThemeId, instant: true });
+          } else {
+            u.shield = 0;
+          }
+        });
+
+        const dt = 1 / 60;
+        let t = 0;
+        const fired = new Set();
+        const at = (k, time, fn) => {
+          if (!fired.has(k) && t >= time) {
+            fired.add(k);
+            fn();
+          }
+        };
+
+        while (t <= targetT + 1e-6) {
+          at('form_live', 0.12, () => {
+            units[1].shield = 200;
+            shieldSys.onShieldApplied({ unit: units[1], totalShield: 200, shieldMax: 200, themeId: SHIELD_THEME_IDS.SOLAR_FORGE });
+            units[11].shield = 140;
+            shieldSys.onShieldApplied({ unit: units[11], totalShield: 140, shieldMax: 140, themeId: SHIELD_THEME_IDS.VOID_SIPHON });
+          });
+          at('hit_a1_small', 0.65, () => {
+            units[0].shield = 152;
+            shieldSys.onShieldHit({ unit: units[0], absorbed: 28, remainingShield: 152, shieldMax: 180, impactAngle: 0.12, severity: 0.32 });
+          });
+          at('hit_e1_heavy', 0.85, () => {
+            units[7].shield = 60;
+            shieldSys.onShieldHit({ unit: units[7], absorbed: 90, remainingShield: 60, shieldMax: 150, impactAngle: Math.PI - 0.15, severity: 0.92, isCrit: true });
+          });
+          at('hit_e3_multi1', 1.15, () => {
+            units[9].shield = 250;
+            shieldSys.onShieldHit({ unit: units[9], absorbed: 70, remainingShield: 250, shieldMax: 320, impactAngle: Math.PI + 0.28, severity: 0.65 });
+          });
+          at('hit_e3_multi2', 1.28, () => {
+            units[9].shield = 175;
+            shieldSys.onShieldHit({ unit: units[9], absorbed: 75, remainingShield: 175, shieldMax: 320, impactAngle: Math.PI - 0.42, severity: 0.78 });
+          });
+          at('hit_a1_low', 1.45, () => {
+            units[0].shield = 28;
+            shieldSys.onShieldHit({ unit: units[0], absorbed: 124, remainingShield: 28, shieldMax: 180, impactAngle: 0.25, severity: 0.9, isCrit: true });
+          });
+          at('break_e1', 1.75, () => {
+            units[7].shield = 0;
+            shieldSys.onShieldBroken({ unit: units[7], themeId: SHIELD_THEME_IDS.CRYO_CRYSTAL, impactAngle: Math.PI - 0.1, severity: 0.98 });
+          });
+          at('expire_a6', 1.9, () => {
+            units[5].shield = 0;
+            shieldSys.onShieldExpired({ unit: units[5], themeId: SHIELD_THEME_IDS.SANCTUARY_VERDANT });
+          });
+          at('hit_e2_break', 2.25, () => {
+            units[8].shield = 0;
+            shieldSys.onShieldBroken({ unit: units[8], themeId: SHIELD_THEME_IDS.FORTRESS_HULL, impactAngle: Math.PI + 0.18, severity: 0.94 });
+          });
+          at('hit_a2_heavy', 2.35, () => {
+            units[1].shield = 55;
+            shieldSys.onShieldHit({ unit: units[1], absorbed: 145, remainingShield: 55, shieldMax: 200, impactAngle: -0.2, severity: 0.95, isCrit: true });
+          });
+          at('hit_e4_heavy', 2.55, () => {
+            units[10].shield = 72;
+            shieldSys.onShieldHit({ unit: units[10], absorbed: 208, remainingShield: 72, shieldMax: 280, impactAngle: Math.PI - 0.22, severity: 0.96, isCrit: true });
+          });
+
+          shieldSys.update(dt, units, []);
+          t += dt;
+        }
+        return { shieldSys, units };
+      };
+
+      window.__renderShieldBattleFrame = (targetT = 1.92) => {
+        const { shieldSys, units } = buildBattleAt(targetT);
+        anim._elapsed = targetT;
+        renderer.render({
+          stage: { id: 'stage_3_5', backgroundAssetId: 'bg_battle_orbital_ridge' },
+          battlefield: bf,
+          phase: 'active_combat',
+          units,
+          projectiles: [],
+          telegraphs: [],
+          shieldVfxSystem: shieldSys,
+        });
+      };
+      window.__renderShieldBattleFrame(1.92);
     }
     window.__QA_READY = true;
   </script>

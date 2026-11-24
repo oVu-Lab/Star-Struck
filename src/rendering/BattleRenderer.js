@@ -24,6 +24,12 @@ import {
   drawUnitAttackPrepVfx,
   drawEnhancedAbilityTelegraph,
 } from './UnitVfxOverhaulHelpers.js';
+import {
+  drawUnitShieldBack,
+  drawUnitShieldFront,
+  drawShieldTransientEffects,
+} from './ShieldVfxRenderer.js';
+import { getShieldTheme, resolveShieldTheme } from './ShieldVfxConfig.js';
 
 export const TERRAIN_THEMES = Object.freeze({
   orbital_bastion: {
@@ -186,6 +192,12 @@ export class BattleRenderer {
     this._renderables = [];
     this._unitByUid = new Map();
     this._lastDaisRect = null;
+    this._shieldVfx = null;
+    this._frameShieldVfx = null;
+  }
+
+  setShieldVfxSystem(shieldVfxSystem) {
+    this._shieldVfx = shieldVfxSystem || null;
   }
 
   _getTheme(bf) {
@@ -296,6 +308,7 @@ export class BattleRenderer {
     pointerWorld = null,
     hoverDais = false,
     selectedCard = null,
+    shieldVfxSystem = null,
   }) {
     if (!this._ctx || !this._canvas) return;
     const bf = battlefield || this._battlefield;
@@ -308,6 +321,8 @@ export class BattleRenderer {
     const shake = isEndedPhase ? { x: 0, y: 0 } : this._anim.getShakeOffset();
     const elapsed = this._anim.getElapsed();
     const theme = this._getTheme(bf);
+    const activeShieldVfx = shieldVfxSystem || this._shieldVfx;
+    this._frameShieldVfx = activeShieldVfx;
 
     ctx.save();
     try {
@@ -417,6 +432,24 @@ export class BattleRenderer {
 
     // 9. Mid/Sky World Effects (slashes, chain lightning, sky lances, Commander Ultimates)
     this._drawWorldEffects(ctx, bf, w, h, 'sky', unitByUid);
+
+    // 9b. Transient Shield Break shatters & Shield Expiration dissolves
+    if (activeShieldVfx) {
+      const reducedMotion = Boolean(
+        typeof window !== 'undefined' &&
+          typeof window.matchMedia === 'function' &&
+          window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+      );
+      drawShieldTransientEffects(
+        ctx,
+        bf,
+        w,
+        h,
+        activeShieldVfx.getTransientEffects(),
+        elapsed,
+        reducedMotion,
+      );
+    }
 
     // 10. Foreground burst/healing particles
     if (this._particles?.renderForeground) {
@@ -1375,6 +1408,11 @@ export class BattleRenderer {
         })
       : null;
 
+    const shieldState =
+      unit.shield > 0 && !isDead
+        ? this._frameShieldVfx?.getUnitShieldState?.(unit.uid) || null
+        : null;
+
     // Preparation Phase VFX (back layer — aura, solar corona, chrono clockface behind unit)
     if (prepLayout) {
       drawUnitAttackPrepVfx(
@@ -1385,6 +1423,18 @@ export class BattleRenderer {
         'back',
         Boolean(prepLayout.anim?.reducedMotion),
       );
+      // Shield Back Pass — grounded caustics, recessed far-side interior wall, rear particles
+      if (unit.shield > 0) {
+        drawUnitShieldBack(
+          ctx,
+          unit,
+          prepLayout,
+          scale,
+          elapsed,
+          shieldState,
+          Boolean(prepLayout.anim?.reducedMotion),
+        );
+      }
     }
 
     const modelLayout = drawChibiObjectUnit(ctx, unit, {
@@ -1414,15 +1464,17 @@ export class BattleRenderer {
       drawUnitHitReactionOverlay(ctx, unit, drawX, drawY, spriteSize, scale);
     }
 
-    // Shield energy dome
+    // Shield Front Pass — layered dimensional translucent shell, material motion, localized hit ripples & cracks
     if (unit.shield > 0 && !isDead) {
-      ctx.strokeStyle = 'rgba(56, 189, 248, 0.85)';
-      ctx.fillStyle = 'rgba(56, 189, 248, 0.08)';
-      ctx.lineWidth = 1.6;
-      ctx.beginPath();
-      ctx.arc(drawX, drawY + spriteSize * 0.48, spriteSize * 0.42, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
+      drawUnitShieldFront(
+        ctx,
+        unit,
+        modelLayout,
+        scale,
+        elapsed,
+        shieldState,
+        Boolean(modelLayout.anim?.reducedMotion),
+      );
     }
 
     // Heal glow pulse
@@ -1471,9 +1523,19 @@ export class BattleRenderer {
       ctx.fillRect(barX, barY, barW * hpPct, barH);
 
       if (unit.shield > 0) {
-        const shdPct = Math.min(1, unit.shield / Math.max(1, unit.maxHp));
-        ctx.fillStyle = '#38bdf8';
-        ctx.fillRect(barX, barY + barH - 1.6, barW * shdPct, 1.6);
+        const shdMax = Math.max(1, unit.shieldMax || unit.maxHp);
+        const shdPct = Math.max(0.04, Math.min(1, unit.shield / shdMax));
+        const shdTheme = shieldState?.themeId
+          ? getShieldTheme(shieldState.themeId)
+          : resolveShieldTheme({ themeId: unit.shieldThemeId, targetUnit: unit });
+        const shdH = unit.isBoss ? 2.4 : 2.0;
+        const shdY = barY + barH + 1.2;
+        ctx.fillStyle = 'rgba(5, 9, 18, 0.88)';
+        ctx.fillRect(barX - 1, shdY - 0.5, barW + 2, shdH + 1);
+        ctx.fillStyle = shdTheme.palette.barColor || shdTheme.palette.primary || '#38bdf8';
+        ctx.fillRect(barX, shdY, barW * shdPct, shdH);
+        ctx.fillStyle = shdTheme.palette.core || '#ffffff';
+        ctx.fillRect(barX + Math.max(0, barW * shdPct - 1.5), shdY, 1.5, shdH);
       }
 
       if (unit.isBoss) {
