@@ -75,14 +75,10 @@ test('All 18 non-Unit cards have valid, unique AssetManager registrations with r
     const diskPath = path.resolve(ROOT, entry.src.replace(/^\.\//, ''));
     assert.ok(fs.existsSync(diskPath), `Artwork file missing on disk: ${diskPath}`);
 
-    if (entry.format === 'png') {
-      assert.ok(entry.src.startsWith('./assets/cards/art/fg/'), `Redesigned FG must live under assets/cards/art/fg/: ${entry.src}`);
-      assertValidPngRgba512(diskPath);
-      transparentFgCount += 1;
-    } else {
-      assert.equal(entry.format, 'webp');
-      assertValidWebp(diskPath);
-    }
+    assert.equal(entry.format, 'png', `Non-Unit card ${card.id} foreground must be RGBA PNG`);
+    assert.ok(entry.src.startsWith('./assets/cards/art/fg/'), `Redesigned FG must live under assets/cards/art/fg/: ${entry.src}`);
+    assertValidPngRgba512(diskPath);
+    transparentFgCount += 1;
 
     if (card.backgroundAssetId) {
       assert.ok(
@@ -108,13 +104,8 @@ test('All 18 non-Unit cards have valid, unique AssetManager registrations with r
     }
   }
 
-  assert.equal(transparentFgCount, 17, 'Expected 17 redesigned RGBA PNG foregrounds (1 pending quota reset)');
-  assert.equal(pairedBgCount, 15, 'Expected 15 fully paired two-layer non-Unit cards');
-
-  // Verify Overclock Core backdrop is also valid on disk and registered for future FG pairing
-  const ocBg = ASSETS_CONFIG.card_bg_overclock_core;
-  assert.ok(ocBg, 'card_bg_overclock_core should be registered');
-  assertValidWebp(path.resolve(ROOT, ocBg.src.replace(/^\.\//, '')));
+  assert.equal(transparentFgCount, 18, 'Expected all 18 non-Unit cards to use RGBA PNG foregrounds');
+  assert.equal(pairedBgCount, 18, 'Expected all 18 non-Unit cards to have paired two-layer FG PNG + BG WebP assets');
 });
 
 test('No depth maps exist for non-Unit cards', () => {
@@ -137,7 +128,7 @@ test('No depth maps exist for non-Unit cards', () => {
   assert.equal(depthFiles.length, 0, `Unexpected depth files in assets/cards/art: ${depthFiles.join(', ')}`);
 });
 
-test('All 10 Unit cards and their unit sprites remain completely unchanged', () => {
+test('All 10 Unit cards, unit sprites, and Astra Commander portrait remain completely unchanged', () => {
   const unitCards = cardsData.cards.filter((c) => c.category === 'unit');
   assert.equal(unitCards.length, 10, 'Expected exactly 10 Unit cards');
 
@@ -160,6 +151,12 @@ test('All 10 Unit cards and their unit sprites remain completely unchanged', () 
     const diskPath = path.resolve(ROOT, entry.src.replace(/^\.\//, ''));
     assert.ok(fs.existsSync(diskPath), `Unit sprite missing: ${diskPath}`);
   }
+
+  // Verify Astra Commander portrait is untouched and distinct from Astral Nova
+  const astraPortrait = ASSETS_CONFIG.hero_portrait_astra;
+  assert.ok(astraPortrait, 'hero_portrait_astra missing from ASSETS_CONFIG');
+  assert.notEqual(astraPortrait.src, ASSETS_CONFIG.card_art_astral_nova.src);
+  assert.ok(fs.existsSync(path.resolve(ROOT, astraPortrait.src.replace(/^\.\//, ''))), 'Astra Commander portrait missing on disk');
 });
 
 test('NonUnitCardPlayVfx binds both backgroundAssetId and iconAssetId for layered cards', () => {

@@ -508,6 +508,7 @@
       "upgradedName": "Bastion Ward",
       "maxName": "Astral Bulwark",
       "iconAssetId": "card_art_aegis_blessing",
+      "backgroundAssetId": "card_bg_aegis_blessing",
       "cost": 26,
       "cooldownSec": 5.0,
       "effect": {
@@ -531,6 +532,7 @@
       "upgradedName": "Hyper Relay",
       "maxName": "Astral Conduit",
       "iconAssetId": "card_art_overclock_core",
+      "backgroundAssetId": "card_bg_overclock_core",
       "cost": 16,
       "cooldownSec": 5.5,
       "effect": {
@@ -599,6 +601,7 @@
       "upgradedName": "Sanctity Field",
       "maxName": "Aegis Absolution",
       "iconAssetId": "card_art_cleanse_beacon",
+      "backgroundAssetId": "card_bg_cleanse_beacon",
       "cost": 18,
       "cooldownSec": 4.8,
       "effect": {
